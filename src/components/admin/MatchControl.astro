@@ -22,7 +22,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
       <a href={action}>{a.name} vs {b.name}</a>
     </h3>
     <span class="subtle">{ev.name} · {m.stage} · Bo{m.bestOf}</span>
-    <span class:list={["badge", { solid: m.status === "live", live: m.status === "live" }]}>{m.status}</span>
+    <span class:list={["badge", { live: m.status === "live", blue: m.status === "upcoming" }]}>{m.status}</span>
   </header>
 
   <div class="control-series" aria-label={`Series ${a.name} ${m.seriesA}, ${b.name} ${m.seriesB}`}>
@@ -36,7 +36,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
       <div class="control-map">
         <p class="map-label">
           Map {controlIndex + 1}: <strong>{current.map}</strong>
-          {current.live ? <span class="badge solid live">Live</span> : <span class="subtle">· not started</span>}
+          {current.live ? <span class="badge live">Live</span> : <span class="subtle">· not started</span>}
         </p>
         <div class="rounds">
           {(["A", "B"] as const).map((side) => {

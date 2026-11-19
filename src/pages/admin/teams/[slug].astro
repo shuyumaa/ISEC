@@ -73,6 +73,8 @@ const roster = t ? rosterOf(t.slug) : [];
                   <select id={`role-${p?.slug ?? "new"}`} name="role">{ROLES.map((r) => <option selected={p?.role === r}>{r}</option>)}</select>
                 </div>
                 <div class="field"><label for={`age-${p?.slug ?? "new"}`}>Age</label><input id={`age-${p?.slug ?? "new"}`} name="age" type="number" min="12" max="60" value={p?.age || ""} /></div>
+                <div class="field"><label for={`ign-${p?.slug ?? "new"}`}>In-game name (if different)</label><input id={`ign-${p?.slug ?? "new"}`} name="ign" maxlength="64" autocomplete="off" spellcheck="false" value={p?.ign ?? ""} /></div>
+                <div class="field"><label for={`steam-${p?.slug ?? "new"}`}>Steam ID</label><input id={`steam-${p?.slug ?? "new"}`} name="steamId" maxlength="32" autocomplete="off" spellcheck="false" inputmode="numeric" placeholder="7656… or [U:1:…]" value={p?.steamId ?? ""} /></div>
                 <div class="field"><label for={`cc-${p?.slug ?? "new"}`}>Country code</label><input id={`cc-${p?.slug ?? "new"}`} name="countryCode" maxlength="2" pattern="[A-Za-z]{2}" value={p?.countryCode ?? t.countryCode} /></div>
               </div>
               <div class="actions">

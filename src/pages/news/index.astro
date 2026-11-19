@@ -11,7 +11,6 @@ const sorted = getArticles();
   <LiveRegion key="news" deps={["article:*"]}>
   <header class="page-head">
     <h1>News</h1>
-    <p>Announcements, recaps, interviews and ranking analysis from the ISEC circuit.</p>
   </header>
   <div class="news-wrap"><NewsList items={sorted} lead /></div>
   </LiveRegion>

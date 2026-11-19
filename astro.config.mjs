@@ -23,8 +23,9 @@ export default defineConfig({
   adapter: node({ mode: "standalone" }),
   trailingSlash: "ignore",
   security: {
-    // Reject cross-site form posts (CSRF) on every on-demand route.
-    checkOrigin: true,
+    // CSRF origin checking is done in src/middleware.ts so the game-server
+    // ingest endpoints (which never send an Origin header) can be exempted.
+    checkOrigin: false,
     allowedDomains: hosts,
   },
   vite: { build: { target: "es2022" } },

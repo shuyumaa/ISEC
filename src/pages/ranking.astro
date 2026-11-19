@@ -17,9 +17,8 @@ const updated = rankingUpdated
 <Base title="World ranking" description="The ISEC CS2 world team ranking.">
   <LiveRegion key="ranking" deps={["ranking:*", "team:*", "player:*", "meta:*"]}>
   <header class="page-head">
-    <span class="eyebrow">Updated <time datetime={rankingUpdated}>{updated}</time></span>
     <h1>World ranking</h1>
-    <p>Points weigh results from the last six months by event tier, opponent strength and recency.</p>
+    <p>Updated <time datetime={rankingUpdated}>{updated}</time>. Points weigh the last six months of results by event tier, opponent strength and recency.</p>
   </header>
 
   <div class="table-wrap" role="region" aria-labelledby="ranking-caption" tabindex="0">
@@ -56,7 +55,7 @@ const updated = rankingUpdated
                   {r.change === 0 ? (
                     <span>–<span class="visually-hidden"> no change</span></span>
                   ) : (
-                    <span class="chg">
+                    <span class:list={["chg", r.change > 0 ? "up" : "down"]}>
                       <Icon name={r.change > 0 ? "up" : "down"} size={12} />
                       <span class="visually-hidden">{r.change > 0 ? "up" : "down"}</span>
                       {Math.abs(r.change)}

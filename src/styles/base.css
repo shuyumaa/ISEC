@@ -1,3 +1,4 @@
+/* Layer order is declared inline in the layouts' <head>, before any stylesheet. */
 @layer reset, tokens, base, layout, components, utilities;
 
 @layer reset {
@@ -49,7 +50,8 @@
     font-family: var(--font-sans);
     font-size: 100%;
     line-height: 1.5;
-    accent-color: var(--text-primary);
+    accent-color: var(--link);
+    caret-color: var(--link);
     scrollbar-color: var(--border-strong) var(--background);
     scroll-padding-block-start: var(--sp-10);
   }
@@ -101,13 +103,20 @@
   }
 
   ::selection {
-    background: var(--inverse);
-    color: var(--on-inverse);
+    background: var(--tag-blue-bg);
+    color: var(--text-primary);
   }
 
   :focus-visible {
-    outline: var(--focus-width) solid var(--text-primary);
+    outline: var(--focus-width) solid var(--focus);
     outline-offset: var(--focus-width);
+  }
+
+  /* Inline links (prose, tables, breadcrumbs) use Carbon's link colour;
+     whole-row links keep the text colour and rely on hover + underline. */
+  :where(p, td, dd, .data-table th) > a:not([class]),
+  .article p a {
+    color: var(--link);
   }
 
   time,

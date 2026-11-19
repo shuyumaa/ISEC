@@ -20,7 +20,10 @@ import {
 const live = liveMatches();
 const upcoming = upcomingMatches();
 const featured = [...live, ...upcoming].sort((a, b) => b.stars - a.stars)[0];
-const upcomingDays = groupByDay(upcoming.slice(0, 8));
+// The featured match is shown once, in the scoreboard, not again in the lists.
+const notFeatured = <T extends { id: string }>(list: T[]) => list.filter((m) => m.id !== featured?.id);
+const liveRest = notFeatured(live);
+const upcomingDays = groupByDay(notFeatured(upcoming).slice(0, 8));
 const results = completedMatches().slice(0, 8);
 const activeEvents = getEvents().filter((e) => e.status !== "completed");
 const news = getArticles();
@@ -52,10 +55,10 @@ const news = getArticles();
 
       <Panel title="Live now" id="live-now">
         {
-          live.length ? (
-            live.map((m) => <MatchRow match={m} />)
+          liveRest.length ? (
+            liveRest.map((m) => <MatchRow match={m} />)
           ) : (
-            <p class="empty">No matches are live right now.</p>
+            <p class="empty">{live.length ? "No other matches are live." : "No matches are live right now."}</p>
           )
         }
       </Panel>

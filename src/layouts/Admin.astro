@@ -37,6 +37,7 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <style is:inline>@layer reset, tokens, base, layout, components, utilities;</style>
     <meta name="color-scheme" content="light dark" />
     <script is:inline>
       try {
@@ -52,7 +53,7 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path 
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="admin-header">
       <a href="/admin/" class="admin-brand" aria-label="ISEC admin home">
-        <Logo height="1.25rem" />
+        <Logo height="clamp(2.25rem, 2rem + 1vw, 2.75rem)" />
         <span>Admin</span>
       </a>
       {

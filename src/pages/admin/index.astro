@@ -3,7 +3,7 @@ import Admin from "../../layouts/Admin.astro";
 import LiveRegion from "../../components/LiveRegion.astro";
 import LocalTime from "../../components/LocalTime.astro";
 import MatchControl from "../../components/admin/MatchControl.astro";
-import { event, getArticles, getMatches, getTeams, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
+import { event, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
 import { listenerCount } from "../../server/bus";
 import { auditLog } from "../../server/db";
 import { handlePost } from "../../server/handle";
@@ -24,19 +24,11 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
 ---
 
 <Admin title="Dashboard" error={result?.error}>
-  <LiveRegion key="tiles" deps={["*"]}>
-    <div class="stat-tiles">
-      <div><span class="label">Live matches</span><span class="big">{live.length}</span></div>
-      <div><span class="label">Upcoming</span><span class="big">{upcomingMatches().length}</span></div>
-      <div><span class="label">Matches total</span><span class="big">{getMatches().length}</span></div>
-      <div><span class="label">Teams</span><span class="big">{getTeams().length}</span></div>
-      <div><span class="label">Articles</span><span class="big">{getArticles().length}</span></div>
-      <div><span class="label">Live viewers connected</span><span class="big">{listenerCount()}</span></div>
-    </div>
-  </LiveRegion>
-
   <section class="admin-section" aria-labelledby="live-h">
-    <h2 id="live-h">Live now</h2>
+    <div class="section-head">
+      <h2 id="live-h">Live now</h2>
+      <LiveRegion key="viewers" deps={["*"]}><span class="muted">{listenerCount()} viewers connected</span></LiveRegion>
+    </div>
     <LiveRegion key="live-controls" deps={["match:*"]}>
       <div class="control-grid">
         {live.length ? live.map((m) => <MatchControl match={m} />) : <p class="empty">No live matches. Start one from "Up next".</p>}
@@ -96,6 +88,13 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
 
 <style>
   @layer components {
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--sp-03) var(--sp-05);
+    }
     .control-grid {
       display: grid;
       gap: var(--sp-05);

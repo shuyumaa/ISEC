@@ -120,10 +120,13 @@ const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L")
       font-size: var(--type-body-sm);
       color: var(--text-secondary);
 
+      /* Fixed fills, 5:1 with white in both themes; the W/L letter is the cue. */
+      background: var(--red-60);
+      border-color: var(--red-60);
+      color: var(--white);
       &.w {
-        background: var(--inverse);
-        border-color: var(--inverse);
-        color: var(--on-inverse);
+        background: var(--green-60);
+        border-color: var(--green-60);
       }
     }
     .roster {

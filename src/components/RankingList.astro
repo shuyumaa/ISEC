@@ -23,18 +23,18 @@ const rows = getRanking().slice(0, limit);
             <span class="pts">{r.points}</span>
             <span class="chg">
               {r.change > 0 && (
-                <>
+                <span class="up">
                   <Icon name="up" size={12} />
                   <span class="visually-hidden">up</span>
                   {r.change}
-                </>
+                </span>
               )}
               {r.change < 0 && (
-                <>
+                <span class="down">
                   <Icon name="down" size={12} />
                   <span class="visually-hidden">down</span>
                   {Math.abs(r.change)}
-                </>
+                </span>
               )}
               {r.change === 0 && (
                 <>
@@ -82,7 +82,8 @@ const rows = getRanking().slice(0, limit);
     .pts {
       font-family: var(--font-mono);
     }
-    .chg {
+    .chg,
+    .chg > span {
       display: inline-flex;
       align-items: center;
       justify-content: end;

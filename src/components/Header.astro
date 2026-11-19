@@ -21,7 +21,7 @@ const sectionOf = (href: string) =>
 <header class="site-header">
   <div class="header-inner">
     <a class="site-logo" href="/" aria-label="ISEC home">
-      <Logo height="1.375rem" label="ISEC" />
+      <Logo height="var(--logo-header-h)" label="ISEC" />
     </a>
 
     <nav class="site-nav" aria-label="Primary">
@@ -79,8 +79,13 @@ const sectionOf = (href: string) =>
       position: sticky;
       inset-block-start: 0;
       z-index: 10;
-      background: var(--background);
-      border-block-end: var(--border-width) solid var(--border-subtle);
+      /* Carbon g100 UI shell: dark in both themes for maximum contrast, and
+         the white embossed logo shows its chromatic aberration best on it. */
+      --logo-image: var(--logo-dark);
+      --logo-header-h: clamp(2.5rem, 2rem + 1.5vw, 3.25rem);
+      color-scheme: dark;
+      background: var(--header-bg);
+      color: var(--header-fg);
     }
 
     .header-inner {
@@ -88,7 +93,7 @@ const sectionOf = (href: string) =>
       align-items: stretch;
       gap: var(--sp-03);
       max-inline-size: var(--container);
-      min-block-size: 3rem;
+      min-block-size: var(--header-height);
       margin-inline: auto;
       padding-inline: var(--gutter);
 
@@ -102,8 +107,8 @@ const sectionOf = (href: string) =>
     .site-logo {
       display: flex;
       align-items: center;
-      padding-inline-end: var(--sp-05);
-      color: var(--text-primary);
+      padding-inline-end: var(--sp-06);
+      color: var(--header-fg);
     }
 
     .site-nav {
@@ -119,6 +124,10 @@ const sectionOf = (href: string) =>
       margin-inline-start: auto;
     }
 
+    .site-header :focus-visible {
+      outline-color: var(--header-fg);
+    }
+
     .menu-button,
     .theme-toggle {
       display: inline-flex;
@@ -129,10 +138,11 @@ const sectionOf = (href: string) =>
       padding-inline: var(--sp-04);
       border: 0;
       background: transparent;
+      color: var(--header-fg);
       cursor: pointer;
 
       &:hover {
-        background: var(--layer-hover);
+        background: var(--header-hover);
       }
       &:focus-visible {
         outline-offset: calc(var(--focus-width) * -1);
@@ -147,7 +157,7 @@ const sectionOf = (href: string) =>
     .site-menu {
       position: fixed;
       inset: auto;
-      inset-block-start: 3.0625rem;
+      inset-block-start: var(--header-height);
       inset-block-start: anchor(--menu-button bottom);
       inset-inline-end: var(--gutter);
       inline-size: min(80dvw, 20rem);
@@ -158,8 +168,8 @@ const sectionOf = (href: string) =>
       padding: var(--sp-03) 0;
       overflow: auto;
       border: var(--border-width) solid var(--border-strong);
-      background: var(--background);
-      color: var(--text-primary);
+      background: var(--header-bg);
+      color: var(--header-fg);
 
       & a {
         display: block;
@@ -168,15 +178,16 @@ const sectionOf = (href: string) =>
         text-decoration: none;
 
         &:hover {
-          background: var(--layer-hover);
+          background: var(--header-hover);
         }
         &:focus-visible {
+          outline: var(--focus-width) solid var(--header-fg);
           outline-offset: calc(var(--focus-width) * -1);
         }
         &:is([aria-current="page"], [aria-current="true"]) {
           font-weight: 600;
-          border-inline-start: var(--sp-02) solid var(--text-primary);
-          padding-inline-start: calc(var(--sp-05) - var(--sp-02));
+          background: var(--header-hover);
+          color: var(--header-accent);
         }
       }
     }
@@ -232,19 +243,20 @@ const sectionOf = (href: string) =>
           align-items: center;
           block-size: 100%;
           padding: 0 var(--sp-05);
-          font-size: var(--type-body-sm);
-          color: var(--text-secondary);
+          font-size: var(--type-body);
+          color: var(--header-fg-secondary);
 
           &:hover {
-            color: var(--text-primary);
+            color: var(--header-fg);
+            background: var(--header-hover);
           }
           &:is([aria-current="page"], [aria-current="true"]) {
-            color: var(--text-primary);
-            border-inline-start: 0;
-            padding-inline-start: var(--sp-05);
-            /* Shape cue (not colour alone): a 2px bar on the bottom edge. */
-            border-block-end: 2px solid var(--text-primary);
-            padding-block-start: 2px;
+            color: var(--header-fg);
+            background: transparent;
+            font-weight: 600;
+            /* Shape cue (not colour alone): a 3px bar on the bottom edge. */
+            border-block-end: 3px solid var(--header-accent);
+            padding-block-start: 3px;
           }
         }
       }

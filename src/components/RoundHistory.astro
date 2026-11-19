@@ -1,0 +1,141 @@
+---
+import type { MapResult, Team } from "../data";
+import Icon from "./Icon.astro";
+
+interface Props {
+  map: MapResult;
+  a: Team;
+  b: Team;
+  index: number;
+}
+const { map, a, b, index } = Astro.props;
+const rounds = map.rounds ?? [];
+const HOW = { elimination: "elimination", bomb: "bomb exploded", defuse: "bomb defused", time: "time ran out" } as const;
+const teamOf = (w: "A" | "B") => (w === "A" ? a : b);
+// Regulation is 24 rounds; overtime extends the strip. Unplayed slots stay empty.
+const count = Math.max(24, rounds.at(-1)?.n ?? 0);
+const byRound = new Map(rounds.map((r) => [r.n, r]));
+const slots = Array.from({ length: count }, (_, i) => ({ n: i + 1, r: byRound.get(i + 1) }));
+---
+
+{
+  rounds.length > 0 && (
+    <figure class="rounds" aria-labelledby={`rh-${index}`}>
+      <figcaption id={`rh-${index}`}>
+        Round history — {map.map}
+        <span class="legend">
+          <span class="key ct">CT</span>
+          <span class="key t">T</span>
+        </span>
+      </figcaption>
+      <div class="grid" style={`--count: ${count}`}>
+        {[
+          { side: "A" as const, team: a },
+          { side: "B" as const, team: b },
+        ].map((row) => (
+          <>
+            <span class="row-label">{row.team.tag}</span>
+            <ol class="row" aria-label={`Rounds won by ${row.team.name}`}>
+              {slots.map(({ n, r }) => {
+                const won = r?.winner === row.side;
+                return (
+                  <li class:list={["cell", won && ["won", r!.side === "CT" ? "ct" : "t"], { half: n === 12 }]} aria-hidden={won ? undefined : "true"}>
+                    {won && (
+                      <>
+                        <Icon name={r!.how} size={14} />
+                        <span class="visually-hidden">
+                          Round {n}: {teamOf(r!.winner).name} won on {r!.side}, {HOW[r!.how]}
+                        </span>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        ))}
+      </div>
+    </figure>
+  )
+}
+
+<style>
+  @layer components {
+    .rounds {
+      display: grid;
+      gap: var(--sp-03);
+      margin: 0;
+    }
+    figcaption {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: var(--sp-03);
+      font-weight: 600;
+    }
+    .legend {
+      display: inline-flex;
+      gap: var(--sp-03);
+      font-weight: 400;
+      font-size: var(--type-label);
+    }
+    .key {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+      &::before {
+        content: "";
+        inline-size: 0.75rem;
+        aspect-ratio: 1;
+        background: var(--side-ct);
+      }
+      &.t::before {
+        background: var(--side-t);
+      }
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 2.5rem minmax(0, 1fr);
+      gap: var(--sp-01) var(--sp-03);
+      align-items: center;
+      overflow-x: auto;
+    }
+    .row-label {
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(var(--count), minmax(1.25rem, 1fr));
+      gap: 2px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .cell {
+      display: grid;
+      place-items: center;
+      min-block-size: 1.5rem;
+      background: var(--layer);
+
+      /* Icon uses the page background: >= 4.7:1 on both fills in both themes. */
+      &.ct {
+        background: var(--side-ct);
+        color: var(--background);
+      }
+      &.t {
+        background: var(--side-t);
+        color: var(--background);
+      }
+      /* Half-time marker after round 12. */
+      &.half {
+        margin-inline-end: var(--sp-02);
+      }
+    }
+    @media (forced-colors: active) {
+      .cell.won {
+        border: 1px solid CanvasText;
+      }
+    }
+  }
+</style>

@@ -50,6 +50,26 @@ Every change is saved, written to the activity log and pushed to visitors immedi
 
 All admin forms work as normal form posts without JavaScript. With JavaScript on, the score buttons save in place without reloading the page.
 
+## Auto-sync from the game server
+
+Like HLTV's scorebot, ISEC can read a match straight from the tournament server, with no one typing scores:
+
+1. In the admin, open the match and choose **Connect a server** under "Game server feed".
+2. Paste the generated commands into the CS2 server console (or the match config):
+   ```
+   mp_teamname_1 "Team A"
+   mp_teamname_2 "Team B"
+   mp_logdetail 3
+   log on
+   logaddress_add_http "https://<your-site>/api/ingest/cs2/<key>"
+   ```
+3. The server now streams its event log to ISEC. Scores, round history (who won each round and how), the live kill log, and player kills, deaths, assists, ADR, KAST and headshot % update on every open page as they happen. Maps close and the series finishes by the same rules as manual scoring.
+
+How the feed matches things up:
+- **Sides:** worked out from the server's team names, or from known players' sides when names aren't set. Set each player's in-game name or Steam ID under Teams & players so the feed recognises them. Unrecognised names are listed on the match's admin page.
+- **No server access:** use the Game State Integration file shown on the same page from an observer or caster PC instead.
+- **Security:** the key in the URL is the credential, because CS2 can't send headers. **Generate a new key** invalidates the old one, and **Disconnect** stops the feed. Requests with an unknown key get `404`.
+
 ## How live sync works
 
 1. Every admin write runs in a SQLite transaction and is broadcast on an in-process change bus (`src/server/bus.ts`).

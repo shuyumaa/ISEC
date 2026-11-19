@@ -15,11 +15,10 @@ const date = (iso: string) => Temporal.PlainDate.from(iso).toLocaleString("en-GB
     items.map((a) => (
       <li>
         <a href={`/news/${a.slug}/`}>
-          <span class="cat">{a.category}</span>
           <span class="title">{a.title}</span>
           {lead && <span class="summary">{a.summary}</span>}
           <span class="meta">
-            <time datetime={a.published}>{date(a.published)}</time> · {a.readMinutes} min read
+            {a.category} · <time datetime={a.published}>{date(a.published)}</time> · {a.readMinutes} min read
           </span>
         </a>
       </li>
@@ -40,12 +39,6 @@ const date = (iso: string) => Temporal.PlainDate.from(iso).toLocaleString("en-GB
       &:hover .title {
         text-decoration: underline;
       }
-    }
-    .cat {
-      font-size: var(--type-label);
-      letter-spacing: 0.032em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
     }
     .title {
       font-weight: 500;

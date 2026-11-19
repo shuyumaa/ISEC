@@ -8,13 +8,24 @@ import MatchMetaFields from "../../../components/admin/MatchMetaFields.astro";
 import { findMatch, getPlayers, team } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { MAP_POOL, deleteMatch, updateMatch } from "../../../server/mutations";
+import { createFeed, feedFor, revokeFeed } from "../../../server/ingest";
+import LocalTime from "../../../components/LocalTime.astro";
 
 const id = Astro.params.id ?? "";
 
 const result = await handlePost(Astro.request, (form, intent) => {
   if (intent === "delete") {
     deleteMatch(id);
+    revokeFeed(id);
     return { redirect: "/admin/matches/", message: "Match deleted" };
+  }
+  if (intent === "feed-create") {
+    createFeed(id);
+    return { message: "Server feed key created" };
+  }
+  if (intent === "feed-revoke") {
+    revokeFeed(id);
+    return { message: "Server feed disconnected" };
   }
   updateMatch(id, intent, form);
   return {
@@ -33,12 +44,40 @@ const action = `/admin/matches/${m.id}/`;
 const roster = (slug: string) => getPlayers().filter((p) => p.team === slug);
 const pickValue = (slug?: string) => (slug === m.teamA ? "A" : slug === m.teamB ? "B" : "");
 const deps = [`match:${m.id}`];
+const feed = feedFor(m.id);
+const origin = Astro.url.origin;
+const cs2Commands = feed
+  ? [
+      `mp_teamname_1 "${a.name}"`,
+      `mp_teamname_2 "${b.name}"`,
+      "mp_logdetail 3",
+      "log on",
+      `logaddress_add_http "${origin}/api/ingest/cs2/${feed.key}"`,
+    ].join("\n")
+  : "";
+const gsiConfig = feed
+  ? `"ISEC"
+{
+  "uri" "${origin}/api/ingest/gsi/${feed.key}"
+  "timeout" "5.0"
+  "buffer" "0.1"
+  "throttle" "0.5"
+  "heartbeat" "10.0"
+  "data"
+  {
+    "provider" "1"
+    "map" "1"
+    "round" "1"
+    "allplayers_id" "1"
+    "allplayers_match_stats" "1"
+  }
+}`
+  : "";
 ---
 
 <Admin title={`${a.name} vs ${b.name}`} error={result?.error}>
   <p class="actions">
     <a class="btn ghost small" href={`/matches/${m.id}/`} target="_blank" rel="noopener">Public match page <Icon name="arrow" size={14} /></a>
-    <a class="btn ghost small" href="/admin/matches/">All matches</a>
   </p>
 
   <section class="admin-section" aria-labelledby="live-h">
@@ -46,6 +85,68 @@ const deps = [`match:${m.id}`];
     <LiveRegion key="control" deps={deps}>
       <MatchControl match={m} />
     </LiveRegion>
+  </section>
+
+  <section class="admin-section" aria-labelledby="feed-h">
+    <h2 id="feed-h">Game server feed</h2>
+    <LiveRegion key="feed" deps={[...deps, "feed:*"]}>
+      {
+        feed ? (
+          <p class="feed-status">
+            {m.feed?.lastSeenAt ? (
+              <>
+                <span class="badge green">Connected</span> Last data <LocalTime instant={m.feed.lastSeenAt} zone="UTC" format="datetime" /> via{" "}
+                {m.feed.source === "gsi" ? "Game State Integration" : "server log"}.
+              </>
+            ) : (
+              <>
+                <span class="badge blue">Waiting</span> No data received yet. Run the commands below on the match server.
+              </>
+            )}
+          </p>
+        ) : (
+          <p class="muted">Connect the tournament server and scores, round history, the kill log and player stats update here and on the site automatically.</p>
+        )
+      }
+      {m.feed?.unmatched?.length ? (
+        <p class="notice error">
+          Players on the server not matched to a roster: {m.feed.unmatched.join(", ")}. Set their in-game name or Steam ID under Teams & players.
+        </p>
+      ) : null}
+    </LiveRegion>
+    {
+      feed && (
+        <div class="feed-config">
+          <div class="field">
+            <div class="copy-row">
+              <label for="cmd-cs2">Server console (or match cfg)</label>
+              <span class="copy">
+                <button type="button" class="btn ghost small" command="--copy" commandfor="cmd-cs2">Copy commands</button>
+                <span class="tip" role="status" />
+              </span>
+            </div>
+            <textarea id="cmd-cs2" readonly rows="5" spellcheck="false">{cs2Commands}</textarea>
+          </div>
+          <details>
+            <summary>Observer PC instead: Game State Integration file</summary>
+            <div class="field">
+              <div class="copy-row">
+                <label for="cmd-gsi">Save as <code>game/csgo/cfg/gamestate_integration_isec.cfg</code></label>
+                <span class="copy">
+                  <button type="button" class="btn ghost small" command="--copy" commandfor="cmd-gsi">Copy file</button>
+                  <span class="tip" role="status" />
+                </span>
+              </div>
+              <textarea id="cmd-gsi" readonly rows="16" spellcheck="false">{gsiConfig}</textarea>
+            </div>
+          </details>
+        </div>
+      )
+    }
+    <form method="post" action={action} class="actions">
+      <button type="submit" class="btn small" name="intent" value="feed-create">{feed ? "Generate a new key" : "Connect a server"}</button>
+      {feed && <button type="submit" class="btn ghost small" name="intent" value="feed-revoke">Disconnect</button>}
+    </form>
   </section>
 
   <section class="admin-section" aria-labelledby="details-h">
@@ -232,6 +333,47 @@ const deps = [`match:${m.id}`];
     .maps-forms {
       display: grid;
       gap: var(--sp-05);
+    }
+    .feed-status {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .feed-config {
+      display: grid;
+      gap: var(--sp-05);
+      max-inline-size: 60rem;
+      & textarea {
+        font-family: var(--font-mono);
+        font-size: var(--type-body-sm);
+        min-block-size: auto;
+      }
+      & summary {
+        cursor: pointer;
+        color: var(--link);
+      }
+    }
+    .copy-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: var(--sp-03);
+    }
+    .copy {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .tip {
+      font-size: var(--type-label);
+      color: var(--support-success);
+      opacity: 0;
+      transition: opacity var(--duration-fast);
+    }
+    .tip:not(:empty) {
+      opacity: 1;
     }
     .stats-input input {
       min-inline-size: 4.5rem;

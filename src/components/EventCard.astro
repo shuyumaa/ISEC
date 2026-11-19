@@ -12,8 +12,8 @@ const statusLabel = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Comp
 
 <a class:list={["event-card", { compact }]} href={`/events/${ev.slug}/`}>
   <span class="top">
-    <span class:list={["badge", { solid: ev.status === "ongoing" }]}>{statusLabel}</span>
-    <span class="badge">{ev.tier}</span>
+    <span class:list={["badge", { green: ev.status === "ongoing", blue: ev.status === "upcoming" }]}>{statusLabel}</span>
+    <span class:list={["badge", { purple: ev.tier === "Major" }]}>{ev.tier}</span>
   </span>
   <span class="name">{ev.name}</span>
   <span class="facts-line">

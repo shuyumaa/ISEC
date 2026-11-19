@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import type { Article, EsportsEvent, Match, Player, RankingEntry, Team } from "../data/types";
+import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, Team } from "../data/types";
 import { publish } from "./bus";
 import { events as seedEvents, ranking as seedRanking, rankingUpdated as seedRankingUpdated } from "./seed/events";
 import { matches as seedMatches } from "./seed/matches";
@@ -20,7 +20,7 @@ import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
 // Loaded at runtime so bundlers don't try to resolve the prefix-only builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
-export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta";
+export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed";
 
 const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
 mkdirSync(DATA_DIR, { recursive: true });
@@ -64,6 +64,7 @@ export interface Snapshot {
   matches: Match[];
   articles: Article[];
   ranking: RankingEntry[];
+  feeds: Feed[];
   meta: { rankingUpdated: string };
 }
 
@@ -87,6 +88,7 @@ export function snapshot(): Snapshot {
     matches: all<Match>("match"),
     articles: all<Article>("article"),
     ranking: all<RankingEntry>("ranking").sort((a, b) => b.points - a.points),
+    feeds: all<Feed>("feed"),
     meta: { rankingUpdated: meta.find((m) => m.key === "rankingUpdated")?.value ?? "" },
   };
   return cached;
@@ -114,7 +116,7 @@ export interface Tx {
 }
 
 /** Run several writes atomically, audit them and broadcast them as one change set. */
-export function transaction(fn: (tx: Tx) => void, actor = "system", action = "update") {
+export function transaction(fn: (tx: Tx) => void, actor = "system", action = "update", { audit = true } = {}) {
   const changes: Change[] = [];
   const put: Tx["put"] = (kind, id, data) => {
     db.prepare(
@@ -131,7 +133,7 @@ export function transaction(fn: (tx: Tx) => void, actor = "system", action = "up
   db.exec("BEGIN IMMEDIATE");
   try {
     fn({ put, remove });
-    for (const c of changes) {
+    for (const c of audit ? changes : []) {
       db.prepare("INSERT INTO audit (actor, action, target) VALUES (?, ?, ?)").run(actor, action, `${c.kind}:${c.id}`);
     }
     db.exec("COMMIT");

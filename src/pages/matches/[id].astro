@@ -2,6 +2,8 @@
 import Base from "../../layouts/Base.astro";
 import LiveRegion from "../../components/LiveRegion.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import KillFeed from "../../components/KillFeed.astro";
+import RoundHistory from "../../components/RoundHistory.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
 import Scoreboard from "../../components/Scoreboard.astro";
@@ -19,6 +21,7 @@ const h2h = headToHead(a.slug, b.slug);
 const others = matchesForEvent(ev.slug).filter((x) => x.id !== m.id).slice(0, 6);
 const played = m.maps.map((map, i) => ({ map, i })).filter(({ map }) => map.stats);
 const tabsId = `stats-${m.id}`;
+const liveKills = m.maps.find((x) => x.live)?.kills ?? [];
 const tabs = [
   ...(played.length > 1 ? [{ id: `${tabsId}-all`, label: "All maps", index: undefined as number | undefined }] : []),
   ...played.map(({ map, i }) => ({ id: `${tabsId}-${i}`, label: `${map.map}${map.live ? " (live)" : ""}`, index: i })),
@@ -59,7 +62,7 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
                     <div class="map-name">
                       <strong>{map.map}</strong>
                       <span class="subtle">{map.pickedBy ? `Pick: ${team(map.pickedBy).name}` : "Decider"}</span>
-                      {map.live && <span class="badge solid live">Live</span>}
+                      {map.live && <span class="badge live">Live</span>}
                     </div>
                     {map.scoreA !== undefined ? (
                       <div class="map-score">
@@ -87,6 +90,18 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
             }
           </ol>
         </Panel>
+
+        {
+          m.maps.some((x) => x.rounds?.length) && (
+            <Panel title="Rounds" id="rounds">
+              <div class="round-histories">
+                {m.maps.map((map, i) => (
+                  <RoundHistory map={map} a={a} b={b} index={i} />
+                ))}
+              </div>
+            </Panel>
+          )
+        }
 
         <Panel title="Player stats" id="player-stats">
           {
@@ -124,6 +139,14 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
       </div>
 
       <aside class="stack" aria-label="Match details">
+        {
+          liveKills.length > 0 && (
+            <Panel title="Live log" id="live-log">
+              <KillFeed kills={liveKills} />
+            </Panel>
+          )
+        }
+
         <Panel title="Map veto">
           <ol class="veto">
             {
@@ -194,7 +217,7 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
         background: var(--layer);
       }
       &.live {
-        outline: 2px solid var(--text-primary);
+        outline: 2px solid var(--live);
         outline-offset: -2px;
       }
     }
@@ -238,6 +261,11 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
       font-family: var(--font-mono);
     }
 
+    .round-histories {
+      display: grid;
+      gap: var(--sp-06);
+      padding-block-start: var(--sp-05);
+    }
     .stat-tables {
       display: grid;
       gap: var(--sp-06);

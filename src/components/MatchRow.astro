@@ -41,7 +41,7 @@ const label =
   <span class="when">
     {
       m.status === "live" ? (
-        <span class="badge solid live">Live</span>
+        <span class="badge live">Live</span>
       ) : (
         <>
           {showDate && <LocalTime instant={instant} zone={ev.timeZone} format="date" class="date" />}
@@ -94,9 +94,9 @@ const label =
         outline-offset: calc(var(--focus-width) * -1);
       }
 
+      /* Live rows: the red LIVE tag plus a faint layer, not a side stripe. */
       &.live {
-        border-inline-start: 3px solid var(--text-primary);
-        padding-inline-start: calc(var(--sp-05) - 3px);
+        background: var(--layer);
       }
     }
 

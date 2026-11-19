@@ -36,6 +36,10 @@ export interface Player {
   role: Role;
   countryCode: string;
   age: number;
+  /** Name shown on the game server, if different from the nickname (used by the live feed). */
+  ign?: string;
+  /** SteamID64 or [U:1:n] — the most reliable way to match server log lines to a player. */
+  steamId?: string;
 }
 
 export type EventStatus = "ongoing" | "upcoming" | "completed";
@@ -80,6 +84,27 @@ export interface PlayerMapStats {
   rating: number;
 }
 
+export type RoundEnd = "elimination" | "bomb" | "defuse" | "time";
+
+export interface RoundResult {
+  n: number;
+  /** Which team won the round (A/B) and on which side they played it. */
+  winner: "A" | "B";
+  side: Side;
+  how: RoundEnd;
+}
+
+export interface KillEvent {
+  at: string; // ISO instant
+  round: number;
+  attacker: string; // display name
+  attackerSide: Side;
+  victim: string;
+  victimSide: Side;
+  weapon: string;
+  headshot: boolean;
+}
+
 export interface MapResult {
   map: MapName;
   pickedBy?: string; // team slug, undefined for decider
@@ -92,6 +117,10 @@ export interface MapResult {
   halfB?: [number, number];
   live?: boolean;
   stats?: PlayerMapStats[];
+  /** Round-by-round history (filled by the live server feed). */
+  rounds?: RoundResult[];
+  /** Most recent kills on this map, newest first (live feed). */
+  kills?: KillEvent[];
 }
 
 export interface VetoStep {
@@ -116,6 +145,40 @@ export interface Match {
   maps: MapResult[];
   veto: VetoStep[];
   stars: 0 | 1 | 2 | 3;
+  /** Live server feed status, when a game server is connected to this match. */
+  feed?: { lastSeenAt: string; source: "cs2-log" | "gsi"; unmatched?: string[] };
+}
+
+/** A connected game-server feed. The key is the secret in the ingest URL. */
+export interface Feed {
+  key: string;
+  match: string;
+  createdAt: string;
+  lastSeenAt?: string;
+  /** Live parser state so a restart resumes mid-map. */
+  state?: FeedState;
+}
+
+export interface FeedState {
+  mapName?: string;
+  /** Which team (A/B) currently plays CT. */
+  ct?: "A" | "B";
+  round: number;
+  players: Record<string, FeedPlayer>;
+  roundDied: string[];
+  roundContrib: string[];
+}
+
+export interface FeedPlayer {
+  key: string; // player slug or "name:<ign>"
+  slug?: string;
+  name: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  headshots: number;
+  kastRounds: number;
 }
 
 export interface RankingEntry {

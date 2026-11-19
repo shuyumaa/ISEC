@@ -29,10 +29,9 @@ const log = recent.map((m) => {
   <Breadcrumbs items={[{ label: "Stats", href: "/stats/" }, { label: p.nickname, href: `/players/${p.slug}/` }]} />
 
   <header class="player-head">
-    <span class="eyebrow">{p.role}</span>
     <h1>{p.nickname}</h1>
     <p class="muted">
-      {p.firstName} {p.lastName} · {p.age} years · {p.countryCode} ·
+      {p.role} · {p.firstName} {p.lastName} · {p.age} years · {p.countryCode} ·
       <a href={`/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a>
     </p>
   </header>
@@ -91,12 +90,6 @@ const log = recent.map((m) => {
         font-size: var(--type-display);
         font-weight: 300;
         line-height: 1;
-      }
-      & .eyebrow {
-        font-size: var(--type-label);
-        letter-spacing: 0.032em;
-        text-transform: uppercase;
-        color: var(--text-secondary);
       }
     }
     .team-link {

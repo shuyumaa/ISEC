@@ -3,8 +3,18 @@ import { readSession } from "./server/auth";
 
 const PUBLIC_ADMIN = new Set(["/admin/login", "/admin/login/", "/admin/logout", "/admin/logout/"]);
 
+const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
+
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname } = ctx.url;
+
+  // CSRF: every state-changing request must come from our own origin, except
+  // the game-server ingest endpoints, which authenticate with a secret key.
+  if (!SAFE.has(ctx.request.method) && !pathname.startsWith("/api/ingest/")) {
+    if (ctx.request.headers.get("origin") !== ctx.url.origin) {
+      return new Response("Cross-site requests are forbidden", { status: 403 });
+    }
+  }
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   const isAdminApi = pathname.startsWith("/api/admin/");
 

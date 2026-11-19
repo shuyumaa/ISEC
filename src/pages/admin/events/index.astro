@@ -13,7 +13,7 @@ import { formatRange, getEvents, money } from "../../../data";
           getEvents().map((e) => (
             <tr>
               <th scope="row"><a href={`/admin/events/${e.slug}/`}>{e.name}</a></th>
-              <td><span class:list={["badge", { solid: e.status === "ongoing" }]}>{e.status}</span></td>
+              <td><span class:list={["badge", { green: e.status === "ongoing", blue: e.status === "upcoming" }]}>{e.status}</span></td>
               <td>{formatRange(e.startDate, e.endDate)}</td>
               <td class="n">{money(e.prizePool)}</td>
             </tr>

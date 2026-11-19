@@ -129,6 +129,42 @@ function readMeta(form: FormData, m: Partial<Match>) {
   m.stars = int(form, "stars", { min: 0, max: 3, label: "Stars" }) as 0 | 1 | 2 | 3 ?? 0;
 }
 
+/**
+ * Set the running score of one map and apply the series rules: the map goes
+ * live, closes itself once decided (13, or an overtime win), the next map
+ * opens, and the match completes when a team has won enough maps. Shared by
+ * the admin round buttons and the game-server feed.
+ */
+export function applyMapScore(m: Match, index: number, scoreA: number, scoreB: number) {
+  const map = m.maps[index];
+  if (!map || m.status === "completed") return;
+  m.status = "live";
+  for (const other of m.maps) if (other !== map) delete other.live;
+  map.live = true;
+  map.scoreA = Math.max(0, scoreA);
+  map.scoreB = Math.max(0, scoreB);
+  syncHalves(map);
+
+  if (mapDecided({ ...map, live: false })) {
+    delete map.live;
+    const [a, b] = seriesScore(m);
+    const needed = Math.ceil(m.bestOf / 2);
+    if (a >= needed || b >= needed) {
+      m.status = "completed";
+    } else {
+      const next = m.maps.find((x) => !mapDecided(x) && x !== map);
+      if (next) {
+        next.live = true;
+        next.scoreA = 0;
+        next.scoreB = 0;
+        syncHalves(next);
+      }
+    }
+  }
+}
+
+export { normalise as normaliseMatch, syncHalves };
+
 export function createMatch(form: FormData): Match {
   const ids = snapshot().matches.map((x) => Number(x.id)).filter(Number.isFinite);
   const m: Match = {
@@ -192,33 +228,10 @@ export function updateMatch(id: string, intent: string, form: FormData): Match {
       const delta = Number(oneOf(form, "delta", ["1", "-1"] as const));
       const map = m.maps[index]!;
       if (m.status === "completed") throw new FormError("This match is already completed.");
-      m.status = "live";
-      for (const other of m.maps) if (other !== map) delete other.live;
-      map.live = true;
       const key = side === "A" ? "scoreA" : "scoreB";
-      map.scoreA ??= 0;
-      map.scoreB ??= 0;
-      map[key] = Math.max(0, map[key]! + delta);
-      syncHalves(map);
-
-      // Map over? Close it, and open the next one unless the series is decided.
-      const trial = { ...map, live: false };
-      if (mapDecided(trial)) {
-        delete map.live;
-        const [a, b] = seriesScore(m);
-        const needed = Math.ceil(m.bestOf / 2);
-        if (a >= needed || b >= needed) {
-          m.status = "completed";
-        } else {
-          const next = m.maps.find((x) => !mapDecided(x) && x !== map);
-          if (next) {
-            next.live = true;
-            next.scoreA = 0;
-            next.scoreB = 0;
-            syncHalves(next);
-          }
-        }
-      }
+      const next = { scoreA: map.scoreA ?? 0, scoreB: map.scoreB ?? 0 };
+      next[key] = Math.max(0, next[key] + delta);
+      applyMapScore(m, index, next.scoreA, next.scoreB);
       return saveMatch(m, `round ${side}${delta > 0 ? "+1" : "−1"} on ${map.map}`);
     }
 
@@ -402,7 +415,12 @@ export function savePlayer(teamSlug: string, slug: string | undefined, form: For
     role: oneOf(form, "role", ROLES, "Role"),
     countryCode: (optionalText(form, "countryCode", { max: 2 }) ?? team.countryCode).toUpperCase(),
     age: int(form, "age", { min: 12, max: 60, label: "Age" }) ?? 0,
+    ign: optionalText(form, "ign", { max: 64 }),
+    steamId: optionalText(form, "steamId", { max: 32 }),
   };
+  if (p.steamId && !/^(7656\d{13}|\[U:1:\d+\]|\d{1,10})$/.test(p.steamId)) {
+    throw new FormError("Steam ID must be a SteamID64 (7656…) or [U:1:123456].", "steamId");
+  }
   transaction((tx) => tx.put("player", p.slug, p), ACTOR, existing ? "edit player" : "add player");
   return p;
 }

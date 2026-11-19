@@ -51,7 +51,7 @@ const list = getMatches()
               list.map((m) => (
                 <tr>
                   <th scope="row"><a href={`/admin/matches/${m.id}/`}>{team(m.teamA).name} vs {team(m.teamB).name}</a></th>
-                  <td><span class:list={["badge", { solid: m.status === "live" }]}>{m.status}</span></td>
+                  <td><span class:list={["badge", { live: m.status === "live", blue: m.status === "upcoming" }]}>{m.status}</span></td>
                   <td class="n mono">{m.status === "upcoming" ? "–" : `${m.seriesA}–${m.seriesB}`}</td>
                   <td>{event(m.event).name} · {m.stage}</td>
                   <td><LocalTime instant={matchInstant(m)} zone={event(m.event).timeZone} format="datetime" /></td>

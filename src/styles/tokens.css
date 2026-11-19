@@ -1,8 +1,13 @@
 /*
- * ISEC design tokens.
- * Strictly achromatic: every colour is a neutral between pure black and pure
- * white (values follow the Carbon gray ramp). Hierarchy comes from weight,
- * size, spacing and inversion — never from hue.
+ * ISEC design tokens — Carbon structure, game-semantic colour.
+ *
+ * Colour always encodes meaning and is always paired with a non-colour cue:
+ *   blue   = interaction (links, primary buttons, focus, selected tab)
+ *   red    = LIVE, losses, rank drops, errors
+ *   green  = wins, rank rises, success
+ *   CT / T = CS2 side colours (round history, halves)
+ *   tags   = event status / tier (Carbon tag pairs)
+ * Neutrals carry everything else. Every text pair is >= 4.5:1 (checked).
  */
 @layer tokens {
   :root {
@@ -19,6 +24,37 @@
     --gray-90: #262626;
     --gray-100: #161616;
     --black: #000000;
+
+    /* Carbon v11 colour ramps (only the steps in use) */
+    --blue-20: #d0e2ff;
+    --blue-30: #a6c8ff;
+    --blue-40: #78a9ff;
+    --blue-60: #0f62fe;
+    --blue-70: #0043ce;
+    --blue-80: #002d9c;
+    --red-10: #fff1f1;
+    --red-40: #ff8389;
+    --red-60: #da1e28;
+    --red-70: #a2191f;
+    --red-90: #520408;
+    --green-10: #defbe6;
+    --green-20: #a7f0ba;
+    --green-30: #6fdc8c;
+    --green-40: #42be65;
+    --green-60: #198038;
+    --green-70: #0e6027;
+    --green-80: #044317;
+    --green-90: #022d0d;
+    --purple-20: #e8daff;
+    --purple-30: #d4bbff;
+    --purple-70: #6929c4;
+    --purple-80: #491d8b;
+
+    /* CS2 side colours, tuned per theme for >=4.5:1 as text */
+    --ct-light: #4a6896;
+    --ct-dark: #7d9bd1;
+    --t-light: #9a6a1c;
+    --t-dark: #de9b35;
 
     --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -55,6 +91,20 @@
     --duration-moderate: 240ms;
     --ease-productive: cubic-bezier(0.2, 0, 0.38, 0.9);
 
+    /* Always-dark UI shell header (Carbon g100 shell), in both themes. */
+    --header-bg: var(--gray-100);
+    --header-fg: var(--white);
+    --header-fg-secondary: var(--gray-30);
+    --header-hover: var(--gray-90);
+    --header-accent: var(--blue-40);
+    --header-height: 4.5rem;
+
+    /* Fixed brand actions (same in both themes, both 5:1+ with white). */
+    --button-primary: var(--blue-60);
+    --button-primary-hover: var(--blue-70);
+    --live: var(--red-60);
+    --on-live: var(--white);
+
     /* ---- Tier 2: semantic pairs (light / dark) --------------------------- */
     --background-light: var(--white);
     --background-dark: var(--black);
@@ -62,20 +112,58 @@
     --layer-dark: var(--gray-100);
     --layer-hover-light: var(--gray-20);
     --layer-hover-dark: var(--gray-90);
+    --layer-selected-light: var(--gray-20);
+    --layer-selected-dark: var(--gray-80);
     --border-subtle-light: var(--gray-20);
     --border-subtle-dark: var(--gray-80);
     --border-strong-light: var(--gray-60);
     --border-strong-dark: var(--gray-60);
     --text-primary-light: var(--black);
     --text-primary-dark: var(--white);
-    --text-secondary-light: var(--gray-70); /* 7.8:1 on white */
-    --text-secondary-dark: var(--gray-30); /* 12.6:1 on black */
-    --text-muted-light: var(--gray-60); /* 5.0:1 on white */
-    --text-muted-dark: var(--gray-50); /* 6.3:1 on black */
+    --text-secondary-light: var(--gray-70);
+    --text-secondary-dark: var(--gray-30);
+    --text-muted-light: var(--gray-60);
+    --text-muted-dark: var(--gray-50);
     --inverse-light: var(--black);
     --inverse-dark: var(--white);
     --on-inverse-light: var(--white);
     --on-inverse-dark: var(--black);
+    --link-light: var(--blue-60);
+    --link-dark: var(--blue-40);
+    --focus-light: var(--blue-60);
+    --focus-dark: var(--white);
+    --win-light: var(--green-60);
+    --win-dark: var(--green-40);
+    --loss-light: var(--red-60);
+    --loss-dark: var(--red-40);
+    --side-ct-light: var(--ct-light);
+    --side-ct-dark: var(--ct-dark);
+    --side-t-light: var(--t-light);
+    --side-t-dark: var(--t-dark);
+    --tag-blue-bg-light: var(--blue-20);
+    --tag-blue-bg-dark: var(--blue-80);
+    --tag-blue-fg-light: var(--blue-70);
+    --tag-blue-fg-dark: var(--blue-30);
+    --tag-green-bg-light: var(--green-20);
+    --tag-green-bg-dark: var(--green-80);
+    --tag-green-fg-light: var(--green-70);
+    --tag-green-fg-dark: var(--green-30);
+    --tag-purple-bg-light: var(--purple-20);
+    --tag-purple-bg-dark: var(--purple-80);
+    --tag-purple-fg-light: var(--purple-70);
+    --tag-purple-fg-dark: var(--purple-30);
+    --tag-gray-bg-light: var(--gray-20);
+    --tag-gray-bg-dark: var(--gray-80);
+    --tag-gray-fg-light: var(--gray-70);
+    --tag-gray-fg-dark: var(--gray-30);
+    --support-error-light: var(--red-60);
+    --support-error-dark: var(--red-40);
+    --support-error-bg-light: var(--red-10);
+    --support-error-bg-dark: var(--red-90);
+    --support-success-light: var(--green-60);
+    --support-success-dark: var(--green-40);
+    --support-success-bg-light: var(--green-10);
+    --support-success-bg-dark: var(--green-90);
 
     color-scheme: light dark;
 
@@ -87,10 +175,11 @@
       color-scheme: light;
     }
 
-    /* ---- Tier 3: UI tokens (fallback for browsers without light-dark()) -- */
+    /* ---- Tier 3: UI tokens (light defaults; fallback for no light-dark()) - */
     --background: var(--background-light);
     --layer: var(--layer-light);
     --layer-hover: var(--layer-hover-light);
+    --layer-selected: var(--layer-selected-light);
     --border-subtle: var(--border-subtle-light);
     --border-strong: var(--border-strong-light);
     --text-primary: var(--text-primary-light);
@@ -98,6 +187,24 @@
     --text-muted: var(--text-muted-light);
     --inverse: var(--inverse-light);
     --on-inverse: var(--on-inverse-light);
+    --link: var(--link-light);
+    --focus: var(--focus-light);
+    --win: var(--win-light);
+    --loss: var(--loss-light);
+    --side-ct: var(--side-ct-light);
+    --side-t: var(--side-t-light);
+    --tag-blue-bg: var(--tag-blue-bg-light);
+    --tag-blue-fg: var(--tag-blue-fg-light);
+    --tag-green-bg: var(--tag-green-bg-light);
+    --tag-green-fg: var(--tag-green-fg-light);
+    --tag-purple-bg: var(--tag-purple-bg-light);
+    --tag-purple-fg: var(--tag-purple-fg-light);
+    --tag-gray-bg: var(--tag-gray-bg-light);
+    --tag-gray-fg: var(--tag-gray-fg-light);
+    --support-error: var(--support-error-light);
+    --support-error-bg: var(--support-error-bg-light);
+    --support-success: var(--support-success-light);
+    --support-success-bg: var(--support-success-bg-light);
   }
 
   /* Fallback dark branch (no light-dark()): system preference unless pinned light, or pinned dark. */
@@ -107,6 +214,7 @@
         --background: var(--background-dark);
         --layer: var(--layer-dark);
         --layer-hover: var(--layer-hover-dark);
+        --layer-selected: var(--layer-selected-dark);
         --border-subtle: var(--border-subtle-dark);
         --border-strong: var(--border-strong-dark);
         --text-primary: var(--text-primary-dark);
@@ -114,12 +222,31 @@
         --text-muted: var(--text-muted-dark);
         --inverse: var(--inverse-dark);
         --on-inverse: var(--on-inverse-dark);
+        --link: var(--link-dark);
+        --focus: var(--focus-dark);
+        --win: var(--win-dark);
+        --loss: var(--loss-dark);
+        --side-ct: var(--side-ct-dark);
+        --side-t: var(--side-t-dark);
+        --tag-blue-bg: var(--tag-blue-bg-dark);
+        --tag-blue-fg: var(--tag-blue-fg-dark);
+        --tag-green-bg: var(--tag-green-bg-dark);
+        --tag-green-fg: var(--tag-green-fg-dark);
+        --tag-purple-bg: var(--tag-purple-bg-dark);
+        --tag-purple-fg: var(--tag-purple-fg-dark);
+        --tag-gray-bg: var(--tag-gray-bg-dark);
+        --tag-gray-fg: var(--tag-gray-fg-dark);
+        --support-error: var(--support-error-dark);
+        --support-error-bg: var(--support-error-bg-dark);
+        --support-success: var(--support-success-dark);
+        --support-success-bg: var(--support-success-bg-dark);
       }
     }
     :root:has(> head > meta[name="color-scheme"][content="dark"]) {
       --background: var(--background-dark);
       --layer: var(--layer-dark);
       --layer-hover: var(--layer-hover-dark);
+      --layer-selected: var(--layer-selected-dark);
       --border-subtle: var(--border-subtle-dark);
       --border-strong: var(--border-strong-dark);
       --text-primary: var(--text-primary-dark);
@@ -127,16 +254,34 @@
       --text-muted: var(--text-muted-dark);
       --inverse: var(--inverse-dark);
       --on-inverse: var(--on-inverse-dark);
+      --link: var(--link-dark);
+      --focus: var(--focus-dark);
+      --win: var(--win-dark);
+      --loss: var(--loss-dark);
+      --side-ct: var(--side-ct-dark);
+      --side-t: var(--side-t-dark);
+      --tag-blue-bg: var(--tag-blue-bg-dark);
+      --tag-blue-fg: var(--tag-blue-fg-dark);
+      --tag-green-bg: var(--tag-green-bg-dark);
+      --tag-green-fg: var(--tag-green-fg-dark);
+      --tag-purple-bg: var(--tag-purple-bg-dark);
+      --tag-purple-fg: var(--tag-purple-fg-dark);
+      --tag-gray-bg: var(--tag-gray-bg-dark);
+      --tag-gray-fg: var(--tag-gray-fg-dark);
+      --support-error: var(--support-error-dark);
+      --support-error-bg: var(--support-error-bg-dark);
+      --support-success: var(--support-success-dark);
+      --support-success-bg: var(--support-success-bg-dark);
     }
   }
 
-  /* Preferred path: light-dark() follows the computed color-scheme everywhere,
-     including subtrees that force a scheme (e.g. inverted panels). */
+  /* Preferred path: light-dark() follows the computed color-scheme everywhere. */
   @supports (color: light-dark(#000, #fff)) {
     :root {
       --background: light-dark(var(--background-light), var(--background-dark));
       --layer: light-dark(var(--layer-light), var(--layer-dark));
       --layer-hover: light-dark(var(--layer-hover-light), var(--layer-hover-dark));
+      --layer-selected: light-dark(var(--layer-selected-light), var(--layer-selected-dark));
       --border-subtle: light-dark(var(--border-subtle-light), var(--border-subtle-dark));
       --border-strong: light-dark(var(--border-strong-light), var(--border-strong-dark));
       --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
@@ -144,6 +289,24 @@
       --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
       --inverse: light-dark(var(--inverse-light), var(--inverse-dark));
       --on-inverse: light-dark(var(--on-inverse-light), var(--on-inverse-dark));
+      --link: light-dark(var(--link-light), var(--link-dark));
+      --focus: light-dark(var(--focus-light), var(--focus-dark));
+      --win: light-dark(var(--win-light), var(--win-dark));
+      --loss: light-dark(var(--loss-light), var(--loss-dark));
+      --side-ct: light-dark(var(--side-ct-light), var(--side-ct-dark));
+      --side-t: light-dark(var(--side-t-light), var(--side-t-dark));
+      --tag-blue-bg: light-dark(var(--tag-blue-bg-light), var(--tag-blue-bg-dark));
+      --tag-blue-fg: light-dark(var(--tag-blue-fg-light), var(--tag-blue-fg-dark));
+      --tag-green-bg: light-dark(var(--tag-green-bg-light), var(--tag-green-bg-dark));
+      --tag-green-fg: light-dark(var(--tag-green-fg-light), var(--tag-green-fg-dark));
+      --tag-purple-bg: light-dark(var(--tag-purple-bg-light), var(--tag-purple-bg-dark));
+      --tag-purple-fg: light-dark(var(--tag-purple-fg-light), var(--tag-purple-fg-dark));
+      --tag-gray-bg: light-dark(var(--tag-gray-bg-light), var(--tag-gray-bg-dark));
+      --tag-gray-fg: light-dark(var(--tag-gray-fg-light), var(--tag-gray-fg-dark));
+      --support-error: light-dark(var(--support-error-light), var(--support-error-dark));
+      --support-error-bg: light-dark(var(--support-error-bg-light), var(--support-error-bg-dark));
+      --support-success: light-dark(var(--support-success-light), var(--support-success-dark));
+      --support-success-bg: light-dark(var(--support-success-bg-light), var(--support-success-bg-dark));
     }
   }
 
@@ -152,6 +315,7 @@
       --background: Canvas;
       --layer: Canvas;
       --layer-hover: Canvas;
+      --layer-selected: Highlight;
       --border-subtle: CanvasText;
       --border-strong: CanvasText;
       --text-primary: CanvasText;
@@ -159,6 +323,18 @@
       --text-muted: GrayText;
       --inverse: CanvasText;
       --on-inverse: Canvas;
+      --link: LinkText;
+      --focus: Highlight;
+      --win: CanvasText;
+      --loss: CanvasText;
+      --side-ct: CanvasText;
+      --side-t: CanvasText;
+      --live: Highlight;
+      --on-live: HighlightText;
+      --button-primary: ButtonText;
+      --header-bg: Canvas;
+      --header-fg: CanvasText;
+      --header-fg-secondary: CanvasText;
     }
   }
 }

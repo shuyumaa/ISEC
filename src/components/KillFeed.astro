@@ -1,0 +1,76 @@
+---
+import type { KillEvent } from "../data";
+
+interface Props {
+  kills: KillEvent[];
+}
+const { kills } = Astro.props;
+---
+
+<ol class="killfeed" aria-label="Latest kills">
+  {
+    kills.map((k) => (
+      <li>
+        <span class="round subtle">R{k.round}</span>
+        <span class:list={["who", k.attackerSide.toLowerCase()]}>{k.attacker}</span>
+        <span class="weapon">
+          {k.weapon}
+          {k.headshot && <span class="hs">HS</span>}
+        </span>
+        <span class:list={["who", k.victimSide.toLowerCase()]}>{k.victim}</span>
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  @layer components {
+    .killfeed {
+      display: grid;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      & li {
+        display: grid;
+        grid-template-columns: 2.5rem minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: var(--sp-03);
+        padding: var(--sp-02) 0;
+        border-block-end: var(--border-width) solid var(--border-subtle);
+        font-size: var(--type-body-sm);
+      }
+    }
+    .who {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      &.ct {
+        color: var(--side-ct);
+      }
+      &.t {
+        color: var(--side-t);
+      }
+      &:last-child {
+        text-align: end;
+      }
+    }
+    .weapon {
+      display: inline-flex;
+      gap: var(--sp-02);
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+    }
+    .hs {
+      padding: 0 var(--sp-02);
+      border: var(--border-width) solid currentColor;
+    }
+    .round {
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+    }
+  }
+</style>

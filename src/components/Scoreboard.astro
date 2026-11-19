@@ -27,9 +27,9 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
 
 <Wrap class:list={["scoreboard", m.status, { link }]} href={link ? `/matches/${m.id}/` : undefined}>
   <div class="sb-meta">
-    {m.status === "live" && <span class="badge solid live">Live</span>}
+    {m.status === "live" && <span class="badge live">Live</span>}
     {m.status === "completed" && <span class="badge">Final</span>}
-    {m.status === "upcoming" && <span class="badge">Upcoming</span>}
+    {m.status === "upcoming" && <span class="badge blue">Upcoming</span>}
     <span>{ev.name}</span>
     <span class="subtle">{m.stage} · Best of {m.bestOf}</span>
   </div>
@@ -98,7 +98,7 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
         outline-offset: calc(var(--focus-width) * -1);
       }
       &.live {
-        border-block-start: 4px solid var(--text-primary);
+        border-block-start: 4px solid var(--live);
       }
     }
 
