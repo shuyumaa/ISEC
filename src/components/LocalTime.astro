@@ -1,0 +1,29 @@
+---
+import { Temporal } from "temporal-polyfill";
+
+type Format = "time" | "date" | "datetime";
+
+interface Props {
+  /** ISO 8601 instant, e.g. "2026-11-19T14:00:00Z". */
+  instant: string;
+  /** IANA zone the match is played in; used for the server-rendered text. */
+  zone: string;
+  format?: Format;
+  class?: string;
+}
+
+const { instant, zone, format = "time", class: className } = Astro.props;
+
+const FORMATS: Record<Format, Intl.DateTimeFormatOptions> = {
+  time: { hour: "2-digit", minute: "2-digit" },
+  date: { day: "numeric", month: "short" },
+  datetime: { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" },
+};
+
+const zoned = Temporal.Instant.from(instant).toZonedDateTimeISO(zone);
+// Server text is in the venue's zone; the client rewrites it into the viewer's zone.
+const text = zoned.toLocaleString("en-GB", FORMATS[format]);
+const venue = zoned.toLocaleString("en-GB", { ...FORMATS.datetime, timeZoneName: "short" });
+---
+
+<time datetime={instant} data-local-time={format} title={`Venue time: ${venue}`} class={className}>{text}</time>

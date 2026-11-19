@@ -1,0 +1,109 @@
+---
+import { Temporal } from "temporal-polyfill";
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import EventCard from "../../components/EventCard.astro";
+import NewsList from "../../components/NewsList.astro";
+import Panel from "../../components/Panel.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { articles, event, team, type Article } from "../../data";
+
+export function getStaticPaths() {
+  return articles.map((a) => ({ params: { slug: a.slug }, props: { article: a } }));
+}
+
+interface Props {
+  article: Article;
+}
+const { article: a } = Astro.props;
+const date = Temporal.PlainDate.from(a.published).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+const more = articles.filter((x) => x.slug !== a.slug).slice(0, 4);
+---
+
+<Base title={a.title} description={a.summary}>
+  <Breadcrumbs items={[{ label: "News", href: "/news/" }, { label: a.category, href: `/news/${a.slug}/` }]} />
+
+  <div class="with-sidebar article-layout">
+    <article class="article">
+      <header>
+        <span class="eyebrow">{a.category}</span>
+        <h1>{a.title}</h1>
+        <p class="lede">{a.summary}</p>
+        <p class="byline subtle">
+          {a.author} · <time datetime={a.published}>{date}</time> · {a.readMinutes} min read
+        </p>
+      </header>
+      {a.body.map((para) => <p>{para}</p>)}
+    </article>
+
+    <aside class="stack" aria-label="Related">
+      {
+        a.related?.teams && (
+          <Panel title="Teams in this story" id="related-teams">
+            <ul class="rel-teams">
+              {a.related.teams.map((slug) => (
+                <li>
+                  <a href={`/teams/${slug}/`}>
+                    <TeamMark team={team(slug)} /> {team(slug).name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )
+      }
+      {a.related?.event && <Panel title="Event" id="related-event"><EventCard event={event(a.related.event)} compact /></Panel>}
+      <Panel title="More news" id="more-news"><NewsList items={more} /></Panel>
+    </aside>
+  </div>
+</Base>
+
+<style>
+  @layer components {
+    .article-layout {
+      margin-block-start: var(--sp-06);
+    }
+    .article {
+      display: grid;
+      gap: var(--sp-05);
+      max-inline-size: 42rem;
+      font-size: var(--type-body);
+      line-height: 1.6;
+
+      & header {
+        display: grid;
+        gap: var(--sp-04);
+        padding-block-end: var(--sp-06);
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+      & .eyebrow {
+        font-size: var(--type-label);
+        letter-spacing: 0.032em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+      & h1 {
+        font-size: var(--type-heading-lg);
+      }
+      & .lede {
+        font-size: var(--type-heading-sm);
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+      & .byline {
+        font-size: var(--type-body-sm);
+      }
+    }
+    .rel-teams a {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+      padding: var(--sp-03) 0;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      text-decoration: none;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+</style>

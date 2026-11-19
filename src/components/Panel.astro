@@ -1,0 +1,33 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  title: string;
+  id?: string;
+  href?: string;
+  linkLabel?: string;
+  headingLevel?: 2 | 3;
+  class?: string;
+}
+
+const { title, id = title.toLowerCase().replace(/[^a-z0-9]+/g, "-"), href, linkLabel = "View all", headingLevel = 2, class: className } = Astro.props;
+const H = `h${headingLevel}` as "h2" | "h3";
+---
+
+<section class:list={["panel", className]} aria-labelledby={id}>
+  <div class="panel-head">
+    <H id={id}>{title}</H>
+    {
+      href && (
+        <a class="link-arrow" href={href}>
+          {linkLabel}
+          <span class="visually-hidden">: {title}</span>
+          <Icon name="arrow" size={14} />
+        </a>
+      )
+    }
+  </div>
+  <div class="panel-body">
+    <slot />
+  </div>
+</section>

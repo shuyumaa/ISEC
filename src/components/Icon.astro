@@ -1,0 +1,51 @@
+---
+/**
+ * Decorative inline icons (Carbon-style 16/20px glyphs drawn on a 32 grid).
+ * Always aria-hidden: the surrounding control provides the accessible name.
+ */
+const paths = {
+  sun: "M16 12a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0-2a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM15 2h2v5h-2zM15 25h2v5h-2zM2 15h5v2H2zM25 15h5v2h-5zM5.6 7l1.4-1.4 3.5 3.5-1.4 1.4zM21.5 22.9l1.4-1.4 3.5 3.5-1.4 1.4zM5.6 25l3.5-3.5 1.4 1.4L7 26.4zM21.5 9.1 25 5.6 26.4 7l-3.5 3.5z",
+  moon: "M13.5 5.2A11 11 0 0 0 26.8 18.5 11 11 0 1 1 13.5 5.2M14.9 3a1 1 0 0 0-.2 0 13 13 0 1 0 14.3 14.3 1 1 0 0 0-1.3-1.1A9 9 0 0 1 16 4.4 1 1 0 0 0 14.9 3z",
+  menu: "M4 6h24v2H4zM4 15h24v2H4zM4 24h24v2H4z",
+  close: "M24 9.4 22.6 8 16 14.6 9.4 8 8 9.4l6.6 6.6L8 22.6 9.4 24l6.6-6.6 6.6 6.6 1.4-1.4-6.6-6.6z",
+  arrow: "m18 6-1.4 1.4 7.6 7.6H4v2h20.2l-7.6 7.6L18 26l10-10z",
+  chevron: "M16 22 6 12l1.4-1.4 8.6 8.6 8.6-8.6L26 12z",
+  sort: "M16 4 9 11l1.4 1.4L16 6.8l5.6 5.6L23 11zM16 28l7-7-1.4-1.4-5.6 5.6-5.6-5.6L9 21z",
+  up: "M16 8 6 18l1.4 1.4L15 11.8V26h2V11.8l7.6 7.6L26 18z",
+  down: "m16 24 10-10-1.4-1.4-7.6 7.6V6h-2v14.2l-7.6-7.6L6 14z",
+  star: "m16 2-4.6 9.3L1 12.9l7.5 7.3L6.7 30.5 16 25.6l9.3 4.9-1.8-10.3 7.5-7.3-10.4-1.6z",
+  location: "M16 18a5 5 0 1 1 5-5 5 5 0 0 1-5 5zm0-8a3 3 0 1 0 3 3 3 3 0 0 0-3-3zM16 30l-8.4-9.9a10.6 10.6 0 0 1-.6-.8A10.9 10.9 0 0 1 5 13a11 11 0 0 1 22 0 10.9 10.9 0 0 1-2.2 6.6l-.6.8zm-7.2-11.9.6.7L16 26.9l6.6-7.9.5-.7A8.9 8.9 0 0 0 25 13a9 9 0 0 0-18 0 8.9 8.9 0 0 0 1.8 5.4z",
+  calendar: "M26 4h-4V2h-2v2h-8V2h-2v2H6a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 22H6V12h20zm0-16H6V6h4v2h2V6h8v2h2V6h4z",
+  trophy: "M26 7h-2V6a2 2 0 0 0-2-2H10a2 2 0 0 0-2 2v1H6a2 2 0 0 0-2 2v3a4 4 0 0 0 4 4h.6A8 8 0 0 0 15 21.9V26h-5v2h12v-2h-5v-4.1a8 8 0 0 0 6.4-5.9h.6a4 4 0 0 0 4-4V9a2 2 0 0 0-2-2zM8 14a2 2 0 0 1-2-2V9h2zm14 0a6 6 0 0 1-12 0V6h12zm4-2a2 2 0 0 1-2 2V9h2z",
+  globe: "M16 2a14 14 0 1 0 14 14A14 14 0 0 0 16 2zm12 13h-6a24.3 24.3 0 0 0-2.2-10.3A12 12 0 0 1 28 15zM16 28a18.3 18.3 0 0 1-4-11h8a18.3 18.3 0 0 1-4 11zm-4-13a18.3 18.3 0 0 1 4-11 18.3 18.3 0 0 1 4 11zm.2-10.3A24.3 24.3 0 0 0 10 15H4a12 12 0 0 1 8.2-10.3zM4 17h6a24.3 24.3 0 0 0 2.2 10.3A12 12 0 0 1 4 17zm15.8 10.3A24.3 24.3 0 0 0 22 17h6a12 12 0 0 1-8.2 10.3z",
+} as const;
+
+export type IconName = keyof typeof paths;
+
+interface Props {
+  name: IconName;
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 16, class: className } = Astro.props;
+---
+
+<svg
+  class:list={["icon", className]}
+  width={size}
+  height={size}
+  viewBox="0 0 32 32"
+  fill="currentColor"
+  aria-hidden="true"
+  focusable="false"><path d={paths[name]} fill-rule={name === "moon" ? undefined : "evenodd"}></path></svg
+>
+
+<style>
+  @layer components {
+    .icon {
+      flex: none;
+      pointer-events: none;
+    }
+  }
+</style>

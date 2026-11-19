@@ -1,0 +1,471 @@
+/* Shared, cross-page components. Page-specific styles live next to their markup. */
+
+@layer layout {
+  .container {
+    max-inline-size: var(--container);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  .page {
+    padding-block: var(--sp-07) 0;
+    container-type: inline-size;
+    container-name: page;
+  }
+
+  .stack {
+    display: grid;
+    gap: var(--stack-gap, var(--sp-07));
+    align-content: start;
+    min-inline-size: 0;
+  }
+
+  /* Main + sidebar: sidebar drops below on narrow containers. */
+  .with-sidebar {
+    display: grid;
+    gap: var(--sp-07);
+    grid-template-columns: minmax(0, 1fr);
+
+    @container page (width >= 62rem) {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+  }
+
+  .grid-auto {
+    display: grid;
+    gap: var(--grid-gap, var(--border-width));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--grid-min, 16rem)), 1fr));
+  }
+}
+
+@layer components {
+  .skip-link {
+    position: absolute;
+    inset-inline-start: var(--sp-03);
+    inset-block-start: var(--sp-03);
+    z-index: 100;
+    padding: var(--sp-03) var(--sp-05);
+    background: var(--inverse);
+    color: var(--on-inverse);
+    translate: 0 -200%;
+
+    &:focus-visible {
+      translate: none;
+    }
+  }
+
+  /* ---- Page heading -------------------------------------------------- */
+  .page-head {
+    display: grid;
+    gap: var(--sp-03);
+    padding-block-end: var(--sp-06);
+    margin-block-end: var(--sp-07);
+    border-block-end: var(--border-width) solid var(--border-subtle);
+
+    & .eyebrow {
+      font-size: var(--type-label);
+      letter-spacing: 0.032em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+    & p {
+      max-inline-size: 60ch;
+      color: var(--text-secondary);
+      font-size: var(--type-body);
+    }
+  }
+
+  /* ---- Panel: titled block (Carbon "tile" with a header row) ---------- */
+  .panel {
+    display: grid;
+    align-content: start;
+    min-inline-size: 0;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-05);
+    padding-block: var(--sp-03);
+    border-block-end: 2px solid var(--text-primary);
+
+    & h2 {
+      font-size: var(--type-body);
+      font-weight: 600;
+    }
+  }
+
+  .panel-body {
+    display: grid;
+    container-type: inline-size;
+  }
+
+  .link-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-02);
+    font-size: var(--type-body-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--text-primary);
+      text-decoration: underline;
+    }
+  }
+
+  /* ---- Buttons --------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-07);
+    min-block-size: 3rem;
+    padding: var(--sp-04) var(--sp-05);
+    border: var(--border-width) solid var(--inverse);
+    background: var(--inverse);
+    color: var(--on-inverse);
+    font-size: var(--type-body-sm);
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      background: transparent;
+      color: var(--text-primary);
+    }
+
+    &.ghost {
+      background: transparent;
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+      &:hover {
+        background: var(--layer-hover);
+      }
+    }
+  }
+
+  /* ---- Badges ---------------------------------------------------------- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-02);
+    padding: 0 var(--sp-03);
+    min-block-size: 1.25rem;
+    border: var(--border-width) solid var(--border-strong);
+    font-size: var(--type-label);
+    font-weight: 500;
+    letter-spacing: 0.032em;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-transform: uppercase;
+
+    &.solid {
+      background: var(--inverse);
+      border-color: var(--inverse);
+      color: var(--on-inverse);
+    }
+  }
+
+  /* LIVE: inverted badge + pulsing square. Text carries the meaning. */
+  .badge.live::before {
+    content: "";
+    inline-size: 0.375rem;
+    aspect-ratio: 1;
+    background: currentColor;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .badge.live::before {
+      animation: pulse 1.4s steps(2, jump-none) infinite;
+    }
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.2;
+    }
+  }
+
+  .stars {
+    display: inline-flex;
+    gap: 1px;
+  }
+
+  /* ---- Key/value facts --------------------------------------------------- */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: var(--border-width);
+    background: var(--border-subtle);
+    border: var(--border-width) solid var(--border-subtle);
+
+    & > div {
+      display: grid;
+      gap: var(--sp-02);
+      padding: var(--sp-05);
+      background: var(--background);
+    }
+    & dt {
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+      letter-spacing: 0.032em;
+    }
+    & dd {
+      font-size: var(--type-heading-sm);
+      font-weight: 400;
+    }
+  }
+
+  /* ---- Data tables ------------------------------------------------------- */
+  .table-wrap {
+    /* Contains absolutely positioned visually-hidden text inside cells. */
+    position: relative;
+    overflow: auto;
+    max-inline-size: 100%;
+    container-type: inline-size;
+
+    &:focus-visible {
+      outline-offset: calc(var(--focus-width) * -1);
+    }
+  }
+
+  .data-table {
+    inline-size: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--type-body-sm);
+
+    & caption {
+      text-align: start;
+      font-weight: 600;
+      font-size: var(--type-body);
+      padding-block: var(--sp-03);
+    }
+
+    & thead th {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+      background: var(--layer);
+      color: var(--text-primary);
+      font-weight: 600;
+      text-align: start;
+      white-space: nowrap;
+      border-block-end: var(--border-width) solid var(--border-strong);
+    }
+
+    & th,
+    & td {
+      padding: var(--sp-04) var(--sp-05);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      vertical-align: middle;
+    }
+
+    & tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      background: var(--background);
+      text-align: start;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    & tbody tr:hover > * {
+      background: var(--layer);
+    }
+
+    & .n {
+      text-align: end;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    & th.n {
+      text-align: end;
+    }
+
+    /* Sortable headers: the button fills the cell. */
+    & th:has(> button) {
+      padding: 0;
+    }
+    & th > button {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-02);
+      inline-size: 100%;
+      min-block-size: 2.75rem;
+      padding: var(--sp-04) var(--sp-05);
+      border: 0;
+      background: transparent;
+      font-weight: 600;
+      text-align: inherit;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--layer-hover);
+      }
+      &:focus-visible {
+        outline-offset: calc(var(--focus-width) * -1);
+      }
+    }
+    & th.n > button {
+      justify-content: flex-end;
+    }
+    & th > button .sort-icon {
+      opacity: 0.35;
+    }
+    & th[aria-sort] > button .sort-icon {
+      opacity: 1;
+    }
+    & th[aria-sort="ascending"] > button .sort-icon {
+      rotate: 180deg;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .data-table.sortable tbody tr {
+      view-transition-name: match-element;
+    }
+  }
+
+  /* ---- Tabs (focusgroup) ------------------------------------------------- */
+  .tabs {
+    display: grid;
+  }
+
+  .tablist {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: inline proximity;
+    border-block-end: var(--border-width) solid var(--border-subtle);
+
+    & > button {
+      position: relative;
+      flex: none;
+      scroll-snap-align: start;
+      padding: var(--sp-04) var(--sp-05);
+      border: 0;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: var(--type-body-sm);
+      cursor: pointer;
+      white-space: nowrap;
+
+      &:hover {
+        color: var(--text-primary);
+        background: var(--layer);
+      }
+      &:focus-visible {
+        outline-offset: calc(var(--focus-width) * -1);
+      }
+    }
+
+    & > [aria-selected="true"] {
+      color: var(--text-primary);
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        border-block-end: 2px solid var(--text-primary);
+      }
+    }
+  }
+
+  .tabpanels {
+    display: grid;
+
+    & > [role="tabpanel"] {
+      grid-area: 1 / 1;
+    }
+  }
+
+  /* ---- Breadcrumbs --------------------------------------------------------- */
+  .breadcrumb > ol {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-03);
+    font-size: var(--type-body-sm);
+
+    & > li + li::before {
+      content: "/" / "";
+      margin-inline-end: var(--sp-03);
+      color: var(--text-muted);
+    }
+    & a {
+      color: var(--text-secondary);
+      &:hover {
+        color: var(--text-primary);
+      }
+      &[aria-current="page"] {
+        color: var(--text-primary);
+        font-weight: 600;
+        text-decoration: none;
+      }
+    }
+  }
+
+  /* ---- Results: winners carry weight, losers recede. ---------------------- */
+  .won {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .lost {
+    color: var(--text-muted);
+  }
+
+  .day-head {
+    padding: var(--sp-05) 0 var(--sp-03);
+    font-size: var(--type-label);
+    font-weight: 600;
+    letter-spacing: 0.032em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-block-end: var(--border-width) solid var(--border-subtle);
+  }
+
+  .empty {
+    padding: var(--sp-07) var(--sp-05);
+    color: var(--text-secondary);
+    border: var(--border-width) dashed var(--border-strong);
+    text-align: center;
+  }
+
+  /* ---- Theme toggle branching ------------------------------------------- *
+   * Show the control state for the *rendered* scheme. Critical branching, so
+   * no style queries: duplicated on purpose for system-dark and pinned-dark. */
+  .if-dark {
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+      & .if-dark {
+        display: contents;
+      }
+      & .if-light {
+        display: none;
+      }
+    }
+  }
+  :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+    & .if-dark {
+      display: contents;
+    }
+    & .if-light {
+      display: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .badge.solid,
+    .btn {
+      border-color: CanvasText;
+    }
+    .tablist > [aria-selected="true"]::after {
+      border-color: Highlight;
+    }
+  }
+}

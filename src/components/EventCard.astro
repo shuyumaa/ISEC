@@ -1,0 +1,92 @@
+---
+import { formatRange, money, type EsportsEvent } from "../data";
+import Icon from "./Icon.astro";
+
+interface Props {
+  event: EsportsEvent;
+  compact?: boolean;
+}
+const { event: ev, compact = false } = Astro.props;
+const statusLabel = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Completed" }[ev.status];
+---
+
+<a class:list={["event-card", { compact }]} href={`/events/${ev.slug}/`}>
+  <span class="top">
+    <span class:list={["badge", { solid: ev.status === "ongoing" }]}>{statusLabel}</span>
+    <span class="badge">{ev.tier}</span>
+  </span>
+  <span class="name">{ev.name}</span>
+  <span class="facts-line">
+    <span><Icon name="calendar" size={14} />{formatRange(ev.startDate, ev.endDate)}</span>
+    {!compact && <span><Icon name={ev.online ? "globe" : "location"} size={14} />{ev.location}</span>}
+  </span>
+  {
+    !compact && (
+      <span class="bottom">
+        <span>
+          <span class="subtle">Prize pool</span> {money(ev.prizePool)}
+        </span>
+        <span>
+          <span class="subtle">Teams</span> {ev.teams.length}
+        </span>
+      </span>
+    )
+  }
+</a>
+
+<style>
+  @layer components {
+    .event-card {
+      display: grid;
+      gap: var(--sp-03);
+      align-content: start;
+      padding: var(--sp-05);
+      background: var(--background);
+      text-decoration: none;
+      outline-offset: calc(var(--focus-width) * -1);
+
+      &:hover {
+        background: var(--layer);
+        & .name {
+          text-decoration: underline;
+        }
+      }
+      &.compact {
+        padding: var(--sp-04) var(--sp-05);
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+    }
+    .top {
+      display: flex;
+      gap: var(--sp-02);
+    }
+    .name {
+      font-size: var(--type-body);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .compact .name {
+      font-size: var(--type-body-sm);
+    }
+    .facts-line,
+    .bottom {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-02) var(--sp-05);
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+
+      & > span {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+      }
+    }
+    .bottom {
+      color: var(--text-primary);
+      font-size: var(--type-body-sm);
+      padding-block-start: var(--sp-03);
+      border-block-start: var(--border-width) solid var(--border-subtle);
+    }
+  }
+</style>

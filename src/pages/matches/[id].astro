@@ -1,0 +1,281 @@
+---
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import MatchRow from "../../components/MatchRow.astro";
+import Panel from "../../components/Panel.astro";
+import Scoreboard from "../../components/Scoreboard.astro";
+import StatsTable from "../../components/StatsTable.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { event, headToHead, matches, matchesForEvent, matchStats, team, type Match } from "../../data";
+
+export function getStaticPaths() {
+  return matches.map((m) => ({ params: { id: m.id }, props: { match: m } }));
+}
+
+interface Props {
+  match: Match;
+}
+
+const { match: m } = Astro.props;
+const ev = event(m.event);
+const a = team(m.teamA);
+const b = team(m.teamB);
+const h2h = headToHead(a.slug, b.slug);
+const others = matchesForEvent(ev.slug).filter((x) => x.id !== m.id).slice(0, 6);
+const played = m.maps.map((map, i) => ({ map, i })).filter(({ map }) => map.stats);
+const tabsId = `stats-${m.id}`;
+const tabs = [
+  ...(played.length > 1 ? [{ id: `${tabsId}-all`, label: "All maps", index: undefined as number | undefined }] : []),
+  ...played.map(({ map, i }) => ({ id: `${tabsId}-${i}`, label: `${map.map}${map.live ? " (live)" : ""}`, index: i })),
+];
+const statsFor = (index: number | undefined, slug: string) =>
+  matchStats(m, index)
+    .filter((s) => s.player.team === slug)
+    .sort((x, y) => y.rating - x.rating);
+const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
+---
+
+<Base title={`${a.name} vs ${b.name} — ${ev.name}`} description={`${a.name} vs ${b.name}, ${m.stage} of ${ev.name}: maps, veto and player stats.`}>
+  <Breadcrumbs
+    items={[
+      { label: "Matches", href: "/matches/" },
+      { label: ev.name, href: `/events/${ev.slug}/` },
+      { label: `${a.tag} vs ${b.tag}`, href: `/matches/${m.id}/` },
+    ]}
+  />
+
+  <div class="match-page">
+    <Scoreboard match={m} headingLevel={1} />
+
+    <div class="with-sidebar">
+      <div class="stack">
+        <Panel title="Maps">
+          <ol class="maps">
+            {
+              m.maps.map((map) => {
+                const done = map.scoreA !== undefined && !map.live;
+                const aWon = done && map.scoreA! > map.scoreB!;
+                const bWon = done && map.scoreB! > map.scoreA!;
+                return (
+                  <li class:list={["map", { pending: map.scoreA === undefined, live: map.live }]}>
+                    <div class="map-name">
+                      <strong>{map.map}</strong>
+                      <span class="subtle">{map.pickedBy ? `Pick: ${team(map.pickedBy).name}` : "Decider"}</span>
+                      {map.live && <span class="badge solid live">Live</span>}
+                    </div>
+                    {map.scoreA !== undefined ? (
+                      <div class="map-score">
+                        <span class:list={["side", { won: aWon, lost: bWon }]}>
+                          <TeamMark team={a} />
+                          <span class="pts">{map.scoreA}</span>
+                        </span>
+                        <span class:list={["side", "right", { won: bWon, lost: aWon }]}>
+                          <span class="pts">{map.scoreB}</span>
+                          <TeamMark team={b} />
+                        </span>
+                        {map.halfA && map.halfB && (
+                          <span class="halves subtle">
+                            {map.startSideA} {map.halfA[0]}–{map.halfB[0]} · {map.startSideA === "CT" ? "T" : "CT"} {map.halfA[1]}–{map.halfB[1]}
+                            <span class="visually-hidden"> (first half side shown for {a.name})</span>
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div class="map-score subtle">{m.status === "completed" ? "Not played" : "Upcoming"}</div>
+                    )}
+                  </li>
+                );
+              })
+            }
+          </ol>
+        </Panel>
+
+        <Panel title="Player stats" id="player-stats">
+          {
+            tabs.length === 0 ? (
+              <p class="empty">Stats appear here once the first map starts.</p>
+            ) : (
+              <div class="tabs" data-tabs>
+                <div class="tablist" role="tablist" focusgroup="tablist nomemory" aria-label="Stats by map">
+                  {tabs.map((t, i) => (
+                    <button type="button" role="tab" id={t.id} aria-selected={i === 0 ? "true" : "false"} focusgroupstart={i === 0 ? "" : undefined}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <div class="tabpanels">
+                  {tabs.map((t, i) => (
+                    <div role="tabpanel" aria-labelledby={t.id} tabindex={i === 0 ? "0" : undefined} hidden={i === 0 ? undefined : "until-found"}>
+                      <div class="stat-tables">
+                        {[a, b].map((side) => (
+                          <StatsTable
+                            id={`${t.id}-${side.slug}`}
+                            caption={`${side.name} — ${t.label}`}
+                            rows={statsFor(t.index, side.slug)}
+                            showTeam={false}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          }
+        </Panel>
+      </div>
+
+      <aside class="stack" aria-label="Match details">
+        <Panel title="Map veto">
+          <ol class="veto">
+            {
+              m.veto.map((v, i) => (
+                <li>
+                  <span class="num subtle">{i + 1}</span>
+                  <span>
+                    {v.team ? <strong>{short(v.team)}</strong> : null} {v.action} <strong>{v.map}</strong>
+                  </span>
+                </li>
+              ))
+            }
+          </ol>
+        </Panel>
+
+        <Panel title="Head to head">
+          <div class="h2h">
+            <span class:list={{ won: h2h.winsA > h2h.winsB }}><TeamMark team={a} size="md" /> {h2h.winsA}</span>
+            <span class="subtle">{h2h.games.length} {h2h.games.length === 1 ? "match" : "matches"}</span>
+            <span class:list={{ won: h2h.winsB > h2h.winsA }}>{h2h.winsB} <TeamMark team={b} size="md" /></span>
+          </div>
+          {h2h.games.map((g) => <MatchRow match={g} showDate />)}
+        </Panel>
+
+        {
+          others.length > 0 && (
+            <Panel title={`More from ${ev.name}`} id="more-event" href={`/events/${ev.slug}/`} linkLabel="Event">
+              {others.map((o) => (
+                <MatchRow match={o} hideEvent showDate />
+              ))}
+            </Panel>
+          )
+        }
+      </aside>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import "../../scripts/tabs";
+</script>
+
+<style>
+  @layer components {
+    .match-page {
+      display: grid;
+      gap: var(--sp-07);
+      margin-block-start: var(--sp-05);
+    }
+
+    .maps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+      gap: var(--border-width);
+      background: var(--border-subtle);
+      border: var(--border-width) solid var(--border-subtle);
+      margin-block-start: var(--sp-05);
+    }
+
+    .map {
+      display: grid;
+      gap: var(--sp-04);
+      padding: var(--sp-05);
+      background: var(--background);
+
+      &.pending {
+        background: var(--layer);
+      }
+      &.live {
+        outline: 2px solid var(--text-primary);
+        outline-offset: -2px;
+      }
+    }
+
+    .map-name {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--sp-02) var(--sp-03);
+
+      & strong {
+        font-size: var(--type-heading-sm);
+        font-weight: 400;
+      }
+    }
+
+    .map-score {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-03);
+    }
+
+    .side {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+
+      &.right {
+        justify-content: end;
+      }
+      & .pts {
+        font-family: var(--font-mono);
+        font-size: var(--type-heading);
+        line-height: 1;
+      }
+    }
+
+    .halves {
+      grid-column: 1 / -1;
+      font-size: var(--type-label);
+      font-family: var(--font-mono);
+    }
+
+    .stat-tables {
+      display: grid;
+      gap: var(--sp-06);
+      padding-block-start: var(--sp-05);
+    }
+
+    .veto {
+      display: grid;
+      list-style: none;
+      padding: 0;
+
+      & li {
+        display: grid;
+        grid-template-columns: 1.5rem 1fr;
+        padding: var(--sp-03) 0;
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+    }
+
+    .h2h {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-05) 0;
+      font-family: var(--font-mono);
+      font-size: var(--type-heading);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+
+      & > span {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-03);
+      }
+      & .subtle {
+        font-family: var(--font-sans);
+        font-size: var(--type-label);
+      }
+    }
+  }
+</style>

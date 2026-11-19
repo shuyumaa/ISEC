@@ -1,0 +1,108 @@
+---
+import { team, type AggregatedStats } from "../data";
+import Icon from "./Icon.astro";
+
+interface Props {
+  id: string;
+  caption: string;
+  rows: AggregatedStats[];
+  /** Hide the visible caption (still announced). */
+  hideCaption?: boolean;
+  showTeam?: boolean;
+  showMaps?: boolean;
+  /** Initial sort column key (already sorted descending by rating by caller). */
+  sortedBy?: "rating";
+}
+
+const { id, caption, rows, hideCaption = false, showTeam = true, showMaps = false, sortedBy = "rating" } = Astro.props;
+
+type Col = { key: string; label: string; abbr?: string; type: "number" | "text"; value: (r: AggregatedStats) => number | string; display?: (r: AggregatedStats) => string };
+
+const cols: Col[] = [
+  ...(showTeam ? [{ key: "team", label: "Team", type: "text", value: (r: AggregatedStats) => team(r.player.team).name } as Col] : []),
+  ...(showMaps ? [{ key: "maps", label: "Maps", type: "number", value: (r: AggregatedStats) => r.maps } as Col] : []),
+  { key: "kd", label: "K–D", abbr: "Kills–deaths", type: "number", value: (r) => r.diff, display: (r) => `${r.kills}–${r.deaths}` },
+  { key: "diff", label: "+/−", abbr: "Kill-death difference", type: "number", value: (r) => r.diff, display: (r) => (r.diff > 0 ? `+${r.diff}` : `${r.diff}`) },
+  { key: "adr", label: "ADR", abbr: "Average damage per round", type: "number", value: (r) => r.adr },
+  { key: "kast", label: "KAST", abbr: "Rounds with a kill, assist, survival or trade", type: "number", value: (r) => r.kast, display: (r) => `${r.kast}%` },
+  { key: "hs", label: "HS%", abbr: "Headshot percentage", type: "number", value: (r) => r.hs, display: (r) => `${r.hs}%` },
+  { key: "rating", label: "Rating", type: "number", value: (r) => r.rating, display: (r) => r.rating.toFixed(2) },
+];
+const captionId = `${id}-caption`;
+---
+
+<div class="table-wrap" role="region" aria-labelledby={captionId} tabindex="0">
+  <table class="data-table sortable" id={id} data-sortable>
+    <caption id={captionId} class:list={{ "visually-hidden": hideCaption }}>{caption}</caption>
+    <thead>
+      <tr>
+        <th scope="col" data-type="text">
+          <button type="button" commandfor={id} command="--sort">
+            Player <Icon name="sort" size={12} class="sort-icon" />
+          </button>
+        </th>
+        {
+          cols.map((c) => (
+            <th
+              scope="col"
+              class:list={{ n: c.type === "number" }}
+              data-type={c.type}
+              aria-sort={c.key === sortedBy ? "descending" : undefined}
+            >
+              <button type="button" commandfor={id} command="--sort">
+                {c.abbr ? <abbr title={c.abbr}>{c.label}</abbr> : c.label}
+                <Icon name="sort" size={12} class="sort-icon" />
+              </button>
+            </th>
+          ))
+        }
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((r) => (
+          <tr>
+            <th scope="row" data-value={r.player.nickname}>
+              <a href={`/players/${r.player.slug}/`} class="player-link">
+                <strong>{r.player.nickname}</strong>
+                <span class="subtle">
+                  {r.player.firstName} {r.player.lastName}
+                </span>
+              </a>
+            </th>
+            {cols.map((c) => (
+              <td class:list={{ n: c.type === "number" }} data-value={c.value(r)}>
+                {c.display ? c.display(r) : c.value(r)}
+              </td>
+            ))}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+  <p class="visually-hidden" role="status" data-sort-status></p>
+</div>
+
+<style>
+  @layer components {
+    .player-link {
+      display: grid;
+      text-decoration: none;
+      line-height: 1.3;
+
+      &:hover strong {
+        text-decoration: underline;
+      }
+      & .subtle {
+        font-size: var(--type-label);
+      }
+    }
+    abbr {
+      text-decoration: none;
+    }
+  }
+</style>
+
+<script>
+  import "../scripts/sortable";
+</script>

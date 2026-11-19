@@ -1,0 +1,166 @@
+---
+import { event, matchInstant, rankOf, team, winnerOf, type Match } from "../data";
+import Countdown from "./Countdown.astro";
+import LocalTime from "./LocalTime.astro";
+import TeamMark from "./TeamMark.astro";
+
+interface Props {
+  match: Match;
+  /** Make the whole board a link to the match page. */
+  link?: boolean;
+  headingLevel?: 1 | 2;
+}
+
+const { match: m, link = false, headingLevel = 2 } = Astro.props;
+const ev = event(m.event);
+const a = team(m.teamA);
+const b = team(m.teamB);
+const winner = winnerOf(m);
+const instant = matchInstant(m);
+const liveMap = m.maps.find((x) => x.live);
+const H = `h${headingLevel}` as "h1" | "h2";
+const state = (slug: string) => (winner ? (winner === slug ? "won" : "lost") : undefined);
+const Wrap = link ? "a" : "div";
+const seriesA = m.bestOf === 1 ? (m.maps[0]?.scoreA ?? 0) : m.seriesA;
+const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
+---
+
+<Wrap class:list={["scoreboard", m.status, { link }]} href={link ? `/matches/${m.id}/` : undefined}>
+  <div class="sb-meta">
+    {m.status === "live" && <span class="badge solid live">Live</span>}
+    {m.status === "completed" && <span class="badge">Final</span>}
+    {m.status === "upcoming" && <span class="badge">Upcoming</span>}
+    <span>{ev.name}</span>
+    <span class="subtle">{m.stage} · Best of {m.bestOf}</span>
+  </div>
+
+  <H class="sb-title visually-hidden">{a.name} vs {b.name}</H>
+
+  <div class="sb-main">
+    <div class:list={["sb-team", state(a.slug)]}>
+      <TeamMark team={a} size="xl" />
+      <span class="sb-name">{a.name}</span>
+      {rankOf(a.slug) && <span class="subtle">World #{rankOf(a.slug)}</span>}
+    </div>
+
+    <div class="sb-center">
+      {
+        m.status === "upcoming" ? (
+          <>
+            <LocalTime instant={instant} zone={ev.timeZone} format="time" class="sb-time" />
+            <LocalTime instant={instant} zone={ev.timeZone} format="date" class="subtle" />
+            <Countdown instant={instant} />
+          </>
+        ) : (
+          <>
+            <span class="sb-score" aria-label={`${a.name} ${seriesA}, ${b.name} ${seriesB}`}>
+              <span class={state(a.slug)}>{seriesA}</span>
+              <span class="sep" aria-hidden="true">:</span>
+              <span class={state(b.slug)}>{seriesB}</span>
+            </span>
+            {liveMap && m.bestOf > 1 && (
+              <span class="subtle">
+                {liveMap.map} · {liveMap.scoreA}–{liveMap.scoreB}
+              </span>
+            )}
+            {liveMap && m.bestOf === 1 && <span class="subtle">{liveMap.map} · in progress</span>}
+            {m.status === "completed" && <LocalTime instant={instant} zone={ev.timeZone} format="date" class="subtle" />}
+          </>
+        )
+      }
+    </div>
+
+    <div class:list={["sb-team", state(b.slug)]}>
+      <TeamMark team={b} size="xl" />
+      <span class="sb-name">{b.name}</span>
+      {rankOf(b.slug) && <span class="subtle">World #{rankOf(b.slug)}</span>}
+    </div>
+  </div>
+</Wrap>
+
+<style>
+  @layer components {
+    .scoreboard {
+      display: grid;
+      gap: var(--sp-06);
+      padding: var(--sp-06) var(--sp-05);
+      border: var(--border-width) solid var(--border-strong);
+      background: var(--background);
+      text-decoration: none;
+
+      &.link:hover {
+        background: var(--layer);
+      }
+      &.link:focus-visible {
+        outline-offset: calc(var(--focus-width) * -1);
+      }
+      &.live {
+        border-block-start: 4px solid var(--text-primary);
+      }
+    }
+
+    .sb-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp-02) var(--sp-04);
+      text-align: center;
+    }
+
+    .sb-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: var(--sp-05);
+    }
+
+    .sb-team {
+      display: grid;
+      justify-items: center;
+      gap: var(--sp-03);
+      text-align: center;
+    }
+
+    .sb-name {
+      font-size: clamp(var(--type-body), 0.8rem + 1.2vw, var(--type-heading));
+      font-weight: 400;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .sb-team.won .sb-name {
+      font-weight: 600;
+    }
+
+    .sb-center {
+      display: grid;
+      justify-items: center;
+      gap: var(--sp-02);
+      text-align: center;
+    }
+
+    .sb-score {
+      display: flex;
+      align-items: baseline;
+      gap: var(--sp-03);
+      font-size: var(--type-display);
+      font-weight: 300;
+      line-height: 1;
+      font-family: var(--font-mono);
+
+      & .won {
+        font-weight: 600;
+      }
+      & .sep {
+        color: var(--text-muted);
+      }
+    }
+
+    :global(.sb-time) {
+      font-size: var(--type-heading-lg);
+      font-family: var(--font-mono);
+      font-weight: 300;
+      line-height: 1;
+    }
+  }
+</style>

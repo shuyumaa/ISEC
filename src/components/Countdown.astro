@@ -1,0 +1,22 @@
+---
+interface Props {
+  instant: string;
+}
+const { instant } = Astro.props;
+---
+
+<!-- Filled in on the client (Temporal + Intl.DurationFormat). -->
+<span class="countdown" data-countdown={instant} role="timer" aria-live="off">Starts soon</span>
+
+<style>
+  @layer components {
+    .countdown {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+</style>
+
+<script>
+  import "../scripts/time";
+</script>

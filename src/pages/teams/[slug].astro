@@ -1,0 +1,164 @@
+---
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import MatchRow from "../../components/MatchRow.astro";
+import Panel from "../../components/Panel.astro";
+import StatsTable from "../../components/StatsTable.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { events, matchesForTeam, playerLeaderboard, ranking, rankOf, rosterOf, teams, winnerOf, type Team } from "../../data";
+
+export function getStaticPaths() {
+  return teams.map((t) => ({ params: { slug: t.slug }, props: { team: t } }));
+}
+
+interface Props {
+  team: Team;
+}
+const { team: t } = Astro.props;
+const rank = rankOf(t.slug);
+const entry = ranking.find((r) => r.team === t.slug);
+const roster = rosterOf(t.slug);
+const all = matchesForTeam(t.slug);
+const upcoming = all.filter((m) => m.status !== "completed").reverse();
+const results = all.filter((m) => m.status === "completed");
+const wins = results.filter((m) => winnerOf(m) === t.slug).length;
+const stats = playerLeaderboard(0).filter((s) => s.player.team === t.slug);
+const attending = events.filter((e) => e.teams.includes(t.slug) && e.status !== "completed");
+const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L"));
+---
+
+<Base title={t.name} description={`${t.name} — roster, results, upcoming matches and player stats.`}>
+  <Breadcrumbs items={[{ label: "Teams", href: "/teams/" }, { label: t.name, href: `/teams/${t.slug}/` }]} />
+
+  <header class="team-head">
+    <TeamMark team={t} size="xl" />
+    <div>
+      <h1>{t.name}</h1>
+      <p class="muted">{t.country} · Founded {t.founded} · Coach {t.coach}</p>
+    </div>
+  </header>
+
+  <dl class="facts">
+    <div><dt>World ranking</dt><dd>{rank ? `#${rank}` : "Unranked"}</dd></div>
+    <div><dt>Points</dt><dd>{entry?.points ?? "—"}</dd></div>
+    <div><dt>Series record</dt><dd>{wins}–{results.length - wins}</dd></div>
+    <div>
+      <dt>Form (last 5)</dt>
+      <dd class="form" aria-label={form.map((f) => (f === "W" ? "win" : "loss")).join(", ") || "No matches"}>
+        {form.length ? form.map((f) => <span class:list={["pill", { w: f === "W" }]} aria-hidden="true">{f}</span>) : "—"}
+      </dd>
+    </div>
+  </dl>
+
+  <div class="with-sidebar team-body">
+    <div class="stack">
+      <Panel title="Roster">
+        <ul class="roster">
+          {
+            roster.map((p) => (
+              <li>
+                <a href={`/players/${p.slug}/`}>
+                  <strong>{p.nickname}</strong>
+                  <span class="subtle">
+                    {p.firstName} {p.lastName}
+                  </span>
+                  <span class="badge">{p.role}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </Panel>
+
+      {stats.length > 0 && <Panel title="Player stats" id="team-stats"><StatsTable id={`team-${t.slug}`} caption={`${t.name} player stats`} hideCaption rows={stats} showTeam={false} showMaps /></Panel>}
+
+      <Panel title="Results" id="team-results">
+        {results.length ? results.map((m) => <MatchRow match={m} showDate />) : <p class="empty">No results yet.</p>}
+      </Panel>
+    </div>
+
+    <aside class="stack" aria-label="Schedule">
+      <Panel title="Upcoming & live" id="team-upcoming">
+        {upcoming.length ? upcoming.map((m) => <MatchRow match={m} showDate />) : <p class="empty">No scheduled matches.</p>}
+      </Panel>
+      {
+        attending.length > 0 && (
+          <Panel title="Events" id="team-events">
+            <ul class="ev-list">
+              {attending.map((e) => (
+                <li>
+                  <a href={`/events/${e.slug}/`}>{e.name}</a>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )
+      }
+    </aside>
+  </div>
+</Base>
+
+<style>
+  @layer components {
+    .team-head {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-06);
+      margin-block: var(--sp-06);
+    }
+    .team-body {
+      margin-block-start: var(--sp-07);
+    }
+    .form {
+      display: flex;
+      gap: var(--sp-02);
+    }
+    .pill {
+      display: inline-grid;
+      place-items: center;
+      inline-size: 1.75rem;
+      aspect-ratio: 1;
+      border: var(--border-width) solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: var(--type-body-sm);
+      color: var(--text-secondary);
+
+      &.w {
+        background: var(--inverse);
+        border-color: var(--inverse);
+        color: var(--on-inverse);
+      }
+    }
+    .roster {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+      gap: var(--border-width);
+      background: var(--border-subtle);
+      border: var(--border-width) solid var(--border-subtle);
+      border-block-start: 0;
+
+      & a {
+        display: grid;
+        justify-items: start;
+        gap: var(--sp-02);
+        padding: var(--sp-05);
+        background: var(--background);
+        text-decoration: none;
+        outline-offset: calc(var(--focus-width) * -1);
+
+        & strong {
+          font-size: var(--type-heading-sm);
+          font-weight: 500;
+        }
+        &:hover {
+          background: var(--layer);
+        }
+      }
+    }
+    .ev-list a {
+      display: block;
+      padding: var(--sp-04) 0;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+    }
+  }
+</style>

@@ -1,0 +1,84 @@
+---
+import Logo from "./Logo.astro";
+
+const year = 2026;
+const columns = [
+  { title: "Competition", links: [["Matches", "/matches/"], ["Results", "/results/"], ["Events", "/events/"]] },
+  { title: "Data", links: [["Team ranking", "/ranking/"], ["Player stats", "/stats/"], ["Teams", "/teams/"]] },
+  { title: "ISEC", links: [["News", "/news/"], ["Brand assets", "/brand/isec-logo.svg"]] },
+];
+---
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <Logo height="2rem" />
+      <p class="muted">Independent CS2 esports competitions.<br />Matches, results, rankings and stats.</p>
+    </div>
+    {
+      columns.map((c) => (
+        <nav aria-label={c.title}>
+          <h2 class="footer-title">{c.title}</h2>
+          <ul class="footer-links">
+            {c.links.map(([label, href]) => (
+              <li>
+                <a href={href}>{label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
+  </div>
+  <div class="footer-legal">
+    <p class="subtle">© {year} ISEC. Counter-Strike is a trademark of Valve Corporation; ISEC is not affiliated with Valve.</p>
+  </div>
+</footer>
+
+<style>
+  @layer components {
+    .site-footer {
+      margin-block-start: var(--sp-10);
+      border-block-start: var(--border-width) solid var(--border-subtle);
+    }
+    .footer-inner,
+    .footer-legal {
+      max-inline-size: var(--container);
+      margin-inline: auto;
+      padding-inline: var(--gutter);
+    }
+    .footer-inner {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+      gap: var(--sp-07);
+      padding-block: var(--sp-08);
+    }
+    .footer-brand {
+      display: grid;
+      gap: var(--sp-05);
+      align-content: start;
+    }
+    .footer-title {
+      font-size: var(--type-label);
+      font-weight: 400;
+      letter-spacing: 0.032em;
+      color: var(--text-secondary);
+      margin-block-end: var(--sp-04);
+    }
+    .footer-links {
+      display: grid;
+      gap: var(--sp-03);
+      & a {
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+    .footer-legal {
+      padding-block: var(--sp-05) var(--sp-07);
+      border-block-start: var(--border-width) solid var(--border-subtle);
+      font-size: var(--type-label);
+    }
+  }
+</style>

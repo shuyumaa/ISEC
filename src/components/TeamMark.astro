@@ -1,0 +1,43 @@
+---
+import type { Team } from "../data";
+
+interface Props {
+  team: Team;
+  size?: "sm" | "md" | "lg" | "xl";
+}
+
+const { team, size = "sm" } = Astro.props;
+---
+
+<!-- Monochrome monogram placeholder; swap for real team logos (SVG, currentColor) later. -->
+<span class:list={["team-mark", size]} aria-hidden="true">{team.tag}</span>
+
+<style>
+  @layer components {
+    .team-mark {
+      display: inline-grid;
+      place-items: center;
+      flex: none;
+      inline-size: var(--mark);
+      aspect-ratio: 1;
+      border: var(--border-width) solid var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: max(0.5625rem, calc(var(--mark) * 0.3));
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      --mark: 1.75rem;
+
+      &.md {
+        --mark: 2.5rem;
+      }
+      &.lg {
+        --mark: 4rem;
+      }
+      &.xl {
+        --mark: clamp(4rem, 3rem + 4vw, 7rem);
+        border-width: 2px;
+      }
+    }
+  }
+</style>

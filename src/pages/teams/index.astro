@@ -1,0 +1,56 @@
+---
+import Base from "../../layouts/Base.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { rankOf, teams } from "../../data";
+
+const sorted = [...teams].sort((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug) ?? 99));
+---
+
+<Base title="Teams" description="Every team competing in ISEC.">
+  <header class="page-head">
+    <h1>Teams</h1>
+    <p>{teams.length} teams compete across the ISEC circuit.</p>
+  </header>
+  <ul class="teams-grid">
+    {
+      sorted.map((t) => (
+        <li>
+          <a href={`/teams/${t.slug}/`}>
+            <TeamMark team={t} size="lg" />
+            <strong>{t.name}</strong>
+            <span class="subtle">
+              {rankOf(t.slug) ? `World #${rankOf(t.slug)} · ` : ""}
+              {t.country}
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</Base>
+
+<style>
+  @layer components {
+    .teams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+      gap: var(--border-width);
+      background: var(--border-subtle);
+      border: var(--border-width) solid var(--border-subtle);
+
+      & a {
+        display: grid;
+        justify-items: start;
+        gap: var(--sp-03);
+        padding: var(--sp-06) var(--sp-05);
+        background: var(--background);
+        text-decoration: none;
+        outline-offset: calc(var(--focus-width) * -1);
+
+        &:hover {
+          background: var(--layer);
+        }
+      }
+    }
+  }
+</style>

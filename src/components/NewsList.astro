@@ -1,0 +1,68 @@
+---
+import { Temporal } from "temporal-polyfill";
+import type { Article } from "../data";
+
+interface Props {
+  items: Article[];
+  lead?: boolean;
+}
+const { items, lead = false } = Astro.props;
+const date = (iso: string) => Temporal.PlainDate.from(iso).toLocaleString("en-GB", { day: "numeric", month: "short" });
+---
+
+<ul class:list={["news-list", { lead }]}>
+  {
+    items.map((a) => (
+      <li>
+        <a href={`/news/${a.slug}/`}>
+          <span class="cat">{a.category}</span>
+          <span class="title">{a.title}</span>
+          {lead && <span class="summary">{a.summary}</span>}
+          <span class="meta">
+            <time datetime={a.published}>{date(a.published)}</time> · {a.readMinutes} min read
+          </span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  @layer components {
+    .news-list a {
+      display: grid;
+      gap: var(--sp-02);
+      padding: var(--sp-04) var(--sp-05) var(--sp-04) 0;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      text-decoration: none;
+      outline-offset: calc(var(--focus-width) * -1);
+
+      &:hover .title {
+        text-decoration: underline;
+      }
+    }
+    .cat {
+      font-size: var(--type-label);
+      letter-spacing: 0.032em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .title {
+      font-weight: 500;
+      line-height: 1.35;
+      text-wrap: balance;
+    }
+    .lead li:first-child .title {
+      font-size: var(--type-heading-sm);
+      font-weight: 400;
+    }
+    .summary {
+      color: var(--text-secondary);
+      max-inline-size: 65ch;
+    }
+    .meta {
+      font-size: var(--type-label);
+      color: var(--text-muted);
+    }
+  }
+</style>

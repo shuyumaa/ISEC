@@ -1,0 +1,25 @@
+---
+import Base from "../layouts/Base.astro";
+import MatchRow from "../components/MatchRow.astro";
+import { completedMatches, formatDay, groupByDay } from "../data";
+
+const days = groupByDay(completedMatches());
+---
+
+<Base title="Results" description="Completed ISEC CS2 match results.">
+  <header class="page-head">
+    <h1>Results</h1>
+    <p>Every completed series, newest first. Open a match for maps, veto and player stats.</p>
+  </header>
+
+  {
+    days.map((d) => (
+      <section aria-label={`Results for ${formatDay(d.date)}`}>
+        <h2 class="day-head">{formatDay(d.date)}</h2>
+        {d.matches.map((m) => (
+          <MatchRow match={m} />
+        ))}
+      </section>
+    ))
+  }
+</Base>

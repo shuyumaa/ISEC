@@ -1,0 +1,167 @@
+---
+import { event, matchInstant, team, winnerOf, type Match } from "../data";
+import LocalTime from "./LocalTime.astro";
+import Stars from "./Stars.astro";
+import TeamMark from "./TeamMark.astro";
+
+interface Props {
+  match: Match;
+  /** Hide the event name (e.g. on an event page). */
+  hideEvent?: boolean;
+  /** Show the date instead of only the time. */
+  showDate?: boolean;
+}
+
+const { match: m, hideEvent = false, showDate = false } = Astro.props;
+const ev = event(m.event);
+const a = team(m.teamA);
+const b = team(m.teamB);
+const winner = winnerOf(m);
+const instant = matchInstant(m);
+const liveMap = m.maps.find((x) => x.live);
+
+const state = (slug: string) => (winner ? (winner === slug ? "won" : "lost") : undefined);
+const score = (side: "A" | "B") => {
+  if (m.status === "upcoming") return "";
+  // Bo1: show rounds; series otherwise.
+  if (m.bestOf === 1) {
+    const map = m.maps[0];
+    return String((side === "A" ? map?.scoreA : map?.scoreB) ?? 0);
+  }
+  return String(side === "A" ? m.seriesA : m.seriesB);
+};
+
+const label =
+  m.status === "upcoming"
+    ? `${a.name} versus ${b.name}, ${ev.name}, ${m.stage}`
+    : `${a.name} ${score("A")}, ${b.name} ${score("B")}${m.status === "live" ? ", live" : ""}, ${ev.name}, ${m.stage}`;
+---
+
+<a class:list={["match-row", m.status]} href={`/matches/${m.id}/`} aria-label={label}>
+  <span class="when">
+    {
+      m.status === "live" ? (
+        <span class="badge solid live">Live</span>
+      ) : (
+        <>
+          {showDate && <LocalTime instant={instant} zone={ev.timeZone} format="date" class="date" />}
+          <LocalTime instant={instant} zone={ev.timeZone} format="time" />
+        </>
+      )
+    }
+  </span>
+
+  <span class="teams">
+    <span class:list={["team", state(a.slug)]}>
+      <TeamMark team={a} />
+      <span class="name">{a.name}</span>
+      <span class="score">{score("A")}</span>
+    </span>
+    <span class:list={["team", state(b.slug)]}>
+      <TeamMark team={b} />
+      <span class="name">{b.name}</span>
+      <span class="score">{score("B")}</span>
+    </span>
+  </span>
+
+  <span class="meta">
+    {!hideEvent && <span class="event">{ev.name}</span>}
+    <span class="stage">
+      {m.stage} · Bo{m.bestOf}
+      {liveMap && m.bestOf > 1 && ` · ${liveMap.map} ${liveMap.scoreA}–${liveMap.scoreB}`}
+      {liveMap && m.bestOf === 1 && ` · ${liveMap.map}`}
+    </span>
+    <Stars count={m.stars} />
+  </span>
+</a>
+
+<style>
+  @layer components {
+    .match-row {
+      display: grid;
+      grid-template-columns: 5rem minmax(0, 1fr);
+      grid-template-areas:
+        "when teams"
+        ".    meta";
+      gap: var(--sp-02) var(--sp-05);
+      padding: var(--sp-04) var(--sp-05);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      text-decoration: none;
+      &:hover {
+        background: var(--layer);
+      }
+      &:focus-visible {
+        outline-offset: calc(var(--focus-width) * -1);
+      }
+
+      &.live {
+        border-inline-start: 3px solid var(--text-primary);
+        padding-inline-start: calc(var(--sp-05) - 3px);
+      }
+    }
+
+    @container (width >= 34rem) {
+      .match-row {
+        grid-template-columns: 5rem minmax(0, 1.3fr) minmax(0, 1fr);
+        grid-template-areas: "when teams meta";
+        align-items: center;
+      }
+    }
+
+    .when {
+      grid-area: when;
+      display: grid;
+      align-content: center;
+      gap: var(--sp-01);
+      justify-items: start;
+      font-family: var(--font-mono);
+      font-size: var(--type-body-sm);
+      white-space: nowrap;
+
+      & .date {
+        font-size: var(--type-label);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+      }
+    }
+
+    .teams {
+      grid-area: teams;
+      display: grid;
+      gap: var(--sp-02);
+    }
+
+    .team {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-03);
+
+      & .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      & .score {
+        min-inline-size: 1.5rem;
+        text-align: end;
+        font-family: var(--font-mono);
+        font-weight: 500;
+      }
+    }
+
+    .meta {
+      grid-area: meta;
+      display: grid;
+      gap: var(--sp-01);
+      justify-items: start;
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+
+      & .event {
+        color: var(--text-primary);
+        font-size: var(--type-body-sm);
+      }
+    }
+  }
+</style>

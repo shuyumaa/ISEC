@@ -1,0 +1,114 @@
+---
+import Base from "../layouts/Base.astro";
+import EventCard from "../components/EventCard.astro";
+import MatchRow from "../components/MatchRow.astro";
+import NewsList from "../components/NewsList.astro";
+import Panel from "../components/Panel.astro";
+import RankingList from "../components/RankingList.astro";
+import Scoreboard from "../components/Scoreboard.astro";
+import {
+  articles,
+  completedMatches,
+  events,
+  formatDay,
+  groupByDay,
+  liveMatches,
+  upcomingMatches,
+} from "../data";
+
+const live = liveMatches();
+const upcoming = upcomingMatches();
+const featured = [...live, ...upcoming].sort((a, b) => b.stars - a.stars)[0];
+const upcomingDays = groupByDay(upcoming.slice(0, 8));
+const results = completedMatches().slice(0, 8);
+const activeEvents = events.filter((e) => e.status !== "completed");
+const news = [...articles].sort((a, b) => b.published.localeCompare(a.published));
+---
+
+<Base>
+  <h1 class="visually-hidden">ISEC — CS2 matches, results and rankings</h1>
+
+  <div class="home">
+    <aside class="home-left stack" aria-label="Ranking and events">
+      <Panel title="World ranking" href="/ranking/" linkLabel="Full ranking">
+        <RankingList limit={10} />
+      </Panel>
+      <Panel title="Events" href="/events/" linkLabel="All events">
+        {activeEvents.map((e) => <EventCard event={e} compact />)}
+      </Panel>
+    </aside>
+
+    <div class="home-center stack">
+      {featured && <Scoreboard match={featured} link />}
+
+      <Panel title="Live now" id="live-now">
+        {
+          live.length ? (
+            live.map((m) => <MatchRow match={m} />)
+          ) : (
+            <p class="empty">No matches are live right now.</p>
+          )
+        }
+      </Panel>
+
+      <Panel title="Upcoming matches" href="/matches/" linkLabel="All matches">
+        {
+          upcomingDays.map((d) => (
+            <>
+              <h3 class="day-head">{formatDay(d.date)}</h3>
+              {d.matches.map((m) => (
+                <MatchRow match={m} />
+              ))}
+            </>
+          ))
+        }
+      </Panel>
+
+      <Panel title="Latest news" href="/news/" linkLabel="All news">
+        <NewsList items={news.slice(0, 5)} lead />
+      </Panel>
+    </div>
+
+    <aside class="home-right stack" aria-label="Recent results">
+      <Panel title="Recent results" href="/results/" linkLabel="All results">
+        {results.map((m) => <MatchRow match={m} showDate />)}
+      </Panel>
+    </aside>
+  </div>
+</Base>
+
+<style>
+  @layer layout {
+    .home {
+      display: grid;
+      gap: var(--sp-07);
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "center" "right" "left";
+    }
+
+    @container page (width >= 60rem) {
+      .home {
+        grid-template-columns: minmax(0, 1fr) 19rem;
+        grid-template-areas: "center right" "left right";
+      }
+    }
+
+    @container page (width >= 84rem) {
+      .home {
+        grid-template-columns: 17rem minmax(0, 1fr) 21rem;
+        grid-template-areas: "left center right";
+      }
+    }
+
+    .home-left {
+      grid-area: left;
+    }
+    .home-center {
+      grid-area: center;
+    }
+    .home-right {
+      grid-area: right;
+    }
+  }
+
+</style>

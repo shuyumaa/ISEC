@@ -1,0 +1,35 @@
+---
+import Base from "../../layouts/Base.astro";
+import MatchRow from "../../components/MatchRow.astro";
+import Panel from "../../components/Panel.astro";
+import { formatDay, groupByDay, liveMatches, upcomingMatches } from "../../data";
+
+const live = liveMatches();
+const days = groupByDay(upcomingMatches());
+---
+
+<Base title="Matches" description="Live and upcoming ISEC CS2 matches.">
+  <header class="page-head">
+    <h1>Matches</h1>
+    <p>Live and upcoming matches across every ISEC event. Times are shown in your local time zone.</p>
+  </header>
+
+  <div class="stack">
+    <Panel title={`Live now (${live.length})`} id="live">
+      {live.length ? live.map((m) => <MatchRow match={m} />) : <p class="empty">No matches are live right now.</p>}
+    </Panel>
+
+    <Panel title="Upcoming" id="upcoming">
+      {
+        days.map((d) => (
+          <section aria-label={formatDay(d.date)}>
+            <h3 class="day-head">{formatDay(d.date)}</h3>
+            {d.matches.map((m) => (
+              <MatchRow match={m} />
+            ))}
+          </section>
+        ))
+      }
+    </Panel>
+  </div>
+</Base>

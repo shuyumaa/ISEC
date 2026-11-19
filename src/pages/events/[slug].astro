@@ -1,0 +1,160 @@
+---
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import MatchRow from "../../components/MatchRow.astro";
+import Panel from "../../components/Panel.astro";
+import StatsTable from "../../components/StatsTable.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { events, formatRange, matchesForEvent, money, playerLeaderboard, rankOf, team, type EsportsEvent } from "../../data";
+
+export function getStaticPaths() {
+  return events.map((e) => ({ params: { slug: e.slug }, props: { event: e } }));
+}
+
+interface Props {
+  event: EsportsEvent;
+}
+
+const { event: ev } = Astro.props;
+const list = matchesForEvent(ev.slug);
+const live = list.filter((m) => m.status === "live");
+const upcoming = list.filter((m) => m.status === "upcoming");
+const results = list.filter((m) => m.status === "completed").reverse();
+
+// Event-wide top performers across every finished map.
+const top = playerLeaderboard(1, (m) => m.event === ev.slug).slice(0, 10);
+const status = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Completed" }[ev.status];
+---
+
+<Base title={ev.name} description={`${ev.name}: ${formatRange(ev.startDate, ev.endDate)}, ${ev.location}, ${money(ev.prizePool)} prize pool.`}>
+  <Breadcrumbs items={[{ label: "Events", href: "/events/" }, { label: ev.name, href: `/events/${ev.slug}/` }]} />
+
+  <header class="page-head event-head">
+    <div class="badges">
+      <span class:list={["badge", { solid: ev.status === "ongoing" }]}>{status}</span>
+      <span class="badge">{ev.tier}</span>
+      {ev.online && <span class="badge">Online</span>}
+    </div>
+    <h1>{ev.name}</h1>
+  </header>
+
+  <dl class="facts">
+    <div><dt>Dates</dt><dd>{formatRange(ev.startDate, ev.endDate)}</dd></div>
+    <div><dt>Location</dt><dd>{ev.location}</dd></div>
+    <div><dt>Prize pool</dt><dd>{money(ev.prizePool)}</dd></div>
+    <div><dt>Teams</dt><dd>{ev.teams.length}</dd></div>
+    {ev.winner && <div><dt>Winner</dt><dd><a href={`/teams/${ev.winner}/`}>{team(ev.winner).name}</a></dd></div>}
+  </dl>
+
+  <div class="with-sidebar event-body">
+    <div class="stack">
+      {live.length > 0 && <Panel title="Live">{live.map((m) => <MatchRow match={m} hideEvent />)}</Panel>}
+      {upcoming.length > 0 && <Panel title="Upcoming matches" id="ev-upcoming">{upcoming.map((m) => <MatchRow match={m} hideEvent showDate />)}</Panel>}
+      {results.length > 0 && <Panel title="Results" id="ev-results">{results.map((m) => <MatchRow match={m} hideEvent showDate />)}</Panel>}
+
+      {
+        top.length > 0 && (
+          <Panel title="Top players" id="ev-top">
+            <StatsTable id={`top-${ev.slug}`} caption={`Top players at ${ev.name}`} hideCaption rows={top} showMaps />
+          </Panel>
+        )
+      }
+
+      <Panel title="Teams attending" id="ev-teams">
+        <ul class="team-grid">
+          {
+            ev.teams.map((slug) => {
+              const t = team(slug);
+              return (
+                <li>
+                  <a href={`/teams/${t.slug}/`}>
+                    <TeamMark team={t} size="md" />
+                    <span>
+                      <strong>{t.name}</strong>
+                      <span class="subtle">{rankOf(t.slug) ? `World #${rankOf(t.slug)}` : t.country}</span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })
+          }
+        </ul>
+      </Panel>
+    </div>
+
+    <aside class="stack" aria-label="Event information">
+      <Panel title="Format">
+        <ul class="format">{ev.format.map((f) => <li>{f}</li>)}</ul>
+      </Panel>
+
+      <Panel title="Prize distribution">
+        <div class="table-wrap" role="region" aria-label="Prize distribution" tabindex="0">
+          <table class="data-table">
+            <thead>
+              <tr><th scope="col">Place</th><th scope="col">Team</th><th scope="col" class="n">Prize</th></tr>
+            </thead>
+            <tbody>
+              {
+                ev.prizes.map((p) => (
+                  <tr>
+                    <th scope="row">{p.place}</th>
+                    <td>{p.team ? <a href={`/teams/${p.team}/`}>{team(p.team).name}</a> : <span class="subtle">TBD</span>}</td>
+                    <td class="n">{money(p.prize)}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </aside>
+  </div>
+</Base>
+
+<style>
+  @layer components {
+    .event-head {
+      margin-block: var(--sp-05) 0;
+      border: 0;
+    }
+    .badges {
+      display: flex;
+      gap: var(--sp-02);
+    }
+    .event-body {
+      margin-block-start: var(--sp-07);
+    }
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+      gap: var(--border-width);
+      background: var(--border-subtle);
+      border: var(--border-width) solid var(--border-subtle);
+      border-block-start: 0;
+
+      & a {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-04);
+        padding: var(--sp-04) var(--sp-05);
+        background: var(--background);
+        text-decoration: none;
+        outline-offset: calc(var(--focus-width) * -1);
+
+        &:hover {
+          background: var(--layer);
+        }
+        & > span {
+          display: grid;
+        }
+      }
+    }
+    .format {
+      display: grid;
+      gap: var(--sp-03);
+      padding-block: var(--sp-04);
+      padding-inline-start: var(--sp-05);
+      color: var(--text-secondary);
+    }
+  }
+</style>

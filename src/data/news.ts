@@ -1,0 +1,92 @@
+import type { Article } from "./types";
+
+// Placeholder editorial content for ISEC's fictional circuit.
+export const articles: Article[] = [
+  {
+    slug: "winter-open-semi-finals-set",
+    title: "Winter Open semi-finals set: Northwind and Monolith top their groups",
+    summary: "Both group winners went unbeaten through Berlin's GSL groups. Obsidian and Vanta needed deciders to join them.",
+    category: "Recap",
+    author: "ISEC Editorial",
+    published: "2026-11-18",
+    readMinutes: 4,
+    related: { teams: ["northwind", "monolith", "obsidian", "vanta"], event: "winter-open-2026" },
+    body: [
+      "Three days of group play in Berlin produced the four semi-finalists most people expected, but the route there was anything but tidy.",
+      "Northwind dropped a single map all group stage, taking the decider off Vanta in the winners' match. Monolith were even more dominant, sweeping both of their series.",
+      "Vanta recovered from that loss with a composed 2–1 over Kairos in the Group A decider, while Obsidian swept Halcyon after a tense opening day.",
+      "Semi-finals are played on Thursday, with the grand final — a best of five — on Sunday.",
+    ],
+  },
+  {
+    slug: "masters-s3-invites",
+    title: "ISEC Masters Season 3: all 16 teams confirmed for Stockholm",
+    summary: "The circuit's first $1,000,000 event runs 3–13 December with a Swiss stage and an eight-team playoff.",
+    category: "Announcement",
+    author: "ISEC Operations",
+    published: "2026-11-14",
+    readMinutes: 3,
+    related: { event: "masters-s3" },
+    body: [
+      "Sixteen teams have qualified for ISEC Masters Season 3 through the ranking and the regional open qualifiers.",
+      "The Swiss stage opens with best-of-one matches; any match that decides advancement or elimination is a best of three. The top eight advance to a single-elimination playoff.",
+      "Ticketing, broadcast talent and the full schedule will be published next week.",
+    ],
+  },
+  {
+    slug: "frost-interview-winter-open",
+    title: "frost: \"We stopped trying to win every round on paper\"",
+    summary: "Northwind's in-game leader on simplifying the playbook and why the team keeps closing out deciders.",
+    category: "Interview",
+    author: "ISEC Editorial",
+    published: "2026-11-17",
+    readMinutes: 6,
+    related: { teams: ["northwind"], event: "winter-open-2026" },
+    body: [
+      "Northwind arrived in Berlin as the top-ranked team and have played like it. We sat down with in-game leader frost after the winners' match.",
+      "\"Last season we had a call for everything. It made us slow. Now we have fewer ideas and we trust the players to make the read,\" he said.",
+      "On the decider against Vanta: \"Nobody panicked. We know our CT side on that map is good. We just needed one pistol.\"",
+    ],
+  },
+  {
+    slug: "nocturne-autumn-cup",
+    title: "Nocturne win the Autumn Cup in a five-map final",
+    summary: "The Spanish side beat Static Five 3–2 to lift their first ISEC trophy and climb into the top five.",
+    category: "Recap",
+    author: "ISEC Editorial",
+    published: "2026-10-25",
+    readMinutes: 5,
+    related: { teams: ["nocturne", "static-five"], event: "autumn-cup-2026" },
+    body: [
+      "Nocturne came from 1–2 down in the grand final to win the ISEC Autumn Cup 2026.",
+      "AWPer certero finished as the event's highest-rated player, and the result lifted Nocturne three places in the world ranking.",
+    ],
+  },
+  {
+    slug: "ranking-november",
+    title: "World ranking: Iron Lotus and Nocturne on the rise",
+    summary: "The 16 November update moves two event winners up the table, while Obsidian slip to sixth.",
+    category: "Analysis",
+    author: "ISEC Ranking Desk",
+    published: "2026-11-16",
+    readMinutes: 4,
+    related: { teams: ["iron-lotus", "nocturne", "obsidian"] },
+    body: [
+      "The ISEC ranking weighs results from the last six months, with event tier, opponent strength and recency all factored in.",
+      "Iron Lotus's Pacific Invitational title and Nocturne's Autumn Cup win produced the biggest climbs this week.",
+    ],
+  },
+  {
+    slug: "lumen-sign-faisca",
+    title: "Lumen promote 19-year-old faísca from their academy",
+    summary: "The Portuguese side complete their roster ahead of the Masters with an aggressive entry fragger.",
+    category: "Roster",
+    author: "ISEC Editorial",
+    published: "2026-11-11",
+    readMinutes: 2,
+    related: { teams: ["lumen"] },
+    body: [
+      "Lumen have promoted faísca to the main roster. He will play the entry role starting with the Academy League's fourth round.",
+    ],
+  },
+];

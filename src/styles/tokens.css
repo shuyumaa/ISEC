@@ -1,0 +1,164 @@
+/*
+ * ISEC design tokens.
+ * Strictly achromatic: every colour is a neutral between pure black and pure
+ * white (values follow the Carbon gray ramp). Hierarchy comes from weight,
+ * size, spacing and inversion — never from hue.
+ */
+@layer tokens {
+  :root {
+    /* ---- Tier 1: literal tokens ------------------------------------------ */
+    --white: #ffffff;
+    --gray-10: #f4f4f4;
+    --gray-20: #e0e0e0;
+    --gray-30: #c6c6c6;
+    --gray-40: #a8a8a8;
+    --gray-50: #8d8d8d;
+    --gray-60: #6f6f6f;
+    --gray-70: #525252;
+    --gray-80: #393939;
+    --gray-90: #262626;
+    --gray-100: #161616;
+    --black: #000000;
+
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+    /* Carbon 2x spacing scale */
+    --sp-01: 0.125rem;
+    --sp-02: 0.25rem;
+    --sp-03: 0.5rem;
+    --sp-04: 0.75rem;
+    --sp-05: 1rem;
+    --sp-06: 1.5rem;
+    --sp-07: 2rem;
+    --sp-08: 2.5rem;
+    --sp-09: 3rem;
+    --sp-10: 4rem;
+    --sp-11: 5rem;
+
+    /* Type scale (Carbon productive) */
+    --type-label: 0.75rem;
+    --type-body-sm: 0.875rem;
+    --type-body: 1rem;
+    --type-heading-sm: 1.25rem;
+    --type-heading: 1.75rem;
+    --type-heading-lg: clamp(2rem, 1.5rem + 1.6vw, 2.625rem);
+    --type-display: clamp(2.5rem, 1.6rem + 3.2vw, 4.5rem);
+
+    --container: 90rem;
+    --gutter: clamp(var(--sp-05), 3vw, var(--sp-07));
+    --border-width: 1px;
+    --focus-width: 2px;
+    --radius: 0; /* Carbon: square corners */
+
+    --duration-fast: 110ms;
+    --duration-moderate: 240ms;
+    --ease-productive: cubic-bezier(0.2, 0, 0.38, 0.9);
+
+    /* ---- Tier 2: semantic pairs (light / dark) --------------------------- */
+    --background-light: var(--white);
+    --background-dark: var(--black);
+    --layer-light: var(--gray-10);
+    --layer-dark: var(--gray-100);
+    --layer-hover-light: var(--gray-20);
+    --layer-hover-dark: var(--gray-90);
+    --border-subtle-light: var(--gray-20);
+    --border-subtle-dark: var(--gray-80);
+    --border-strong-light: var(--gray-60);
+    --border-strong-dark: var(--gray-60);
+    --text-primary-light: var(--black);
+    --text-primary-dark: var(--white);
+    --text-secondary-light: var(--gray-70); /* 7.8:1 on white */
+    --text-secondary-dark: var(--gray-30); /* 12.6:1 on black */
+    --text-muted-light: var(--gray-60); /* 5.0:1 on white */
+    --text-muted-dark: var(--gray-50); /* 6.3:1 on black */
+    --inverse-light: var(--black);
+    --inverse-dark: var(--white);
+    --on-inverse-light: var(--white);
+    --on-inverse-dark: var(--black);
+
+    color-scheme: light dark;
+
+    /* Map the <meta name="color-scheme"> override back onto the property. */
+    &:has(> head > meta[name="color-scheme"][content="dark"]) {
+      color-scheme: dark;
+    }
+    &:has(> head > meta[name="color-scheme"][content="light"]) {
+      color-scheme: light;
+    }
+
+    /* ---- Tier 3: UI tokens (fallback for browsers without light-dark()) -- */
+    --background: var(--background-light);
+    --layer: var(--layer-light);
+    --layer-hover: var(--layer-hover-light);
+    --border-subtle: var(--border-subtle-light);
+    --border-strong: var(--border-strong-light);
+    --text-primary: var(--text-primary-light);
+    --text-secondary: var(--text-secondary-light);
+    --text-muted: var(--text-muted-light);
+    --inverse: var(--inverse-light);
+    --on-inverse: var(--on-inverse-light);
+  }
+
+  /* Fallback dark branch (no light-dark()): system preference unless pinned light, or pinned dark. */
+  @supports not (color: light-dark(#000, #fff)) {
+    @media (prefers-color-scheme: dark) {
+      :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+        --background: var(--background-dark);
+        --layer: var(--layer-dark);
+        --layer-hover: var(--layer-hover-dark);
+        --border-subtle: var(--border-subtle-dark);
+        --border-strong: var(--border-strong-dark);
+        --text-primary: var(--text-primary-dark);
+        --text-secondary: var(--text-secondary-dark);
+        --text-muted: var(--text-muted-dark);
+        --inverse: var(--inverse-dark);
+        --on-inverse: var(--on-inverse-dark);
+      }
+    }
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+      --background: var(--background-dark);
+      --layer: var(--layer-dark);
+      --layer-hover: var(--layer-hover-dark);
+      --border-subtle: var(--border-subtle-dark);
+      --border-strong: var(--border-strong-dark);
+      --text-primary: var(--text-primary-dark);
+      --text-secondary: var(--text-secondary-dark);
+      --text-muted: var(--text-muted-dark);
+      --inverse: var(--inverse-dark);
+      --on-inverse: var(--on-inverse-dark);
+    }
+  }
+
+  /* Preferred path: light-dark() follows the computed color-scheme everywhere,
+     including subtrees that force a scheme (e.g. inverted panels). */
+  @supports (color: light-dark(#000, #fff)) {
+    :root {
+      --background: light-dark(var(--background-light), var(--background-dark));
+      --layer: light-dark(var(--layer-light), var(--layer-dark));
+      --layer-hover: light-dark(var(--layer-hover-light), var(--layer-hover-dark));
+      --border-subtle: light-dark(var(--border-subtle-light), var(--border-subtle-dark));
+      --border-strong: light-dark(var(--border-strong-light), var(--border-strong-dark));
+      --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+      --text-secondary: light-dark(var(--text-secondary-light), var(--text-secondary-dark));
+      --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+      --inverse: light-dark(var(--inverse-light), var(--inverse-dark));
+      --on-inverse: light-dark(var(--on-inverse-light), var(--on-inverse-dark));
+    }
+  }
+
+  @media (forced-colors: active) {
+    :root {
+      --background: Canvas;
+      --layer: Canvas;
+      --layer-hover: Canvas;
+      --border-subtle: CanvasText;
+      --border-strong: CanvasText;
+      --text-primary: CanvasText;
+      --text-secondary: CanvasText;
+      --text-muted: GrayText;
+      --inverse: CanvasText;
+      --on-inverse: Canvas;
+    }
+  }
+}

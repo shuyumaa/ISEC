@@ -1,0 +1,260 @@
+---
+import Icon from "./Icon.astro";
+import Logo from "./Logo.astro";
+
+const links = [
+  { href: "/matches/", label: "Matches" },
+  { href: "/results/", label: "Results" },
+  { href: "/events/", label: "Events" },
+  { href: "/ranking/", label: "Ranking" },
+  { href: "/stats/", label: "Stats" },
+  { href: "/news/", label: "News" },
+];
+
+const path = Astro.url.pathname;
+const isCurrent = (href: string) => path === href || path.startsWith(href);
+const sectionOf = (href: string) =>
+  // Team & player pages live under Ranking/Stats in the IA.
+  (href === "/ranking/" && path.startsWith("/teams/")) || (href === "/stats/" && path.startsWith("/players/"));
+---
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-logo" href="/" aria-label="ISEC home">
+      <Logo height="1.375rem" label="ISEC" />
+    </a>
+
+    <nav class="site-nav" aria-label="Primary">
+      <button class="menu-button" type="button" popovertarget="site-menu" aria-controls="site-menu">
+        <Icon name="menu" size={20} />
+        <span>Menu</span>
+      </button>
+      <ul id="site-menu" class="site-menu" popover="auto">
+        {
+          links.map((l) => (
+            <li>
+              <a
+                href={l.href}
+                aria-current={isCurrent(l.href) ? "page" : sectionOf(l.href) ? "true" : undefined}
+              >
+                {l.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <button class="theme-toggle" type="button" data-theme-toggle>
+        <span class="if-light">
+          <Icon name="moon" size={20} />
+          <span class="visually-hidden">Switch to dark theme</span>
+        </span>
+        <span class="if-dark">
+          <Icon name="sun" size={20} />
+          <span class="visually-hidden">Switch to light theme</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<script>
+  import "../scripts/polyfills";
+  import "../scripts/theme";
+  import "../scripts/nav";
+  import "../scripts/time";
+</script>
+
+<style>
+  @layer components {
+    .site-header {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 10;
+      background: var(--background);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: stretch;
+      gap: var(--sp-03);
+      max-inline-size: var(--container);
+      min-block-size: 3rem;
+      margin-inline: auto;
+      padding-inline: var(--gutter);
+
+      /* Keep the row's natural width measurable */
+      & > * {
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+    }
+
+    .site-logo {
+      display: flex;
+      align-items: center;
+      padding-inline-end: var(--sp-05);
+      color: var(--text-primary);
+    }
+
+    .site-nav {
+      display: flex;
+      align-items: stretch;
+      order: 2;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: stretch;
+      order: 1;
+      margin-inline-start: auto;
+    }
+
+    .menu-button,
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+      min-inline-size: 3rem;
+      justify-content: center;
+      padding-inline: var(--sp-04);
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--layer-hover);
+      }
+      &:focus-visible {
+        outline-offset: calc(var(--focus-width) * -1);
+      }
+    }
+
+    .menu-button {
+      anchor-name: --menu-button;
+    }
+
+    /* Collapsed (default, also without JS): the list is a popover panel. */
+    .site-menu {
+      position: fixed;
+      inset: auto;
+      inset-block-start: 3.0625rem;
+      inset-block-start: anchor(--menu-button bottom);
+      inset-inline-end: var(--gutter);
+      inline-size: min(80dvw, 20rem);
+      max-inline-size: calc(100dvw - 2 * var(--gutter));
+      block-size: fit-content;
+      max-block-size: calc(100dvh - 5rem);
+      margin: 0;
+      padding: var(--sp-03) 0;
+      overflow: auto;
+      border: var(--border-width) solid var(--border-strong);
+      background: var(--background);
+      color: var(--text-primary);
+
+      & a {
+        display: block;
+        padding: var(--sp-04) var(--sp-05);
+        font-size: var(--type-body);
+        text-decoration: none;
+
+        &:hover {
+          background: var(--layer-hover);
+        }
+        &:focus-visible {
+          outline-offset: calc(var(--focus-width) * -1);
+        }
+        &:is([aria-current="page"], [aria-current="true"]) {
+          font-weight: 600;
+          border-inline-start: var(--sp-02) solid var(--text-primary);
+          padding-inline-start: calc(var(--sp-05) - var(--sp-02));
+        }
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .site-menu {
+        transition:
+          opacity var(--duration-fast) var(--ease-productive),
+          translate var(--duration-fast) var(--ease-productive),
+          display var(--duration-fast),
+          overlay var(--duration-fast);
+        transition-behavior: allow-discrete;
+
+        &:not(:is(:popover-open, .\:popover-open)) {
+          opacity: 0;
+          translate: 0 calc(var(--sp-02) * -1);
+        }
+      }
+      @starting-style {
+        .site-menu:is(:popover-open, .\:popover-open) {
+          opacity: 0;
+          translate: 0 calc(var(--sp-02) * -1);
+        }
+      }
+    }
+
+    /* Wide: the same list becomes the inline primary navigation. */
+    .site-header.is-wide {
+      .menu-button {
+        display: none;
+      }
+      .site-nav {
+        order: 0;
+        margin-inline-start: 0;
+      }
+      .site-menu {
+        position: static;
+        display: flex;
+        align-items: stretch;
+        inline-size: auto;
+        max-inline-size: none;
+        block-size: auto;
+        max-block-size: none;
+        overflow: visible;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        opacity: 1;
+        translate: none;
+
+        & a {
+          display: flex;
+          align-items: center;
+          block-size: 100%;
+          padding: 0 var(--sp-05);
+          font-size: var(--type-body-sm);
+          color: var(--text-secondary);
+
+          &:hover {
+            color: var(--text-primary);
+          }
+          &:is([aria-current="page"], [aria-current="true"]) {
+            color: var(--text-primary);
+            border-inline-start: 0;
+            padding-inline-start: var(--sp-05);
+            /* Shape cue (not colour alone): a 2px bar on the bottom edge. */
+            border-block-end: 2px solid var(--text-primary);
+            padding-block-start: 2px;
+          }
+        }
+      }
+      .site-menu::backdrop {
+        display: none;
+      }
+    }
+
+    .site-header.is-measuring * {
+      transition: none !important;
+    }
+
+    @media (forced-colors: active) {
+      .site-header.is-wide .site-menu a[aria-current] {
+        border-block-end-color: Highlight;
+      }
+    }
+  }
+</style>

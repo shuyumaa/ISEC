@@ -1,0 +1,16 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  count: number;
+}
+const { count } = Astro.props;
+---
+
+{
+  count > 0 && (
+    <span class="stars" role="img" aria-label={`Featured match, ${count} of 3 stars`}>
+      {Array.from({ length: count }, () => <Icon name="star" size={10} />)}
+    </span>
+  )
+}
