@@ -1,36 +1,83 @@
 import { Temporal } from "temporal-polyfill";
-import { events, ranking, rankingUpdated } from "./events";
-import { matches } from "./matches";
-import { articles } from "./news";
-import { players, teams } from "./teams";
-import type { EsportsEvent, Match, Player, PlayerMapStats, Team } from "./types";
+import { snapshot } from "../server/db";
+import type { EsportsEvent, MapResult, Match, Player, PlayerMapStats, Team } from "./types";
 
-export { articles, events, matches, players, ranking, rankingUpdated, teams };
 export type * from "./types";
 
-/**
- * The reference "now" for the mock data set. A real deployment would use
- * Temporal.Now and fetch live status from the API instead.
+/*
+ * Read API for pages. Everything resolves against the current database
+ * snapshot, which is rebuilt after each admin write, so a page render always
+ * sees one consistent version of the data.
  */
-export const TODAY = Temporal.PlainDate.from("2026-11-19");
 
-const bySlug = <T extends { slug: string }>(list: T[]) => new Map(list.map((x) => [x.slug, x]));
-const teamMap = bySlug(teams);
-const playerMap = bySlug(players);
-const eventMap = bySlug(events);
+export const getTeams = () => snapshot().teams;
+export const getPlayers = () => snapshot().players;
+export const getEvents = () => snapshot().events;
+export const getMatches = () => snapshot().matches;
+export const getArticles = () =>
+  [...snapshot().articles].sort((a, b) => b.published.localeCompare(a.published));
+export const getRanking = () => snapshot().ranking;
+export const getRankingUpdated = () => snapshot().meta.rankingUpdated;
+export const dataVersion = () => snapshot().version;
 
-function must<T>(value: T | undefined, what: string): T {
-  if (value === undefined) throw new Error(`Unknown ${what}`);
-  return value;
+const indexes = new WeakMap<object, { teams: Map<string, Team>; players: Map<string, Player>; events: Map<string, EsportsEvent> }>();
+function idx() {
+  const s = snapshot();
+  let i = indexes.get(s);
+  if (!i) {
+    i = {
+      teams: new Map(s.teams.map((x) => [x.slug, x])),
+      players: new Map(s.players.map((x) => [x.slug, x])),
+      events: new Map(s.events.map((x) => [x.slug, x])),
+    };
+    indexes.set(s, i);
+  }
+  return i;
 }
 
-export const team = (slug: string): Team => must(teamMap.get(slug), `team "${slug}"`);
-export const player = (slug: string): Player => must(playerMap.get(slug), `player "${slug}"`);
-export const event = (slug: string): EsportsEvent => must(eventMap.get(slug), `event "${slug}"`);
-export const match = (id: string): Match => must(matches.find((m) => m.id === id), `match "${id}"`);
+/** Placeholder used when a record was deleted but is still referenced. */
+const unknownTeam = (slug: string): Team => ({ slug, name: slug, tag: "?", country: "", countryCode: "", founded: 0, coach: "" });
 
-export const rosterOf = (teamSlug: string) => players.filter((p) => p.team === teamSlug);
-export const rankOf = (teamSlug: string) => ranking.findIndex((r) => r.team === teamSlug) + 1 || undefined;
+export const team = (slug: string): Team => idx().teams.get(slug) ?? unknownTeam(slug);
+export const findTeam = (slug: string) => idx().teams.get(slug);
+export const player = (slug: string): Player =>
+  idx().players.get(slug) ?? { slug, nickname: slug, firstName: "", lastName: "", team: "", role: "Rifler", countryCode: "", age: 0 };
+export const findPlayer = (slug: string) => idx().players.get(slug);
+export const event = (slug: string): EsportsEvent =>
+  idx().events.get(slug) ?? {
+    slug, name: slug, tier: "Open", status: "upcoming", startDate: "2026-01-01", endDate: "2026-01-01",
+    timeZone: "UTC", location: "", online: true, prizePool: 0, teams: [], format: [], prizes: [],
+  };
+export const findEvent = (slug: string) => idx().events.get(slug);
+export const findMatch = (id: string) => getMatches().find((m) => m.id === id);
+export const findArticle = (slug: string) => snapshot().articles.find((a) => a.slug === slug);
+
+export const rosterOf = (teamSlug: string) => getPlayers().filter((p) => p.team === teamSlug);
+export const rankOf = (teamSlug: string) => getRanking().findIndex((r) => r.team === teamSlug) + 1 || undefined;
+
+/* ------------------------------ Match rules ------------------------------ */
+
+/** A map is decided once it is no longer live and one side has won (MR12, OT MR3). */
+export function mapDecided(map: MapResult): boolean {
+  if (map.live || map.scoreA === undefined || map.scoreB === undefined) return false;
+  const hi = Math.max(map.scoreA, map.scoreB);
+  const lo = Math.min(map.scoreA, map.scoreB);
+  if (hi === 13 && lo <= 11) return true;
+  // Overtime: first to 4 of 6 rounds per OT block, i.e. win by 2 at 16, 19, 22…
+  return hi >= 16 && hi - lo >= 2 && (hi - 13) % 3 === 0;
+}
+
+/** Series score derived from decided maps (Bo1 counts the single map). */
+export function seriesScore(m: Pick<Match, "maps">): [number, number] {
+  let a = 0;
+  let b = 0;
+  for (const map of m.maps) {
+    if (!mapDecided(map)) continue;
+    if (map.scoreA! > map.scoreB!) a++;
+    else b++;
+  }
+  return [a, b];
+}
 
 /* ---------------------------------- Time --------------------------------- */
 
@@ -50,14 +97,14 @@ const chronological = (a: Match, b: Match) => Temporal.ZonedDateTime.compare(mat
 
 /* -------------------------------- Queries -------------------------------- */
 
-export const liveMatches = () => matches.filter((m) => m.status === "live").sort(chronological);
-export const upcomingMatches = () => matches.filter((m) => m.status === "upcoming").sort(chronological);
+export const liveMatches = () => getMatches().filter((m) => m.status === "live").sort(chronological);
+export const upcomingMatches = () => getMatches().filter((m) => m.status === "upcoming").sort(chronological);
 export const completedMatches = () =>
-  matches.filter((m) => m.status === "completed").sort((a, b) => chronological(b, a));
+  getMatches().filter((m) => m.status === "completed").sort((a, b) => chronological(b, a));
 
-export const matchesForEvent = (slug: string) => matches.filter((m) => m.event === slug).sort(chronological);
+export const matchesForEvent = (slug: string) => getMatches().filter((m) => m.event === slug).sort(chronological);
 export const matchesForTeam = (slug: string) =>
-  matches.filter((m) => m.teamA === slug || m.teamB === slug).sort((a, b) => chronological(b, a));
+  getMatches().filter((m) => m.teamA === slug || m.teamB === slug).sort((a, b) => chronological(b, a));
 
 export function winnerOf(m: Match): string | undefined {
   if (m.status !== "completed") return undefined;
@@ -128,7 +175,7 @@ function aggregate(player: Player, entries: { stats: PlayerMapStats; rounds: num
 /** Career (data-set wide) stats for every player with at least `minMaps` completed maps. */
 export function playerLeaderboard(minMaps = 1, include: (m: Match) => boolean = () => true): AggregatedStats[] {
   const perPlayer = new Map<string, { stats: PlayerMapStats; rounds: number }[]>();
-  for (const m of matches.filter(include)) {
+  for (const m of getMatches().filter(include)) {
     for (const map of m.maps) {
       if (!map.stats || map.live) continue;
       const rounds = (map.scoreA ?? 0) + (map.scoreB ?? 0);

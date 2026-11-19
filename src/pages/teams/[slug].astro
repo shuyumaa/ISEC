@@ -1,29 +1,24 @@
 ---
 import Base from "../../layouts/Base.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
 import StatsTable from "../../components/StatsTable.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { events, matchesForTeam, playerLeaderboard, ranking, rankOf, rosterOf, teams, winnerOf, type Team } from "../../data";
+import { findTeam, getEvents, getRanking, matchesForTeam, playerLeaderboard, rankOf, rosterOf, winnerOf } from "../../data";
 
-export function getStaticPaths() {
-  return teams.map((t) => ({ params: { slug: t.slug }, props: { team: t } }));
-}
-
-interface Props {
-  team: Team;
-}
-const { team: t } = Astro.props;
+const t = findTeam(Astro.params.slug ?? "");
+if (!t) return Astro.rewrite("/404");
 const rank = rankOf(t.slug);
-const entry = ranking.find((r) => r.team === t.slug);
+const entry = getRanking().find((r) => r.team === t.slug);
 const roster = rosterOf(t.slug);
 const all = matchesForTeam(t.slug);
 const upcoming = all.filter((m) => m.status !== "completed").reverse();
 const results = all.filter((m) => m.status === "completed");
 const wins = results.filter((m) => winnerOf(m) === t.slug).length;
 const stats = playerLeaderboard(0).filter((s) => s.player.team === t.slug);
-const attending = events.filter((e) => e.teams.includes(t.slug) && e.status !== "completed");
+const attending = getEvents().filter((e) => e.teams.includes(t.slug) && e.status !== "completed");
 const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L"));
 ---
 
@@ -38,6 +33,7 @@ const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L")
     </div>
   </header>
 
+  <LiveRegion key="team" deps={[`team:${t.slug}`, "player:*", "match:*", "ranking:*", "event:*"]}>
   <dl class="facts">
     <div><dt>World ranking</dt><dd>{rank ? `#${rank}` : "Unranked"}</dd></div>
     <div><dt>Points</dt><dd>{entry?.points ?? "—"}</dd></div>
@@ -96,6 +92,7 @@ const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L")
       }
     </aside>
   </div>
+  </LiveRegion>
 </Base>
 
 <style>

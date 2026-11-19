@@ -1,4 +1,4 @@
-import type { EsportsEvent, RankingEntry } from "./types";
+import type { EsportsEvent, RankingEntry } from "../../data/types";
 
 export const events: EsportsEvent[] = [
   {

@@ -1,4 +1,4 @@
-import type { Article } from "./types";
+import type { Article } from "../../data/types";
 
 // Placeholder editorial content for ISEC's fictional circuit.
 export const articles: Article[] = [

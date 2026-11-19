@@ -5,5 +5,12 @@ declare namespace astroHTML.JSX {
   interface HTMLAttributes {
     focusgroup?: string;
     focusgroupstart?: string | boolean;
+    closedby?: "any" | "closerequest" | "none";
+  }
+}
+
+declare namespace App {
+  interface Locals {
+    admin?: { sub: string };
   }
 }

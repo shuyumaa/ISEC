@@ -1,0 +1,58 @@
+---
+import { Temporal } from "temporal-polyfill";
+import Admin from "../../layouts/Admin.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { getRanking, getRankingUpdated, team } from "../../data";
+import { handlePost } from "../../server/handle";
+import { saveRanking } from "../../server/mutations";
+
+const result = await handlePost(Astro.request, (form) => {
+  saveRanking(form);
+  return { message: "Ranking published" };
+});
+if (result instanceof Response) return result;
+
+const ranking = getRanking();
+---
+
+<Admin title="Ranking" error={result?.error}>
+  <form method="post" class="form">
+    <div class="form-grid">
+      <div class="field">
+        <label for="updated">Ranking date</label>
+        <input id="updated" name="updated" type="date" required value={Temporal.Now.plainDateISO().toString()} aria-describedby="updated-hint" />
+        <span id="updated-hint" class="hint">Last published: {getRankingUpdated() || "never"}</span>
+      </div>
+    </div>
+    <div class="checks"><label><input type="checkbox" name="autoChange" checked /> Work out movement (↑/↓) from the previous ranking</label></div>
+    <div class="table-wrap" role="region" aria-label="Ranking points" tabindex="0">
+      <table class="data-table">
+        <thead><tr><th scope="col" class="n">#</th><th scope="col">Team</th><th scope="col">Points</th><th scope="col">Manual change</th></tr></thead>
+        <tbody>
+          {
+            ranking.map((r, i) => {
+              const t = team(r.team);
+              return (
+                <tr>
+                  <td class="n mono">{i + 1}</td>
+                  <th scope="row"><span class="team-cell"><TeamMark team={t} /> {t.name}</span></th>
+                  <td><input name={`points_${t.slug}`} type="number" min="0" max="100000" required value={r.points} aria-label={`${t.name} points`} /></td>
+                  <td><input name={`change_${t.slug}`} type="number" min="-100" max="100" value={r.change} aria-label={`${t.name} manual change`} /></td>
+                </tr>
+              );
+            })
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="actions"><button type="submit" class="btn">Publish ranking</button></div>
+  </form>
+</Admin>
+
+<style>
+  .team-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-03);
+  }
+</style>

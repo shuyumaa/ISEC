@@ -1,14 +1,21 @@
 ---
 import { Temporal } from "temporal-polyfill";
+import LiveRegion from "../components/LiveRegion.astro";
 import Base from "../layouts/Base.astro";
 import Icon from "../components/Icon.astro";
 import TeamMark from "../components/TeamMark.astro";
-import { ranking, rankingUpdated, rosterOf, team } from "../data";
+import { getRanking, getRankingUpdated, rosterOf, team } from "../data";
 
-const updated = Temporal.PlainDate.from(rankingUpdated).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+const ranking = getRanking();
+const rankingUpdated = getRankingUpdated();
+
+const updated = rankingUpdated
+  ? Temporal.PlainDate.from(rankingUpdated).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  : "—";
 ---
 
 <Base title="World ranking" description="The ISEC CS2 world team ranking.">
+  <LiveRegion key="ranking" deps={["ranking:*", "team:*", "player:*", "meta:*"]}>
   <header class="page-head">
     <span class="eyebrow">Updated <time datetime={rankingUpdated}>{updated}</time></span>
     <h1>World ranking</h1>
@@ -63,6 +70,7 @@ const updated = Temporal.PlainDate.from(rankingUpdated).toLocaleString("en-GB", 
       </tbody>
     </table>
   </div>
+  </LiveRegion>
 </Base>
 
 <style>

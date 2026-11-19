@@ -8,15 +8,18 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "../styles/base.css";
 import "../styles/tokens.css";
 import "../styles/components.css";
+import "../styles/protect.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 
 interface Props {
   title?: string;
   description?: string;
+  /** Seconds between automatic reloads for visitors without JavaScript (pages with live data). */
+  noscriptRefresh?: number;
 }
 
-const { title, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
+const { title, noscriptRefresh, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
   Astro.props;
 const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competitions";
 ---
@@ -37,8 +40,16 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
     <meta name="description" content={description} />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>{fullTitle}</title>
+    {
+      noscriptRefresh && (
+        <noscript>
+          <meta http-equiv="refresh" content={String(noscriptRefresh)} />
+        </noscript>
+      )
+    }
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -49,5 +60,6 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
       </div>
     </main>
     <Footer />
+    <p id="live-announcer" class="visually-hidden" role="status"></p>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import type { Player, Role, Team } from "./types";
+import type { Player, Role, Team } from "../../data/types";
 
 // All organisations and players below are fictional placeholders.
 // Replace with your real ISEC participants (or load them from your API).

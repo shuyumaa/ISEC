@@ -1,0 +1,17 @@
+---
+/**
+ * A server-rendered region that refreshes itself when the data it depends on
+ * changes. `deps` are "kind:id" keys (use "*" as id for any record of a kind),
+ * e.g. "match:2380111 article:*". `key` must be unique on the page.
+ */
+interface Props {
+  key: string;
+  deps: string[];
+  as?: "div" | "section";
+  /** Announce the region's [data-announce-text] to screen readers when it changes. */
+  announce?: boolean;
+}
+const { key, deps, as: Tag = "div", announce = false } = Astro.props;
+---
+
+<Tag class="live-region" data-live={key} data-deps={deps.join(" ")} data-announce={announce ? "" : undefined}><slot /></Tag>

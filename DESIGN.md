@@ -37,14 +37,15 @@ Tokens are built with `light-dark()` and fall back to a `prefers-color-scheme` b
 
 ## Logo
 
-- The ISEC wordmark is traced to a single vector path (`src/components/logo-path.ts`) and drawn with `fill="currentColor"`. One asset is therefore black on the light theme and white on the dark theme.
-- The original artwork lives in `public/brand/`: `isec-logo-on-light.webp` and `isec-logo-on-dark.webp`, plus a standalone black `isec-logo.svg`.
+- The logo is the original ISEC artwork with its chromatic aberration and motion blur. `isec-logo-light` (dark letters) is used on the light theme and `isec-logo-dark` (white embossed letters) on the dark theme.
+- It's drawn by `.brand-logo` in `src/styles/protect.css` and served through the protected `/media/` route. See the README for how the protection works.
 
 ## Components
 
 | Component | Purpose |
 | --- | --- |
-| `Header` | Measured responsive navigation: inline when it fits, a native popover otherwise; theme toggle |
+| `Header` | Measured responsive navigation: inline when it fits, a native popover otherwise; live-sync indicator; theme toggle |
+| `LiveRegion` | Marks a server-rendered section that refreshes itself when its data changes |
 | `Scoreboard` | Large match header (live / final / countdown) |
 | `MatchRow` | List row used for live, upcoming and results |
 | `Panel` | Titled section with an optional "View all" link |

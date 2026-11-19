@@ -1,21 +1,15 @@
 ---
 import Base from "../../layouts/Base.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
 import StatsTable from "../../components/StatsTable.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { events, formatRange, matchesForEvent, money, playerLeaderboard, rankOf, team, type EsportsEvent } from "../../data";
+import { findEvent, formatRange, matchesForEvent, money, playerLeaderboard, rankOf, team } from "../../data";
 
-export function getStaticPaths() {
-  return events.map((e) => ({ params: { slug: e.slug }, props: { event: e } }));
-}
-
-interface Props {
-  event: EsportsEvent;
-}
-
-const { event: ev } = Astro.props;
+const ev = findEvent(Astro.params.slug ?? "");
+if (!ev) return Astro.rewrite("/404");
 const list = matchesForEvent(ev.slug);
 const live = list.filter((m) => m.status === "live");
 const upcoming = list.filter((m) => m.status === "upcoming");
@@ -38,6 +32,7 @@ const status = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Completed
     <h1>{ev.name}</h1>
   </header>
 
+  <LiveRegion key="event" deps={[`event:${ev.slug}`, "match:*", "team:*"]}>
   <dl class="facts">
     <div><dt>Dates</dt><dd>{formatRange(ev.startDate, ev.endDate)}</dd></div>
     <div><dt>Location</dt><dd>{ev.location}</dd></div>
@@ -109,6 +104,7 @@ const status = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Completed
       </Panel>
     </aside>
   </div>
+  </LiveRegion>
 </Base>
 
 <style>

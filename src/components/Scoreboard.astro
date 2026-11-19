@@ -35,6 +35,9 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
   </div>
 
   <H class="sb-title visually-hidden">{a.name} vs {b.name}</H>
+  <span class="visually-hidden" data-announce-text>
+    {m.status === "upcoming" ? `${a.name} versus ${b.name} has not started.` : `${m.status === "live" ? "Live" : "Final"}: ${a.name} ${seriesA}, ${b.name} ${seriesB}${liveMap && m.bestOf > 1 ? `. ${liveMap.map} ${liveMap.scoreA} to ${liveMap.scoreB}` : ""}.`}
+  </span>
 
   <div class="sb-main">
     <div class:list={["sb-team", state(a.slug)]}>

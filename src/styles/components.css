@@ -469,3 +469,55 @@
     }
   }
 }
+
+@layer components {
+  /* Live regions don't affect layout; they only mark what can refresh. */
+  .live-region {
+    display: contents;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .just-updated > * {
+      animation: flash-update 1.2s var(--ease-productive);
+    }
+  }
+  @keyframes flash-update {
+    from {
+      background-color: var(--layer-hover);
+    }
+  }
+}
+
+@layer components {
+    .sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-02);
+    padding-inline: var(--sp-04);
+    font-size: var(--type-label);
+    letter-spacing: 0.032em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+
+    &[hidden] {
+      display: none;
+    }
+    & .dot {
+      inline-size: 0.5rem;
+      aspect-ratio: 1;
+      border: var(--border-width) solid currentColor;
+    }
+    &[data-state="live"] {
+      color: var(--text-primary);
+      & .dot {
+        background: currentColor;
+      }
+    }
+    &[data-state="connecting"] .label::after {
+      content: "…";
+    }
+    &[data-state="offline"] .label {
+      text-decoration: line-through;
+    }
+  }
+}

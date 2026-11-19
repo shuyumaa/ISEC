@@ -1,8 +1,9 @@
 ---
+import LiveRegion from "../../components/LiveRegion.astro";
 import Base from "../../layouts/Base.astro";
 import EventCard from "../../components/EventCard.astro";
 import Panel from "../../components/Panel.astro";
-import { events, type EventStatus } from "../../data";
+import { getEvents, type EventStatus } from "../../data";
 
 const groups: { status: EventStatus; title: string }[] = [
   { status: "ongoing", title: "Ongoing" },
@@ -12,6 +13,7 @@ const groups: { status: EventStatus; title: string }[] = [
 ---
 
 <Base title="Events" description="ISEC CS2 tournaments: ongoing, upcoming and completed.">
+  <LiveRegion key="events" deps={["event:*"]}>
   <header class="page-head">
     <h1>Events</h1>
     <p>All ISEC competitions — from academy leagues to the Masters.</p>
@@ -20,7 +22,7 @@ const groups: { status: EventStatus; title: string }[] = [
   <div class="stack">
     {
       groups.map((g) => {
-        const list = events.filter((e) => e.status === g.status);
+        const list = getEvents().filter((e) => e.status === g.status);
         return (
           list.length > 0 && (
             <Panel title={g.title} id={`events-${g.status}`}>
@@ -35,6 +37,7 @@ const groups: { status: EventStatus; title: string }[] = [
       })
     }
   </div>
+  </LiveRegion>
 </Base>
 
 <style>

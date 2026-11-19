@@ -1,5 +1,5 @@
 import { players } from "./teams";
-import type { MapName, MapResult, Match, MatchStatus, PlayerMapStats, Side, VetoStep } from "./types";
+import type { MapName, MapResult, Match, MatchStatus, PlayerMapStats, Side, VetoStep } from "../../data/types";
 
 /* ------------------------------------------------------------------------- *
  * Deterministic mock generator.

@@ -1,23 +1,18 @@
 ---
 import Base from "../../layouts/Base.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
 import Scoreboard from "../../components/Scoreboard.astro";
 import StatsTable from "../../components/StatsTable.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { event, headToHead, matches, matchesForEvent, matchStats, team, type Match } from "../../data";
+import { event, findMatch, headToHead, matchesForEvent, matchStats, team } from "../../data";
 
-export function getStaticPaths() {
-  return matches.map((m) => ({ params: { id: m.id }, props: { match: m } }));
-}
-
-interface Props {
-  match: Match;
-}
-
-const { match: m } = Astro.props;
+const m = findMatch(Astro.params.id ?? "");
+if (!m) return Astro.rewrite("/404");
 const ev = event(m.event);
+const deps = [`match:${m.id}`, `event:${m.event}`, `team:${m.teamA}`, `team:${m.teamB}`];
 const a = team(m.teamA);
 const b = team(m.teamB);
 const h2h = headToHead(a.slug, b.slug);
@@ -35,7 +30,7 @@ const statsFor = (index: number | undefined, slug: string) =>
 const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
 ---
 
-<Base title={`${a.name} vs ${b.name} — ${ev.name}`} description={`${a.name} vs ${b.name}, ${m.stage} of ${ev.name}: maps, veto and player stats.`}>
+<Base title={`${a.name} vs ${b.name} — ${ev.name}`} description={`${a.name} vs ${b.name}, ${m.stage} of ${ev.name}: maps, veto and player stats.`} noscriptRefresh={m.status === "live" ? 15 : undefined}>
   <Breadcrumbs
     items={[
       { label: "Matches", href: "/matches/" },
@@ -45,8 +40,11 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
   />
 
   <div class="match-page">
-    <Scoreboard match={m} headingLevel={1} />
+    <LiveRegion key="scoreboard" deps={deps} announce>
+      <Scoreboard match={m} headingLevel={1} />
+    </LiveRegion>
 
+    <LiveRegion key="match-body" deps={[...deps, "player:*"]}>
     <div class="with-sidebar">
       <div class="stack">
         <Panel title="Maps">
@@ -161,6 +159,7 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
         }
       </aside>
     </div>
+    </LiveRegion>
   </div>
 </Base>
 

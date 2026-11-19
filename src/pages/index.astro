@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import LiveRegion from "../components/LiveRegion.astro";
 import EventCard from "../components/EventCard.astro";
 import MatchRow from "../components/MatchRow.astro";
 import NewsList from "../components/NewsList.astro";
@@ -7,9 +8,9 @@ import Panel from "../components/Panel.astro";
 import RankingList from "../components/RankingList.astro";
 import Scoreboard from "../components/Scoreboard.astro";
 import {
-  articles,
+  getArticles,
   completedMatches,
-  events,
+  getEvents,
   formatDay,
   groupByDay,
   liveMatches,
@@ -21,25 +22,33 @@ const upcoming = upcomingMatches();
 const featured = [...live, ...upcoming].sort((a, b) => b.stars - a.stars)[0];
 const upcomingDays = groupByDay(upcoming.slice(0, 8));
 const results = completedMatches().slice(0, 8);
-const activeEvents = events.filter((e) => e.status !== "completed");
-const news = [...articles].sort((a, b) => b.published.localeCompare(a.published));
+const activeEvents = getEvents().filter((e) => e.status !== "completed");
+const news = getArticles();
 ---
 
-<Base>
+<Base noscriptRefresh={30}>
   <h1 class="visually-hidden">ISEC — CS2 matches, results and rankings</h1>
 
   <div class="home">
     <aside class="home-left stack" aria-label="Ranking and events">
-      <Panel title="World ranking" href="/ranking/" linkLabel="Full ranking">
-        <RankingList limit={10} />
-      </Panel>
-      <Panel title="Events" href="/events/" linkLabel="All events">
-        {activeEvents.map((e) => <EventCard event={e} compact />)}
-      </Panel>
+      <LiveRegion key="ranking" deps={["ranking:*", "team:*", "meta:*"]}>
+        <Panel title="World ranking" href="/ranking/" linkLabel="Full ranking">
+          <RankingList limit={10} />
+        </Panel>
+      </LiveRegion>
+      <LiveRegion key="events" deps={["event:*"]}>
+        <Panel title="Events" href="/events/" linkLabel="All events">
+          {activeEvents.map((e) => <EventCard event={e} compact />)}
+        </Panel>
+      </LiveRegion>
     </aside>
 
     <div class="home-center stack">
-      {featured && <Scoreboard match={featured} link />}
+      <LiveRegion key="featured" deps={["match:*", "team:*", "event:*"]}>
+        {featured && <Scoreboard match={featured} link />}
+      </LiveRegion>
+
+      <LiveRegion key="live-now" deps={["match:*", "team:*", "event:*"]}>
 
       <Panel title="Live now" id="live-now">
         {
@@ -50,7 +59,9 @@ const news = [...articles].sort((a, b) => b.published.localeCompare(a.published)
           )
         }
       </Panel>
+      </LiveRegion>
 
+      <LiveRegion key="upcoming" deps={["match:*", "team:*", "event:*"]}>
       <Panel title="Upcoming matches" href="/matches/" linkLabel="All matches">
         {
           upcomingDays.map((d) => (
@@ -63,16 +74,21 @@ const news = [...articles].sort((a, b) => b.published.localeCompare(a.published)
           ))
         }
       </Panel>
+      </LiveRegion>
 
-      <Panel title="Latest news" href="/news/" linkLabel="All news">
-        <NewsList items={news.slice(0, 5)} lead />
-      </Panel>
+      <LiveRegion key="news" deps={["article:*"]}>
+        <Panel title="Latest news" href="/news/" linkLabel="All news">
+          <NewsList items={news.slice(0, 5)} lead />
+        </Panel>
+      </LiveRegion>
     </div>
 
     <aside class="home-right stack" aria-label="Recent results">
-      <Panel title="Recent results" href="/results/" linkLabel="All results">
-        {results.map((m) => <MatchRow match={m} showDate />)}
-      </Panel>
+      <LiveRegion key="results" deps={["match:*", "team:*", "event:*"]}>
+        <Panel title="Recent results" href="/results/" linkLabel="All results">
+          {results.map((m) => <MatchRow match={m} showDate />)}
+        </Panel>
+      </LiveRegion>
     </aside>
   </div>
 </Base>

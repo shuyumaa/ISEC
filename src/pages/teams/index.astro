@@ -1,15 +1,17 @@
 ---
+import LiveRegion from "../../components/LiveRegion.astro";
 import Base from "../../layouts/Base.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { rankOf, teams } from "../../data";
+import { getTeams, rankOf } from "../../data";
 
-const sorted = [...teams].sort((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug) ?? 99));
+const sorted = [...getTeams()].sort((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug) ?? 99));
 ---
 
 <Base title="Teams" description="Every team competing in ISEC.">
+  <LiveRegion key="teams" deps={["team:*", "ranking:*"]}>
   <header class="page-head">
     <h1>Teams</h1>
-    <p>{teams.length} teams compete across the ISEC circuit.</p>
+    <p>{getTeams().length} teams compete across the ISEC circuit.</p>
   </header>
   <ul class="teams-grid">
     {
@@ -27,6 +29,7 @@ const sorted = [...teams].sort((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug
       ))
     }
   </ul>
+  </LiveRegion>
 </Base>
 
 <style>

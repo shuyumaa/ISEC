@@ -1,0 +1,25 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import { formatRange, getEvents, money } from "../../../data";
+---
+
+<Admin title="Events">
+  <p class="actions"><a class="btn" href="/admin/events/new/">Create an event</a></p>
+  <div class="table-wrap" role="region" aria-label="Events" tabindex="0">
+    <table class="data-table">
+      <thead><tr><th scope="col">Event</th><th scope="col">Status</th><th scope="col">Dates</th><th scope="col" class="n">Prize pool</th></tr></thead>
+      <tbody>
+        {
+          getEvents().map((e) => (
+            <tr>
+              <th scope="row"><a href={`/admin/events/${e.slug}/`}>{e.name}</a></th>
+              <td><span class:list={["badge", { solid: e.status === "ongoing" }]}>{e.status}</span></td>
+              <td>{formatRange(e.startDate, e.endDate)}</td>
+              <td class="n">{money(e.prizePool)}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</Admin>

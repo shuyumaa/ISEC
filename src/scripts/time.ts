@@ -14,12 +14,12 @@ const FORMATS: Record<string, Intl.DateTimeFormatOptions> = {
 
 const here = Temporal.Now.timeZoneId();
 
-for (const el of document.querySelectorAll<HTMLTimeElement>("time[data-local-time]")) {
-  const zoned = Temporal.Instant.from(el.dateTime).toZonedDateTimeISO(here);
-  el.textContent = zoned.toLocaleString(undefined, FORMATS[el.dataset.localTime ?? "time"]);
+function localise(root: ParentNode) {
+  for (const el of root.querySelectorAll<HTMLTimeElement>("time[data-local-time]")) {
+    const zoned = Temporal.Instant.from(el.dateTime).toZonedDateTimeISO(here);
+    el.textContent = zoned.toLocaleString(undefined, FORMATS[el.dataset.localTime ?? "time"]);
+  }
 }
-
-const countdowns = [...document.querySelectorAll<HTMLElement>("[data-countdown]")];
 
 type Duration = InstanceType<typeof Temporal.Duration>;
 const hasDurationFormat = "DurationFormat" in Intl;
@@ -39,22 +39,27 @@ function format(d: Duration): string {
 
 function tick() {
   const now = Temporal.Now.zonedDateTimeISO(here);
-  for (const el of countdowns) {
+  for (const el of document.querySelectorAll<HTMLElement>("[data-countdown]")) {
     const target = Temporal.Instant.from(el.dataset.countdown!).toZonedDateTimeISO(here);
     const left = now.until(target, { largestUnit: "day", smallestUnit: "second" });
     el.textContent = left.sign > 0 ? format(left) : "Starting";
   }
 }
 
-if (countdowns.length) {
+let timer: ReturnType<typeof setInterval> | undefined;
+function startTicking() {
+  clearInterval(timer);
+  if (document.hidden || !document.querySelector("[data-countdown]")) return;
   tick();
-  let timer = setInterval(tick, 1000);
-  // Don't burn CPU in background tabs.
-  document.addEventListener("visibilitychange", () => {
-    clearInterval(timer);
-    if (!document.hidden) {
-      tick();
-      timer = setInterval(tick, 1000);
-    }
-  });
+  timer = setInterval(tick, 1000);
 }
+
+localise(document);
+startTicking();
+// Don't burn CPU in background tabs.
+document.addEventListener("visibilitychange", startTicking);
+// Re-run on regions swapped in by live sync.
+document.addEventListener("isec:hydrate", (e) => {
+  localise(e.target as Element);
+  startTicking();
+});

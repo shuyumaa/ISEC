@@ -1,0 +1,127 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
+import LocalTime from "../../components/LocalTime.astro";
+import MatchControl from "../../components/admin/MatchControl.astro";
+import { event, getArticles, getMatches, getTeams, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
+import { listenerCount } from "../../server/bus";
+import { auditLog } from "../../server/db";
+import { handlePost } from "../../server/handle";
+import { updateMatch } from "../../server/mutations";
+
+// Quick actions posted from the dashboard ("Go live").
+const result = await handlePost(Astro.request, (form, intent) => {
+  const id = String(form.get("id") ?? "");
+  updateMatch(id, intent, form);
+  return { message: "Match is live" };
+});
+if (result instanceof Response) return result;
+
+const live = liveMatches();
+const next = upcomingMatches().slice(0, 6);
+const log = auditLog(15);
+const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+---
+
+<Admin title="Dashboard" error={result?.error}>
+  <LiveRegion key="tiles" deps={["*"]}>
+    <div class="stat-tiles">
+      <div><span class="label">Live matches</span><span class="big">{live.length}</span></div>
+      <div><span class="label">Upcoming</span><span class="big">{upcomingMatches().length}</span></div>
+      <div><span class="label">Matches total</span><span class="big">{getMatches().length}</span></div>
+      <div><span class="label">Teams</span><span class="big">{getTeams().length}</span></div>
+      <div><span class="label">Articles</span><span class="big">{getArticles().length}</span></div>
+      <div><span class="label">Live viewers connected</span><span class="big">{listenerCount()}</span></div>
+    </div>
+  </LiveRegion>
+
+  <section class="admin-section" aria-labelledby="live-h">
+    <h2 id="live-h">Live now</h2>
+    <LiveRegion key="live-controls" deps={["match:*"]}>
+      <div class="control-grid">
+        {live.length ? live.map((m) => <MatchControl match={m} />) : <p class="empty">No live matches. Start one from "Up next".</p>}
+      </div>
+    </LiveRegion>
+  </section>
+
+  <section class="admin-section" aria-labelledby="next-h">
+    <h2 id="next-h">Up next</h2>
+    <LiveRegion key="next" deps={["match:*"]}>
+      <div class="table-wrap" role="region" aria-labelledby="next-h" tabindex="0">
+        <table class="data-table">
+          <thead>
+            <tr><th scope="col">Match</th><th scope="col">Event</th><th scope="col">Starts (your time)</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+          </thead>
+          <tbody>
+            {
+              next.map((m) => (
+                <tr>
+                  <th scope="row"><a href={`/admin/matches/${m.id}/`}>{team(m.teamA).name} vs {team(m.teamB).name}</a></th>
+                  <td>{event(m.event).name} · {m.stage}</td>
+                  <td><LocalTime instant={matchInstant(m)} zone={event(m.event).timeZone} format="datetime" /></td>
+                  <td>
+                    <form method="post" class="actions" data-enhance>
+                      <input type="hidden" name="intent" value="status" />
+                      <input type="hidden" name="status" value="live" />
+                      <input type="hidden" name="id" value={m.id} />
+                      <button type="submit" class="btn small">Go live</button>
+                    </form>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </LiveRegion>
+  </section>
+
+  <section class="admin-section" aria-labelledby="log-h">
+    <h2 id="log-h">Recent activity</h2>
+    <LiveRegion key="log" deps={["*"]}>
+      <ol class="log">
+        {
+          log.map((l) => (
+            <li>
+              <time datetime={l.at}>{fmt.format(new Date(l.at))} UTC</time>
+              <span><strong>{l.actor}</strong> {l.action}</span>
+              <code>{l.target}</code>
+            </li>
+          ))
+        }
+      </ol>
+    </LiveRegion>
+  </section>
+</Admin>
+
+<style>
+  @layer components {
+    .control-grid {
+      display: grid;
+      gap: var(--sp-05);
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+    }
+    .log {
+      display: grid;
+      list-style: none;
+      padding: 0;
+      & li {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        @container page (width >= 40rem) {
+          grid-template-columns: 12rem minmax(0, 1fr) auto;
+        }
+        gap: var(--sp-04);
+        padding: var(--sp-03) 0;
+        border-block-end: var(--border-width) solid var(--border-subtle);
+        font-size: var(--type-body-sm);
+      }
+      & time,
+      & code {
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: var(--type-label);
+      }
+    }
+  }
+</style>

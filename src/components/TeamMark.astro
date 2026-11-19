@@ -9,7 +9,6 @@ interface Props {
 const { team, size = "sm" } = Astro.props;
 ---
 
-<!-- Monochrome monogram placeholder; swap for real team logos (SVG, currentColor) later. -->
 <span class:list={["team-mark", size]} aria-hidden="true">{team.tag}</span>
 
 <style>

@@ -6,18 +6,12 @@ import EventCard from "../../components/EventCard.astro";
 import NewsList from "../../components/NewsList.astro";
 import Panel from "../../components/Panel.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { articles, event, team, type Article } from "../../data";
+import { event, findArticle, getArticles, team } from "../../data";
 
-export function getStaticPaths() {
-  return articles.map((a) => ({ params: { slug: a.slug }, props: { article: a } }));
-}
-
-interface Props {
-  article: Article;
-}
-const { article: a } = Astro.props;
+const a = findArticle(Astro.params.slug ?? "");
+if (!a) return Astro.rewrite("/404");
 const date = Temporal.PlainDate.from(a.published).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-const more = articles.filter((x) => x.slug !== a.slug).slice(0, 4);
+const more = getArticles().filter((x) => x.slug !== a.slug).slice(0, 4);
 ---
 
 <Base title={a.title} description={a.summary}>

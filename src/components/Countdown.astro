@@ -5,7 +5,6 @@ interface Props {
 const { instant } = Astro.props;
 ---
 
-<!-- Filled in on the client (Temporal + Intl.DurationFormat). -->
 <span class="countdown" data-countdown={instant} role="timer" aria-live="off">Starts soon</span>
 
 <style>

@@ -1,0 +1,73 @@
+/*
+ * Brand logo + content protection.
+ * Everything here is CSS, so it still applies when JavaScript is disabled.
+ * (src/scripts/protect.ts adds event-level blocking on top when JS runs.)
+ */
+
+@layer components {
+  :root {
+    --logo-light: image-set(
+      url("/media/isec-logo-light-480.webp") 1x type("image/webp"),
+      url("/media/isec-logo-light-960.webp") 2x type("image/webp"),
+      url("/media/isec-logo-light-480.png") 1x type("image/png"),
+      url("/media/isec-logo-light-960.png") 2x type("image/png")
+    );
+    --logo-dark: image-set(
+      url("/media/isec-logo-dark-480.webp") 1x type("image/webp"),
+      url("/media/isec-logo-dark-960.webp") 2x type("image/webp"),
+      url("/media/isec-logo-dark-480.png") 1x type("image/png"),
+      url("/media/isec-logo-dark-960.png") 2x type("image/png")
+    );
+    --logo-image: var(--logo-light);
+  }
+
+  /* Critical branching (must work everywhere), so the dark rule is duplicated
+     for "system dark" and "pinned dark" rather than using style queries. */
+  @media (prefers-color-scheme: dark) {
+    :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+      --logo-image: var(--logo-dark);
+    }
+  }
+  :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+    --logo-image: var(--logo-dark);
+  }
+
+  .brand-logo {
+    display: inline-block;
+    block-size: var(--logo-h, 1.25rem);
+    aspect-ratio: 2000 / 928;
+    background: var(--logo-image) center / contain no-repeat;
+    /* Keep the artwork in Windows High Contrast instead of dropping it. */
+    forced-color-adjust: none;
+  }
+}
+
+@layer base {
+  /* No selecting / copying page content (public site only). */
+  body:not(.admin) {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  body:not(.admin) :is(input, textarea, select, [contenteditable="true"]) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* No dragging images or protected media out of the page. */
+  img,
+  svg,
+  .protected {
+    -webkit-user-drag: none;
+  }
+  .protected {
+    /* Clicks pass through to the surrounding link; no context target. */
+    pointer-events: none;
+  }
+
+  @media print {
+    .protected {
+      visibility: hidden;
+    }
+  }
+}

@@ -1,0 +1,36 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import TeamMark from "../../../components/TeamMark.astro";
+import { getTeams, rankOf, rosterOf } from "../../../data";
+
+const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+---
+
+<Admin title="Teams & players">
+  <p class="actions"><a class="btn" href="/admin/teams/new/">Add a team</a></p>
+  <div class="table-wrap" role="region" aria-label="Teams" tabindex="0">
+    <table class="data-table">
+      <thead><tr><th scope="col">Team</th><th scope="col">Country</th><th scope="col" class="n">Rank</th><th scope="col">Roster</th></tr></thead>
+      <tbody>
+        {
+          teams.map((t) => (
+            <tr>
+              <th scope="row"><a href={`/admin/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a></th>
+              <td>{t.country}</td>
+              <td class="n mono">{rankOf(t.slug) ?? "–"}</td>
+              <td class="muted">{rosterOf(t.slug).map((p) => p.nickname).join(", ") || "—"}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</Admin>
+
+<style>
+  .team-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-03);
+  }
+</style>

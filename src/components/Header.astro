@@ -46,6 +46,10 @@ const sectionOf = (href: string) =>
     </nav>
 
     <div class="header-actions">
+      <span class="sync-status" data-sync-status hidden>
+        <span class="dot" aria-hidden="true"></span>
+        <span class="label">Live</span>
+      </span>
       <button class="theme-toggle" type="button" data-theme-toggle>
         <span class="if-light">
           <Icon name="moon" size={20} />
@@ -65,6 +69,8 @@ const sectionOf = (href: string) =>
   import "../scripts/theme";
   import "../scripts/nav";
   import "../scripts/time";
+  import "../scripts/live";
+  import "../scripts/protect";
 </script>
 
 <style>

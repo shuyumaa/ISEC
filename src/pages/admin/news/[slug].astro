@@ -1,0 +1,82 @@
+---
+import { Temporal } from "temporal-polyfill";
+import Admin from "../../../layouts/Admin.astro";
+import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
+import { findArticle, getEvents, getTeams } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { CATEGORIES, deleteArticle, saveArticle } from "../../../server/mutations";
+
+const slug = Astro.params.slug ?? "";
+const isNew = slug === "new";
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "delete") {
+    deleteArticle(slug);
+    return { redirect: "/admin/news/", message: "Article deleted" };
+  }
+  const a = saveArticle(isNew ? undefined : slug, form);
+  return { redirect: `/admin/news/${a.slug}/`, message: isNew ? "Article published" : "Article saved" };
+});
+if (result instanceof Response) return result;
+
+const a = isNew ? undefined : findArticle(slug);
+if (!isNew && !a) return Astro.rewrite("/404");
+const today = Temporal.Now.plainDateISO().toString();
+const teams = [...getTeams()].sort((x, y) => x.name.localeCompare(y.name));
+---
+
+<Admin title={isNew ? "New article" : "Edit article"} error={result?.error}>
+  <form method="post" class="form">
+    <input type="hidden" name="intent" value="save" />
+    <div class="field wide">
+      <label for="title">Title</label>
+      <input id="title" name="title" required maxlength="160" value={a?.title ?? ""} />
+    </div>
+    <div class="field wide">
+      <label for="summary">Summary</label>
+      <input id="summary" name="summary" required maxlength="300" value={a?.summary ?? ""} aria-describedby="summary-hint" />
+      <span id="summary-hint" class="hint">Shown in lists and search results. Up to 300 characters.</span>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="category">Category</label>
+        <select id="category" name="category">{CATEGORIES.map((c) => <option selected={a?.category === c}>{c}</option>)}</select>
+      </div>
+      <div class="field">
+        <label for="author">Author</label>
+        <input id="author" name="author" required maxlength="80" autocomplete="name" value={a?.author ?? "ISEC Editorial"} />
+      </div>
+      <div class="field">
+        <label for="published">Publish date</label>
+        <input id="published" name="published" type="date" required value={a?.published ?? today} />
+      </div>
+      <div class="field">
+        <label for="readMinutes">Read time (minutes)</label>
+        <input id="readMinutes" name="readMinutes" type="number" min="1" max="60" value={a?.readMinutes ?? 3} />
+      </div>
+      <div class="field">
+        <label for="relatedEvent">Related event</label>
+        <select id="relatedEvent" name="relatedEvent">
+          <option value="">None</option>
+          {getEvents().map((e) => <option value={e.slug} selected={a?.related?.event === e.slug}>{e.name}</option>)}
+        </select>
+      </div>
+    </div>
+    <div class="field wide">
+      <label for="body">Body</label>
+      <textarea id="body" name="body" required rows="14" aria-describedby="body-hint">{a?.body.join("\n\n") ?? ""}</textarea>
+      <span id="body-hint" class="hint">Separate paragraphs with a blank line. Plain text — formatting is applied by the site.</span>
+    </div>
+    <fieldset>
+      <legend>Teams in this story</legend>
+      <div class="checks">
+        {teams.map((t) => <label><input type="checkbox" name="teams" value={t.slug} checked={a?.related?.teams?.includes(t.slug)} /> {t.name}</label>)}
+      </div>
+    </fieldset>
+    <div class="actions">
+      <button type="submit" class="btn">{isNew ? "Publish article" : "Save changes"}</button>
+      {a && <a class="btn ghost small" href={`/news/${a.slug}/`} target="_blank" rel="noopener">View</a>}
+    </div>
+  </form>
+  {a && <div class="actions"><ConfirmDelete id="delete-article" what="this article" action={`/admin/news/${a.slug}/`} label="Delete article" /></div>}
+</Admin>

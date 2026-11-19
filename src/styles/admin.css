@@ -1,0 +1,329 @@
+/* Admin panel: same tokens, denser layout, form controls. */
+
+@layer layout {
+  .admin-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--sp-03) var(--sp-05);
+    min-block-size: 3rem;
+    padding-block: var(--sp-02);
+    padding-inline: var(--gutter);
+    background: var(--background);
+    color: var(--text-primary);
+    border-block-end: 2px solid var(--text-primary);
+  }
+
+  .admin-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-04);
+    text-decoration: none;
+    font-weight: 600;
+    letter-spacing: 0.032em;
+    text-transform: uppercase;
+    font-size: var(--type-label);
+
+    & > span:last-child {
+      padding: var(--sp-01) var(--sp-03);
+      background: var(--inverse);
+      color: var(--on-inverse);
+    }
+  }
+
+  .admin-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-03);
+  }
+
+  .admin-shell {
+    display: grid;
+    /* body is a grid; without this the auto margins shrink the shell to fit. */
+    inline-size: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    max-inline-size: var(--container);
+    margin-inline: auto;
+    container-type: inline-size;
+    container-name: page;
+
+    @media (width >= 56rem) {
+      grid-template-columns: 13rem minmax(0, 1fr);
+    }
+    &.bare {
+      grid-template-columns: minmax(0, 28rem);
+      justify-content: center;
+    }
+  }
+
+  .admin-nav {
+    border-block-end: var(--border-width) solid var(--border-subtle);
+    @media (width >= 56rem) {
+      border-block-end: 0;
+      border-inline-end: var(--border-width) solid var(--border-subtle);
+    }
+
+    & ul {
+      display: flex;
+      overflow-x: auto;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      @media (width >= 56rem) {
+        padding-block: var(--sp-05);
+        display: grid;
+        position: sticky;
+        inset-block-start: 3rem;
+      }
+    }
+    & a {
+      display: block;
+      padding: var(--sp-03) var(--sp-05);
+      white-space: nowrap;
+      text-decoration: none;
+      color: var(--text-secondary);
+      border-inline-start: 3px solid transparent;
+
+      &:hover {
+        background: var(--layer);
+        color: var(--text-primary);
+      }
+      &[aria-current="page"] {
+        color: var(--text-primary);
+        font-weight: 600;
+        border-inline-start-color: var(--text-primary);
+      }
+    }
+  }
+
+  .admin-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-07);
+    align-content: start;
+    padding: var(--sp-07) var(--gutter) var(--sp-10);
+    min-inline-size: 0;
+  }
+
+  .admin-title {
+    font-size: var(--type-heading);
+  }
+}
+
+@layer components {
+  .btn.small {
+    min-block-size: 2rem;
+    padding: var(--sp-02) var(--sp-04);
+    gap: var(--sp-03);
+  }
+  .btn.danger {
+    background: transparent;
+    color: var(--text-primary);
+    border: 2px solid var(--text-primary);
+    font-weight: 600;
+  }
+  .btn[disabled] {
+    opacity: 0.5;
+    cursor: progress;
+  }
+
+  .notice {
+    padding: var(--sp-04) var(--sp-05);
+    border: var(--border-width) solid var(--border-strong);
+    border-inline-start-width: 4px;
+    max-inline-size: 60rem;
+
+    &.error {
+      border-color: var(--text-primary);
+      font-weight: 600;
+      &::before {
+        content: "Error: ";
+      }
+    }
+    &.success::before {
+      content: "✓ " / "";
+    }
+  }
+
+  .toast {
+    position: fixed;
+    inset-block-end: var(--sp-05);
+    inset-inline-end: var(--sp-05);
+    z-index: 50;
+    max-inline-size: min(24rem, calc(100vw - 2rem));
+    padding: var(--sp-04) var(--sp-05);
+    background: var(--inverse);
+    color: var(--on-inverse);
+
+    &[data-kind="error"]::before {
+      content: "Error: ";
+      font-weight: 600;
+    }
+  }
+
+  /* ---- Forms ------------------------------------------------------------- */
+  .form {
+    display: grid;
+    gap: var(--sp-05);
+    max-inline-size: 60rem;
+  }
+
+  .form-grid {
+    display: grid;
+    gap: var(--sp-05);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  }
+
+  .field {
+    display: grid;
+    gap: var(--sp-02);
+    align-content: start;
+
+    &.wide {
+      grid-column: 1 / -1;
+    }
+    & > label,
+    & > .label {
+      font-size: var(--type-label);
+      letter-spacing: 0.032em;
+      color: var(--text-secondary);
+    }
+    & .hint {
+      font-size: var(--type-label);
+      color: var(--text-muted);
+    }
+  }
+
+  .admin :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+    inline-size: 100%;
+    min-block-size: 2.75rem;
+    padding: var(--sp-03) var(--sp-04);
+    border: 0;
+    border-block-end: var(--border-width) solid var(--border-strong);
+    background: var(--layer);
+    color: var(--text-primary);
+    font-size: max(1rem, 1em);
+    border-radius: 0;
+
+    &:focus-visible {
+      outline: var(--focus-width) solid var(--text-primary);
+      outline-offset: calc(var(--focus-width) * -1);
+    }
+    &:user-invalid {
+      border-block-end: 2px solid var(--text-primary);
+      background-image: linear-gradient(90deg, var(--text-primary) 4px, transparent 4px);
+    }
+  }
+  .admin textarea {
+    min-block-size: 8rem;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  .admin input[type="number"] {
+    font-family: var(--font-mono);
+  }
+
+  .admin fieldset {
+    display: grid;
+    gap: var(--sp-04);
+    margin: 0;
+    padding: var(--sp-05);
+    border: var(--border-width) solid var(--border-subtle);
+    min-inline-size: 0;
+
+    & legend {
+      padding-inline: var(--sp-02);
+      font-weight: 600;
+    }
+  }
+
+  .checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+    gap: var(--sp-03) var(--sp-05);
+
+    & label {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+      min-block-size: 2rem;
+      cursor: pointer;
+    }
+    & input {
+      inline-size: 1.125rem;
+      block-size: 1.125rem;
+    }
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-04);
+  }
+
+  .admin-section {
+    display: grid;
+    gap: var(--sp-05);
+    padding-block-start: var(--sp-05);
+    border-block-start: 2px solid var(--text-primary);
+
+    & > h2 {
+      font-size: var(--type-heading-sm);
+    }
+  }
+
+  .stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: var(--border-width);
+    background: var(--border-subtle);
+    border: var(--border-width) solid var(--border-subtle);
+
+    & > div {
+      display: grid;
+      gap: var(--sp-02);
+      padding: var(--sp-05);
+      background: var(--background);
+    }
+    & .big {
+      font-size: var(--type-heading);
+      font-family: var(--font-mono);
+    }
+    & .label {
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+    }
+  }
+
+  /* Confirmation dialog */
+  dialog.confirm {
+    max-inline-size: min(28rem, calc(100vw - 2rem));
+    padding: var(--sp-06);
+    border: 2px solid var(--text-primary);
+    background: var(--background);
+    color: var(--text-primary);
+
+    &:modal {
+      overscroll-behavior: contain;
+    }
+    &::backdrop {
+      background: rgb(0 0 0 / 0.6);
+      overflow: hidden;
+      overscroll-behavior: contain;
+    }
+    & h2 {
+      font-size: var(--type-heading-sm);
+      margin-block-end: var(--sp-03);
+    }
+    & p {
+      color: var(--text-secondary);
+      margin-block-end: var(--sp-05);
+    }
+  }
+}

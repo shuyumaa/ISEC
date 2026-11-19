@@ -1,5 +1,5 @@
 ---
-import { ranking, team } from "../data";
+import { getRanking, team } from "../data";
 import Icon from "./Icon.astro";
 import TeamMark from "./TeamMark.astro";
 
@@ -7,7 +7,7 @@ interface Props {
   limit?: number;
 }
 const { limit = 10 } = Astro.props;
-const rows = ranking.slice(0, limit);
+const rows = getRanking().slice(0, limit);
 ---
 
 <ol class="ranking-list">

@@ -1,17 +1,20 @@
 ---
+import LiveRegion from "../../components/LiveRegion.astro";
 import Base from "../../layouts/Base.astro";
 import NewsList from "../../components/NewsList.astro";
-import { articles } from "../../data";
+import { getArticles } from "../../data";
 
-const sorted = [...articles].sort((a, b) => b.published.localeCompare(a.published));
+const sorted = getArticles();
 ---
 
 <Base title="News" description="ISEC news, interviews and analysis.">
+  <LiveRegion key="news" deps={["article:*"]}>
   <header class="page-head">
     <h1>News</h1>
     <p>Announcements, recaps, interviews and ranking analysis from the ISEC circuit.</p>
   </header>
   <div class="news-wrap"><NewsList items={sorted} lead /></div>
+  </LiveRegion>
 </Base>
 
 <style>

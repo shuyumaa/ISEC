@@ -7,7 +7,9 @@ import { focusgroupReady } from "./polyfills";
  */
 await focusgroupReady;
 
-for (const root of document.querySelectorAll<HTMLElement>("[data-tabs]")) {
+function initTabs(scope: ParentNode) {
+for (const root of scope.querySelectorAll<HTMLElement>("[data-tabs]:not([data-tabs-ready])")) {
+  root.dataset.tabsReady = "";
   const tabs = [...root.querySelectorAll<HTMLButtonElement>(":scope > .tablist > button")];
   const panels = tabs.map((t) => root.querySelector<HTMLElement>(`[role="tabpanel"][aria-labelledby="${t.id}"]`)!);
 
@@ -35,3 +37,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-tabs]")) {
   }
   panels.forEach((panel, i) => panel.addEventListener("beforematch", () => select(tabs[i]!)));
 }
+}
+
+initTabs(document);
+document.addEventListener("isec:hydrate", (e) => initTabs(e.target as Element));

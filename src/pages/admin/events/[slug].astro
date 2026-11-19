@@ -1,0 +1,73 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
+import { findEvent, getTeams } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { EVENT_STATUSES, TIERS, deleteEvent, saveEvent } from "../../../server/mutations";
+
+const slug = Astro.params.slug ?? "";
+const isNew = slug === "new";
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "delete") {
+    deleteEvent(slug);
+    return { redirect: "/admin/events/", message: "Event deleted" };
+  }
+  const ev = saveEvent(isNew ? undefined : slug, form);
+  return { redirect: `/admin/events/${ev.slug}/`, message: isNew ? "Event created" : "Event saved" };
+});
+if (result instanceof Response) return result;
+
+const ev = isNew ? undefined : findEvent(slug);
+if (!isNew && !ev) return Astro.rewrite("/404");
+const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const zones = Intl.supportedValuesOf("timeZone");
+---
+
+<Admin title={ev ? ev.name : "New event"} error={result?.error}>
+  <form method="post" class="form">
+    <input type="hidden" name="intent" value="save" />
+    <div class="form-grid">
+      <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="100" value={ev?.name ?? ""} /></div>
+      <div class="field"><label for="tier">Tier</label><select id="tier" name="tier">{TIERS.map((t) => <option selected={ev?.tier === t}>{t}</option>)}</select></div>
+      <div class="field"><label for="status">Status</label><select id="status" name="status">{EVENT_STATUSES.map((s) => <option selected={ev?.status === s}>{s}</option>)}</select></div>
+      <div class="field"><label for="startDate">Start date</label><input id="startDate" name="startDate" type="date" required value={ev?.startDate ?? ""} /></div>
+      <div class="field"><label for="endDate">End date</label><input id="endDate" name="endDate" type="date" required value={ev?.endDate ?? ""} /></div>
+      <div class="field">
+        <label for="timeZone">Time zone</label>
+        <input id="timeZone" name="timeZone" required list="zones" autocomplete="off" spellcheck="false" value={ev?.timeZone ?? "Europe/Berlin"} aria-describedby="tz-hint" />
+        <datalist id="zones">{zones.map((z) => <option value={z} />)}</datalist>
+        <span id="tz-hint" class="hint">Match start times are entered in this zone.</span>
+      </div>
+      <div class="field"><label for="location">Location</label><input id="location" name="location" required maxlength="100" value={ev?.location ?? ""} /></div>
+      <div class="field"><label for="prizePool">Prize pool (USD)</label><input id="prizePool" name="prizePool" type="number" min="0" step="1" value={ev?.prizePool ?? 0} /></div>
+      <div class="field">
+        <label for="winner">Winner</label>
+        <select id="winner" name="winner">
+          <option value="">Not decided</option>
+          {teams.map((t) => <option value={t.slug} selected={ev?.winner === t.slug}>{t.name}</option>)}
+        </select>
+      </div>
+    </div>
+    <div class="checks"><label><input type="checkbox" name="online" checked={ev?.online} /> Online event</label></div>
+    <fieldset>
+      <legend>Teams attending</legend>
+      <div class="checks">{teams.map((t) => <label><input type="checkbox" name="teams" value={t.slug} checked={ev?.teams.includes(t.slug)} /> {t.name}</label>)}</div>
+    </fieldset>
+    <div class="field wide">
+      <label for="format">Format</label>
+      <textarea id="format" name="format" rows="4" aria-describedby="format-hint">{ev?.format.join("\n") ?? ""}</textarea>
+      <span id="format-hint" class="hint">One line per stage.</span>
+    </div>
+    <div class="field wide">
+      <label for="prizes">Prize distribution</label>
+      <textarea id="prizes" name="prizes" rows="7" spellcheck="false" aria-describedby="prizes-hint">{ev?.prizes.map((p) => [p.place, p.prize, p.team ?? ""].join(" | ").replace(/ \| $/, "")).join("\n") ?? ""}</textarea>
+      <span id="prizes-hint" class="hint">One line per place: <code>place | amount | team-slug</code> (team optional), e.g. <code>1st | 100000 | northwind</code>.</span>
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn">{isNew ? "Create event" : "Save event"}</button>
+      {ev && <a class="btn ghost small" href={`/events/${ev.slug}/`} target="_blank" rel="noopener">View</a>}
+    </div>
+  </form>
+  {ev && <div class="actions"><ConfirmDelete id="delete-event" what={ev.name} action={`/admin/events/${ev.slug}/`} label="Delete event" /></div>}
+</Admin>

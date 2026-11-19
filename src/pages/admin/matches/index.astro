@@ -1,0 +1,66 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import LiveRegion from "../../../components/LiveRegion.astro";
+import LocalTime from "../../../components/LocalTime.astro";
+import MatchMetaFields from "../../../components/admin/MatchMetaFields.astro";
+import { event, getMatches, matchInstant, matchStart, team } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { createMatch } from "../../../server/mutations";
+
+const result = await handlePost(Astro.request, (form) => {
+  const m = createMatch(form);
+  return { redirect: `/admin/matches/${m.id}/`, message: "Match created" };
+});
+if (result instanceof Response) return result;
+
+const filter = Astro.url.searchParams.get("status") ?? "all";
+const order = { live: 0, upcoming: 1, completed: 2 } as const;
+const list = getMatches()
+  .filter((m) => filter === "all" || m.status === filter)
+  .sort((a, b) => order[a.status] - order[b.status] || matchStart(b).epochMilliseconds - matchStart(a).epochMilliseconds);
+---
+
+<Admin title="Matches" error={result?.error}>
+  <section class="admin-section" aria-labelledby="new-h">
+    <h2 id="new-h">Schedule a match</h2>
+    <form method="post" class="form" aria-labelledby="new-h">
+      <MatchMetaFields />
+      <div class="actions"><button type="submit" class="btn">Create match</button></div>
+    </form>
+  </section>
+
+  <section class="admin-section" aria-labelledby="all-h">
+    <h2 id="all-h">All matches</h2>
+    <search>
+      <form method="get" class="actions" aria-label="Filter matches">
+        <label for="status-filter">Show</label>
+        <select id="status-filter" name="status">
+          {["all", "live", "upcoming", "completed"].map((s) => <option value={s} selected={filter === s}>{s[0]!.toUpperCase() + s.slice(1)}</option>)}
+        </select>
+        <button type="submit" class="btn ghost small">Filter</button>
+      </form>
+    </search>
+    <LiveRegion key="list" deps={["match:*"]}>
+      <div class="table-wrap" role="region" aria-labelledby="all-h" tabindex="0">
+        <table class="data-table">
+          <thead>
+            <tr><th scope="col">Match</th><th scope="col">Status</th><th scope="col" class="n">Score</th><th scope="col">Event</th><th scope="col">Start</th></tr>
+          </thead>
+          <tbody>
+            {
+              list.map((m) => (
+                <tr>
+                  <th scope="row"><a href={`/admin/matches/${m.id}/`}>{team(m.teamA).name} vs {team(m.teamB).name}</a></th>
+                  <td><span class:list={["badge", { solid: m.status === "live" }]}>{m.status}</span></td>
+                  <td class="n mono">{m.status === "upcoming" ? "–" : `${m.seriesA}–${m.seriesB}`}</td>
+                  <td>{event(m.event).name} · {m.stage}</td>
+                  <td><LocalTime instant={matchInstant(m)} zone={event(m.event).timeZone} format="datetime" /></td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </LiveRegion>
+  </section>
+</Admin>

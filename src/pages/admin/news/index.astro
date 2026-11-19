@@ -1,0 +1,25 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import { getArticles } from "../../../data";
+---
+
+<Admin title="News">
+  <p class="actions"><a class="btn" href="/admin/news/new/">Write an article</a></p>
+  <div class="table-wrap" role="region" aria-label="Articles" tabindex="0">
+    <table class="data-table">
+      <thead><tr><th scope="col">Title</th><th scope="col">Category</th><th scope="col">Published</th><th scope="col"><span class="visually-hidden">Links</span></th></tr></thead>
+      <tbody>
+        {
+          getArticles().map((a) => (
+            <tr>
+              <th scope="row"><a href={`/admin/news/${a.slug}/`}>{a.title}</a></th>
+              <td>{a.category}</td>
+              <td class="mono">{a.published}</td>
+              <td><a href={`/news/${a.slug}/`} target="_blank" rel="noopener">View</a></td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</Admin>

@@ -1,0 +1,90 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
+import { findTeam, rosterOf } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { ROLES, deletePlayer, deleteTeam, savePlayer, saveTeam } from "../../../server/mutations";
+
+const slug = Astro.params.slug ?? "";
+const isNew = slug === "new";
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  switch (intent) {
+    case "delete":
+      deleteTeam(slug);
+      return { redirect: "/admin/teams/", message: "Team deleted" };
+    case "player": {
+      const playerSlug = String(form.get("player") ?? "") || undefined;
+      savePlayer(slug, playerSlug, form);
+      return { message: playerSlug ? "Player saved" : "Player added" };
+    }
+    case "remove-player":
+      deletePlayer(String(form.get("player") ?? ""));
+      return { message: "Player removed" };
+    default: {
+      const t = saveTeam(isNew ? undefined : slug, form);
+      return { redirect: `/admin/teams/${t.slug}/`, message: isNew ? "Team created" : "Team saved" };
+    }
+  }
+});
+if (result instanceof Response) return result;
+
+const t = isNew ? undefined : findTeam(slug);
+if (!isNew && !t) return Astro.rewrite("/404");
+const roster = t ? rosterOf(t.slug) : [];
+---
+
+<Admin title={t ? t.name : "New team"} error={result?.error}>
+  <section class="admin-section" aria-labelledby="team-h">
+    <h2 id="team-h">Team details</h2>
+    <form method="post" class="form" aria-labelledby="team-h">
+      <input type="hidden" name="intent" value="team" />
+      <div class="form-grid">
+        <div class="field"><label for="name">Name</label><input id="name" name="name" required maxlength="60" value={t?.name ?? ""} /></div>
+        <div class="field"><label for="tag">Tag (2–4 letters)</label><input id="tag" name="tag" required minlength="2" maxlength="4" pattern="[\p{L}\p{N}]{2,4}" value={t?.tag ?? ""} /></div>
+        <div class="field"><label for="country">Country</label><input id="country" name="country" required maxlength="60" autocomplete="country-name" value={t?.country ?? ""} /></div>
+        <div class="field"><label for="countryCode">Country code</label><input id="countryCode" name="countryCode" required minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocapitalize="characters" value={t?.countryCode ?? ""} /></div>
+        <div class="field"><label for="founded">Founded</label><input id="founded" name="founded" type="number" required min="1990" max="2100" value={t?.founded ?? 2026} /></div>
+        <div class="field"><label for="coach">Coach</label><input id="coach" name="coach" maxlength="60" value={t?.coach ?? ""} /></div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn">{isNew ? "Create team" : "Save team"}</button>
+        {t && <a class="btn ghost small" href={`/teams/${t.slug}/`} target="_blank" rel="noopener">View</a>}
+      </div>
+    </form>
+  </section>
+
+  {
+    t && (
+      <section class="admin-section" aria-labelledby="roster-h">
+        <h2 id="roster-h">Roster</h2>
+        {[...roster, undefined].map((p) => (
+          <form method="post" class="form" aria-label={p ? `Player ${p.nickname}` : "Add a player"}>
+            <input type="hidden" name="intent" value="player" />
+            {p && <input type="hidden" name="player" value={p.slug} />}
+            <fieldset>
+              <legend>{p ? p.nickname : "Add a player"}</legend>
+              <div class="form-grid">
+                <div class="field"><label for={`nick-${p?.slug ?? "new"}`}>Nickname</label><input id={`nick-${p?.slug ?? "new"}`} name="nickname" required maxlength="32" autocomplete="off" value={p?.nickname ?? ""} /></div>
+                <div class="field"><label for={`first-${p?.slug ?? "new"}`}>First name</label><input id={`first-${p?.slug ?? "new"}`} name="firstName" maxlength="40" autocomplete="off" value={p?.firstName ?? ""} /></div>
+                <div class="field"><label for={`last-${p?.slug ?? "new"}`}>Last name</label><input id={`last-${p?.slug ?? "new"}`} name="lastName" maxlength="40" autocomplete="off" value={p?.lastName ?? ""} /></div>
+                <div class="field">
+                  <label for={`role-${p?.slug ?? "new"}`}>Role</label>
+                  <select id={`role-${p?.slug ?? "new"}`} name="role">{ROLES.map((r) => <option selected={p?.role === r}>{r}</option>)}</select>
+                </div>
+                <div class="field"><label for={`age-${p?.slug ?? "new"}`}>Age</label><input id={`age-${p?.slug ?? "new"}`} name="age" type="number" min="12" max="60" value={p?.age || ""} /></div>
+                <div class="field"><label for={`cc-${p?.slug ?? "new"}`}>Country code</label><input id={`cc-${p?.slug ?? "new"}`} name="countryCode" maxlength="2" pattern="[A-Za-z]{2}" value={p?.countryCode ?? t.countryCode} /></div>
+              </div>
+              <div class="actions">
+                <button type="submit" class="btn small">{p ? "Save player" : "Add player"}</button>
+                {p && <button type="submit" class="btn ghost small" name="intent" value="remove-player" formnovalidate>Remove from team</button>}
+              </div>
+            </fieldset>
+          </form>
+        ))}
+      </section>
+    )
+  }
+
+  {t && <div class="actions"><ConfirmDelete id="delete-team" what={t.name} action={`/admin/teams/${t.slug}/`} label="Delete team" /></div>}
+</Admin>

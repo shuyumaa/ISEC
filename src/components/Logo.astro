@@ -1,27 +1,16 @@
 ---
-import { LOGO_PATH, LOGO_VIEWBOX } from "./logo-path";
-
 interface Props {
-  /** Rendered height; width follows the wordmark's aspect ratio. */
+  /** Rendered height; width follows the artwork's aspect ratio. */
   height?: string;
   label?: string;
 }
 
 const { height = "1.25rem", label = "ISEC" } = Astro.props;
+
+// The original ISEC artwork (chromatic aberration / motion-blur treatment) is
+// drawn as a CSS background, so there is no <img> to drag, save or copy. The
+// variant follows the rendered colour scheme (.brand-logo in protect.css) and
+// /media/[file] refuses direct or cross-site requests for the file.
 ---
 
-<!-- One vector for both themes: the fill is currentColor, so it is black on the
-     light theme and white on the dark theme (and follows forced colours). -->
-<svg class="logo" viewBox={LOGO_VIEWBOX} style={`--logo-h: ${height}`} role="img" aria-label={label}>
-  <path fill="currentColor" fill-rule="evenodd" d={LOGO_PATH}></path>
-</svg>
-
-<style>
-  @layer components {
-    .logo {
-      block-size: var(--logo-h);
-      inline-size: auto;
-      aspect-ratio: 1916 / 830;
-    }
-  }
-</style>
+<span class="brand-logo protected" role="img" aria-label={label} style={`--logo-h: ${height}`}></span>

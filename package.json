@@ -3,23 +3,30 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
-  "description": "ISEC — CS2 esports competitions hub: matches, results, events, rankings, stats and news.",
+  "description": "ISEC \u2014 live CS2 competition site with admin panel: matches, results, events, rankings, stats and news.",
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && astro build",
-    "preview": "astro preview",
+    "start": "node --disable-warning=ExperimentalWarning dist/server/entry.mjs",
+    "preview": "npm run start",
     "check": "astro check"
   },
   "dependencies": {
+    "@astrojs/node": "^9.5.5",
     "@fontsource/ibm-plex-mono": "5.2.7",
     "@fontsource/ibm-plex-sans": "5.2.8",
     "@microsoft/focusgroup-polyfill": "1.6.0",
     "@oddbird/popover-polyfill": "0.7.3",
     "astro": "5.18.2",
+    "invokers-polyfill": "^1.0.4",
     "temporal-polyfill": "1.0.8"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.4",
+    "@types/node": "^22.19.1",
     "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

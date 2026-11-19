@@ -1,0 +1,245 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import Icon from "../../../components/Icon.astro";
+import LiveRegion from "../../../components/LiveRegion.astro";
+import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
+import MatchControl from "../../../components/admin/MatchControl.astro";
+import MatchMetaFields from "../../../components/admin/MatchMetaFields.astro";
+import { findMatch, getPlayers, team } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { MAP_POOL, deleteMatch, updateMatch } from "../../../server/mutations";
+
+const id = Astro.params.id ?? "";
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "delete") {
+    deleteMatch(id);
+    return { redirect: "/admin/matches/", message: "Match deleted" };
+  }
+  updateMatch(id, intent, form);
+  return {
+    message:
+      { meta: "Details saved", status: "Status updated", round: "Score updated", map: "Map saved", stats: "Stats saved", veto: "Veto saved" }[intent] ??
+      "Saved",
+  };
+});
+if (result instanceof Response) return result;
+
+const m = findMatch(id);
+if (!m) return Astro.rewrite("/404");
+const a = team(m.teamA);
+const b = team(m.teamB);
+const action = `/admin/matches/${m.id}/`;
+const roster = (slug: string) => getPlayers().filter((p) => p.team === slug);
+const pickValue = (slug?: string) => (slug === m.teamA ? "A" : slug === m.teamB ? "B" : "");
+const deps = [`match:${m.id}`];
+---
+
+<Admin title={`${a.name} vs ${b.name}`} error={result?.error}>
+  <p class="actions">
+    <a class="btn ghost small" href={`/matches/${m.id}/`} target="_blank" rel="noopener">Public match page <Icon name="arrow" size={14} /></a>
+    <a class="btn ghost small" href="/admin/matches/">All matches</a>
+  </p>
+
+  <section class="admin-section" aria-labelledby="live-h">
+    <h2 id="live-h">Live control</h2>
+    <LiveRegion key="control" deps={deps}>
+      <MatchControl match={m} />
+    </LiveRegion>
+  </section>
+
+  <section class="admin-section" aria-labelledby="details-h">
+    <h2 id="details-h">Details</h2>
+    <form method="post" action={action} class="form" aria-labelledby="details-h">
+      <input type="hidden" name="intent" value="meta" />
+      <MatchMetaFields match={m} />
+      <div class="actions"><button type="submit" class="btn">Save details</button></div>
+    </form>
+  </section>
+
+  <section class="admin-section" aria-labelledby="maps-h">
+    <h2 id="maps-h">Maps</h2>
+    <p class="muted">Leave both scores empty for a map that hasn't been played. The series score is calculated from finished maps.</p>
+    <LiveRegion key="maps" deps={deps}>
+      <div class="maps-forms">
+        {
+          m.maps.map((map, i) => (
+            <form method="post" action={action} class="form" aria-label={`Map ${i + 1}`}>
+              <input type="hidden" name="intent" value="map" />
+              <input type="hidden" name="map" value={i} />
+              <fieldset>
+                <legend>Map {i + 1}{map.live ? " — live" : ""}</legend>
+                <div class="form-grid">
+                  <div class="field">
+                    <label for={`mapName-${i}`}>Map</label>
+                    <select id={`mapName-${i}`} name="mapName">
+                      {MAP_POOL.map((p) => <option selected={map.map === p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for={`pickedBy-${i}`}>Picked by</label>
+                    <select id={`pickedBy-${i}`} name="pickedBy">
+                      <option value="" selected={!map.pickedBy}>Decider</option>
+                      <option value="A" selected={pickValue(map.pickedBy) === "A"}>{a.name}</option>
+                      <option value="B" selected={pickValue(map.pickedBy) === "B"}>{b.name}</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for={`scoreA-${i}`}>{a.name} rounds</label>
+                    <input id={`scoreA-${i}`} name="scoreA" type="number" min="0" max="99" inputmode="numeric" value={map.scoreA ?? ""} />
+                  </div>
+                  <div class="field">
+                    <label for={`scoreB-${i}`}>{b.name} rounds</label>
+                    <input id={`scoreB-${i}`} name="scoreB" type="number" min="0" max="99" inputmode="numeric" value={map.scoreB ?? ""} />
+                  </div>
+                  <div class="field">
+                    <label for={`side-${i}`}>{a.name} started on</label>
+                    <select id={`side-${i}`} name="startSideA">
+                      <option value="" selected={!map.startSideA}>Unknown</option>
+                      <option value="CT" selected={map.startSideA === "CT"}>CT</option>
+                      <option value="T" selected={map.startSideA === "T"}>T</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for={`halfA-${i}`}>{a.name} first half</label>
+                    <input id={`halfA-${i}`} name="halfA" type="number" min="0" max="12" inputmode="numeric" value={map.halfA?.[0] ?? ""} />
+                  </div>
+                  <div class="field">
+                    <label for={`halfB-${i}`}>{b.name} first half</label>
+                    <input id={`halfB-${i}`} name="halfB" type="number" min="0" max="12" inputmode="numeric" value={map.halfB?.[0] ?? ""} />
+                  </div>
+                </div>
+                <div class="checks">
+                  <label><input type="checkbox" name="live" checked={map.live} /> This map is live</label>
+                </div>
+                <div class="actions"><button type="submit" class="btn small">Save map {i + 1}</button></div>
+              </fieldset>
+            </form>
+          ))
+        }
+      </div>
+    </LiveRegion>
+  </section>
+
+  <section class="admin-section" aria-labelledby="stats-h">
+    <h2 id="stats-h">Player stats</h2>
+    <p class="muted">Kills and deaths are required for a player to appear. Leave ADR, KAST or rating empty to estimate them.</p>
+    {
+      m.maps.map((map, i) =>
+        map.scoreA === undefined ? null : (
+          <form method="post" action={action} class="form stats-form" aria-label={`Stats for map ${i + 1}`}>
+            <input type="hidden" name="intent" value="stats" />
+            <input type="hidden" name="map" value={i} />
+            <fieldset>
+              <legend>Map {i + 1} — {map.map} ({map.scoreA}–{map.scoreB})</legend>
+              <div class="table-wrap" role="region" aria-label={`Stats inputs, map ${i + 1}`} tabindex="0">
+                <table class="data-table stats-input">
+                  <thead>
+                    <tr>
+                      <th scope="col">Player</th>
+                      {["K", "D", "A", "ADR", "KAST %", "HS %", "Rating"].map((h) => <th scope="col">{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...roster(m.teamA), ...roster(m.teamB)].map((p) => {
+                      const s = map.stats?.find((x) => x.player === p.slug);
+                      const cells: [string, number | undefined, string][] = [
+                        ["k", s?.kills, "1"], ["d", s?.deaths, "1"], ["a", s?.assists, "1"],
+                        ["adr", s?.adr, "0.1"], ["kast", s?.kast, "0.1"], ["hs", s?.hs, "0.1"], ["rating", s?.rating, "0.01"],
+                      ];
+                      return (
+                        <tr>
+                          <th scope="row">{p.nickname} <span class="subtle">{team(p.team).tag}</span></th>
+                          {cells.map(([key, value, step]) => (
+                            <td>
+                              <input
+                                name={`${key}_${p.slug}`}
+                                type="number"
+                                min="0"
+                                step={step}
+                                inputmode="decimal"
+                                value={value ?? ""}
+                                aria-label={`${p.nickname} ${key.toUpperCase()}`}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div class="actions"><button type="submit" class="btn small">Save stats for map {i + 1}</button></div>
+            </fieldset>
+          </form>
+        ),
+      )
+    }
+    {m.maps.every((x) => x.scoreA === undefined) && <p class="empty">Stats can be entered once a map has a score.</p>}
+  </section>
+
+  <section class="admin-section" aria-labelledby="veto-h">
+    <h2 id="veto-h">Map veto</h2>
+    <form method="post" action={action} class="form" aria-labelledby="veto-h">
+      <input type="hidden" name="intent" value="veto" />
+      <div class="table-wrap" role="region" aria-label="Veto steps" tabindex="0">
+        <table class="data-table">
+          <thead><tr><th scope="col">#</th><th scope="col">Team</th><th scope="col">Action</th><th scope="col">Map</th></tr></thead>
+          <tbody>
+            {
+              Array.from({ length: 7 }, (_, i) => {
+                const v = m.veto[i];
+                return (
+                  <tr>
+                    <th scope="row">{i + 1}</th>
+                    <td>
+                      <select name={`veto_team_${i}`} aria-label={`Step ${i + 1} team`}>
+                        <option value="" selected={!v?.team}>—</option>
+                        <option value="A" selected={pickValue(v?.team) === "A"}>{a.name}</option>
+                        <option value="B" selected={pickValue(v?.team) === "B"}>{b.name}</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select name={`veto_action_${i}`} aria-label={`Step ${i + 1} action`}>
+                        {(["removed", "picked", "left over"] as const).map((x) => <option selected={(v?.action ?? (i === 6 ? "left over" : "removed")) === x}>{x}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select name={`veto_map_${i}`} aria-label={`Step ${i + 1} map`}>
+                        <option value="" selected={!v}>—</option>
+                        {MAP_POOL.map((p) => <option selected={v?.map === p}>{p}</option>)}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="actions"><button type="submit" class="btn small">Save veto</button></div>
+    </form>
+  </section>
+
+  <section class="admin-section" aria-labelledby="danger-h">
+    <h2 id="danger-h">Delete</h2>
+    <div class="actions"><ConfirmDelete id="delete-match" what="this match" action={action} label="Delete match" /></div>
+  </section>
+</Admin>
+
+<style>
+  @layer components {
+    .maps-forms {
+      display: grid;
+      gap: var(--sp-05);
+    }
+    .stats-input input {
+      min-inline-size: 4.5rem;
+      min-block-size: 2.25rem;
+      padding: var(--sp-02) var(--sp-03);
+    }
+    .stats-input td {
+      padding: var(--sp-02);
+    }
+  }
+</style>

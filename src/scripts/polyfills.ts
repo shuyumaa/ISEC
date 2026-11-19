@@ -21,3 +21,7 @@ export const temporalReady: Promise<TemporalNS> =
         (globalThis as unknown as { Temporal: TemporalNS }).Temporal = m.Temporal;
         return m.Temporal;
       });
+
+/** Invoker commands (command / commandfor) for opening dialogs declaratively. */
+export const commandsReady: Promise<void> =
+  "commandForElement" in HTMLButtonElement.prototype ? Promise.resolve() : import("invokers-polyfill").then(() => undefined);

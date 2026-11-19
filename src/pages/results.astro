@@ -1,12 +1,14 @@
 ---
 import Base from "../layouts/Base.astro";
+import LiveRegion from "../components/LiveRegion.astro";
 import MatchRow from "../components/MatchRow.astro";
 import { completedMatches, formatDay, groupByDay } from "../data";
 
 const days = groupByDay(completedMatches());
 ---
 
-<Base title="Results" description="Completed ISEC CS2 match results.">
+<Base title="Results" description="Completed ISEC CS2 match results." noscriptRefresh={60}>
+  <LiveRegion key="results" deps={["match:*", "team:*", "event:*"]}>
   <header class="page-head">
     <h1>Results</h1>
     <p>Every completed series, newest first. Open a match for maps, veto and player stats.</p>
@@ -22,4 +24,5 @@ const days = groupByDay(completedMatches());
       </section>
     ))
   }
+  </LiveRegion>
 </Base>

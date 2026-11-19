@@ -1,0 +1,21 @@
+---
+interface Props {
+  id: string;
+  /** What is being deleted, e.g. "this match". */
+  what: string;
+  action: string;
+  label?: string;
+}
+const { id, what, action, label = "Delete" } = Astro.props;
+---
+
+<button type="button" class="btn danger small" command="show-modal" commandfor={id}>{label}…</button>
+<dialog id={id} class="confirm" aria-labelledby={`${id}-title`} aria-describedby={`${id}-desc`} closedby="any">
+  <h2 id={`${id}-title`}>Delete {what}?</h2>
+  <p id={`${id}-desc`}>This can't be undone. Visitors will see the change immediately.</p>
+  <form method="post" action={action} class="actions">
+    <input type="hidden" name="intent" value="delete" />
+    <button type="button" class="btn ghost" command="close" commandfor={id} autofocus>Cancel</button>
+    <button type="submit" class="btn danger">{label}</button>
+  </form>
+</dialog>

@@ -49,7 +49,8 @@ function sortBy(table: HTMLTableElement, button: HTMLButtonElement) {
 
 const supportsCommands = "command" in HTMLButtonElement.prototype;
 
-for (const table of document.querySelectorAll<HTMLTableElement>("table[data-sortable]")) {
+function initSortable(scope: ParentNode) {
+for (const table of scope.querySelectorAll<HTMLTableElement>("table[data-sortable]")) {
   if (table.dataset.sortReady) continue;
   table.dataset.sortReady = "";
   if (supportsCommands) {
@@ -63,3 +64,7 @@ for (const table of document.querySelectorAll<HTMLTableElement>("table[data-sort
     }
   }
 }
+}
+
+initSortable(document);
+document.addEventListener("isec:hydrate", (e) => initSortable(e.target as Element));

@@ -1,4 +1,5 @@
 ---
+import LiveRegion from "../components/LiveRegion.astro";
 import Base from "../layouts/Base.astro";
 import StatsTable from "../components/StatsTable.astro";
 import { playerLeaderboard } from "../data";
@@ -8,9 +9,11 @@ const rows = playerLeaderboard(MIN_MAPS);
 ---
 
 <Base title="Player stats" description="ISEC CS2 player statistics leaderboard.">
+  <LiveRegion key="stats" deps={["match:*", "player:*", "team:*"]}>
   <header class="page-head">
     <h1>Player stats</h1>
     <p>All players with at least {MIN_MAPS} completed maps. Select a column header to sort.</p>
   </header>
   <StatsTable id="leaderboard" caption="Player leaderboard, all ISEC events" hideCaption rows={rows} showMaps />
+  </LiveRegion>
 </Base>

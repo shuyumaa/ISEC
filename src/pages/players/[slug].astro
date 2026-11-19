@@ -4,16 +4,10 @@ import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { matchesForTeam, players, playerSummary, signed, team, type Player } from "../../data";
+import { findPlayer, matchesForTeam, playerSummary, signed, team } from "../../data";
 
-export function getStaticPaths() {
-  return players.map((p) => ({ params: { slug: p.slug }, props: { player: p } }));
-}
-
-interface Props {
-  player: Player;
-}
-const { player: p } = Astro.props;
+const p = findPlayer(Astro.params.slug ?? "");
+if (!p) return Astro.rewrite("/404");
 const t = team(p.team);
 const s = playerSummary(p.slug);
 const recent = matchesForTeam(t.slug).filter((m) => m.status === "completed").slice(0, 6);
