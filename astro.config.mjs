@@ -28,5 +28,6 @@ export default defineConfig({
     checkOrigin: false,
     allowedDomains: hosts,
   },
-  vite: { build: { target: "es2022" } },
+  // No inlined scripts: the CSP allows only same-origin files plus the hashed theme script.
+  vite: { build: { target: "es2022", assetsInlineLimit: 0 } },
 });

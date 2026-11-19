@@ -21,8 +21,7 @@ const live = liveMatches();
 const upcoming = upcomingMatches();
 // Nothing live: news leads the page. Otherwise the admin's pinned match, or the top live match.
 const pinned = settings.featuredMatch ? findMatch(settings.featuredMatch) : undefined;
-const featured = live.length ? (pinned?.status === "live" ? pinned : [...live].sort((a, b) => b.stars - a.stars)[0]) : undefined;
-const newsFirst = live.length === 0;
+const featured = live.length ? (pinned?.status === "live" ? pinned : live.toSorted((a, b) => b.stars - a.stars)[0]) : undefined;
 // The featured match is shown once, in the scoreboard, not again in the lists.
 const notFeatured = <T extends { id: string }>(list: T[]) => list.filter((m) => m.id !== featured?.id);
 const liveRest = notFeatured(live);
@@ -36,10 +35,21 @@ const news = getArticles();
 
   <div class="home">
     <div class="home-center stack">
-      <LiveRegion key="featured" deps={["match:*", "team:*", "event:*", "article:*"]}>
+      <LiveRegion key="featured" deps={["match:*", "team:*", "event:*"]}>
         {featured && <Scoreboard match={featured} link />}
         {
-          newsFirst && news.length > 0 && (
+          liveRest.length > 0 && (
+            <Panel title="Also live" id="live-now">
+              {liveRest.map((m) => <MatchRow match={m} />)}
+            </Panel>
+          )
+        }
+      </LiveRegion>
+
+      <!-- News sits directly under the live block (or leads the page when nothing is live). -->
+      <LiveRegion key="news" deps={["article:*"]}>
+        {
+          news.length > 0 && (
             <Panel title="Latest news" id="top-news" href="/news/" linkLabel="All news">
               <NewsList items={news.slice(0, settings.homeNewsCount)} lead />
             </Panel>
@@ -47,42 +57,23 @@ const news = getArticles();
         }
       </LiveRegion>
 
-      <LiveRegion key="live-now" deps={["match:*", "team:*", "event:*"]}>
-
-      <Panel title="Live now" id="live-now">
-        {
-          liveRest.length ? (
-            liveRest.map((m) => <MatchRow match={m} />)
-          ) : (
-            <p class="empty">{live.length ? "No other matches are live." : "No matches are live right now."}</p>
-          )
-        }
-      </Panel>
-      </LiveRegion>
-
       <LiveRegion key="upcoming" deps={["match:*", "team:*", "event:*"]}>
-      <Panel title="Upcoming matches" href="/matches/" linkLabel="All matches">
-        {
-          upcomingDays.map((d) => (
-            <>
-              <h3 class="day-head">{formatDay(d.date)}</h3>
-              {d.matches.map((m) => (
-                <MatchRow match={m} />
-              ))}
-            </>
-          ))
-        }
-      </Panel>
-      </LiveRegion>
-
-      <LiveRegion key="news" deps={["article:*", "match:*"]}>
-        {
-          !newsFirst && (
-            <Panel title="Latest news" href="/news/" linkLabel="All news">
-              <NewsList items={news.slice(0, settings.homeNewsCount)} lead />
-            </Panel>
-          )
-        }
+        <Panel title="Upcoming matches" href="/matches/" linkLabel="All matches">
+          {
+            upcomingDays.length ? (
+              upcomingDays.map((d) => (
+                <>
+                  <h3 class="day-head">{formatDay(d.date)}</h3>
+                  {d.matches.map((m) => (
+                    <MatchRow match={m} />
+                  ))}
+                </>
+              ))
+            ) : (
+              <p class="empty">No matches scheduled.</p>
+            )
+          }
+        </Panel>
       </LiveRegion>
     </div>
 

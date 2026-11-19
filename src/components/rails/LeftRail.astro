@@ -1,12 +1,14 @@
 ---
 import LiveRegion from "../LiveRegion.astro";
+import LocalTime from "../LocalTime.astro";
 import Photo from "../Photo.astro";
 import TeamMark from "../TeamMark.astro";
-import { event, getEvents, getRanking, getRankingUpdated, getSettings, liveMatches, playerOfWeek, ratingTone, team, upcomingMatches } from "../../data";
+import { event, getEvents, matchInstant, getRanking, getRankingUpdated, getSettings, playerOfWeek, ratingTone, team, upcomingMatches } from "../../data";
 import { Temporal } from "temporal-polyfill";
 
 const settings = getSettings();
-const spotlight = liveMatches()[0] ?? upcomingMatches()[0];
+const spotlight = upcomingMatches()[0];
+// Live matches already lead the page and the header; the rail looks ahead.
 const potw = playerOfWeek();
 const top5 = getRanking().slice(0, 5);
 const updated = getRankingUpdated();
@@ -14,21 +16,17 @@ const updatedText = updated ? Temporal.PlainDate.from(updated).toLocaleString("e
 const ongoing = getEvents().filter((e) => e.status === "ongoing");
 ---
 
-<LiveRegion key="rail-left" deps={["match:*", "ranking:*", "team:*", "event:*", "player:*", "meta:*"]}>
+<LiveRegion key="rail-left" deps={["match:*", "ranking:*", "team:*", "event:*", "player:*", "meta:*", "settings:*"]}>
   <div class="rail-stack">
     {
       spotlight && (
         <section class="rail-box spotlight" aria-labelledby="rail-match">
-          <h2 id="rail-match" class="rail-title">{spotlight.status === "live" ? "Live now" : "Next match"}</h2>
+          <h2 id="rail-match" class="rail-title">Next match</h2>
           <a href={`/matches/${spotlight.id}/`} class="spot">
             <span class="spot-team"><TeamMark team={team(spotlight.teamA)} size="md" /><span>{team(spotlight.teamA).tag}</span></span>
             <span class="spot-mid">
-              {spotlight.status === "live" ? (
-                <span class="badge live">Live</span>
-              ) : (
-                <span class="subtle">{spotlight.start.slice(11)}</span>
-              )}
-              <span class="spot-score">{spotlight.status === "live" ? `${spotlight.seriesA}:${spotlight.seriesB}` : "vs"}</span>
+              <LocalTime instant={matchInstant(spotlight)} zone={event(spotlight.event).timeZone} format="time" class="subtle" />
+              <span class="spot-score">vs</span>
             </span>
             <span class="spot-team"><TeamMark team={team(spotlight.teamB)} size="md" /><span>{team(spotlight.teamB).tag}</span></span>
             <span class="spot-event subtle">{event(spotlight.event).name}</span>

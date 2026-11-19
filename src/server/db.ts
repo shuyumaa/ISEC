@@ -23,7 +23,7 @@ const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof
 export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings";
 
 const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
-mkdirSync(DATA_DIR, { recursive: true });
+mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
 
 type DB = InstanceType<typeof DatabaseSync>;
 const g = globalThis as typeof globalThis & { __isecDb?: DB };
@@ -49,6 +49,8 @@ function open(): DB {
       target TEXT NOT NULL
     );
   `);
+  // Older builds logged feed keys as audit targets; scrub them.
+  db.exec("UPDATE audit SET target = 'feed:*' WHERE target LIKE 'feed:%' AND target <> 'feed:*'");
   return db;
 }
 
@@ -145,10 +147,19 @@ export interface Change {
   op: "upsert" | "delete";
 }
 
+/** Kinds whose record ids are secrets (feed keys) and must never leave the server. */
+const SECRET_IDS = new Set<Kind>(["feed"]);
+const publicId = (c: Change) => (SECRET_IDS.has(c.kind) ? "*" : c.id);
+
 function invalidate(changes: Change[]) {
   cached = undefined;
   version += 1;
-  publish({ version, changes });
+  // The change stream is public (SSE): strip secret ids and de-duplicate.
+  const seen = new Set<string>();
+  const safe = changes
+    .map((c) => ({ ...c, id: publicId(c) }))
+    .filter((c) => !seen.has(`${c.kind}:${c.id}`) && seen.add(`${c.kind}:${c.id}`));
+  publish({ version, changes: safe });
 }
 
 export interface Tx {
@@ -175,7 +186,7 @@ export function transaction(fn: (tx: Tx) => void, actor = "system", action = "up
   try {
     fn({ put, remove });
     for (const c of audit ? changes : []) {
-      db.prepare("INSERT INTO audit (actor, action, target) VALUES (?, ?, ?)").run(actor, action, `${c.kind}:${c.id}`);
+      db.prepare("INSERT INTO audit (actor, action, target) VALUES (?, ?, ?)").run(actor, action, `${c.kind}:${publicId(c)}`);
     }
     db.exec("COMMIT");
   } catch (e) {

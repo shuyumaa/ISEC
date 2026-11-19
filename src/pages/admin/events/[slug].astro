@@ -28,7 +28,7 @@ if (result instanceof Response) return result;
 
 const ev = isNew ? undefined : findEvent(slug);
 if (!isNew && !ev) return Astro.rewrite("/404");
-const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 const zones = Intl.supportedValuesOf("timeZone");
 // Award candidates: players of the attending teams.
 const eligible = ev ? getPlayers().filter((p) => ev.teams.includes(p.team)).sort((a, b) => a.team.localeCompare(b.team) || a.nickname.localeCompare(b.nickname)) : [];

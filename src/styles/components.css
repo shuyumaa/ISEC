@@ -765,9 +765,6 @@
     padding: 0;
     & li {
       --kind: var(--border-strong);
-      &.kind-live {
-        --kind: var(--live);
-      }
       &.kind-result {
         --kind: var(--win);
       }

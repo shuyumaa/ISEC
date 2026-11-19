@@ -3,7 +3,7 @@ import Admin from "../../../layouts/Admin.astro";
 import TeamMark from "../../../components/TeamMark.astro";
 import { getTeams, rankOf, rosterOf } from "../../../data";
 
-const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 ---
 
 <Admin title="Teams & players">

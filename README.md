@@ -28,7 +28,7 @@ docker build -t isec .
 docker run -p 4321:4321 -v isec-data:/data --env-file .env isec
 ```
 
-Requires Node 22.13 or newer. Serve it behind HTTPS (Caddy, nginx, or your host's proxy) and list the public URL in `ISEC_HOSTS`.
+Requires Node 22.23.4 or newer (Astro 7). Serve it behind HTTPS (Caddy, nginx, or your host's proxy) and list the public URL in `ISEC_HOSTS`.
 
 ## Pages
 
@@ -135,13 +135,18 @@ These measures stop casual copying. No website can stop screenshots, screen reco
 
 ## Security
 
-- **Admin password:** checked with scrypt.
-- **Sessions:** signed cookies that are `HttpOnly` and `SameSite=Lax`, and `Secure` with the `__Host-` prefix over HTTPS. They last 12 hours.
+- **Admin password:** checked with scrypt. A built server refuses to start without `ADMIN_PASSWORD`; the `isec-admin` fallback exists only under `npm run dev`.
+- **Sessions:** signed cookies that are `HttpOnly` and `SameSite=Lax`, and `Secure` with the `__Host-` prefix over HTTPS. They last 12 hours. The signature is bound to the password, so changing `ADMIN_PASSWORD` signs everyone out.
 - **Sign-in throttle:** 5 failed attempts per IP per 10 minutes.
-- **Cross-site protection:** Astro's origin check rejects cross-site form posts. The Host header is only trusted for `ISEC_HOSTS`.
-- **Headers:** `frame-ancestors 'none'` / `X-Frame-Options: DENY`, `nosniff`, HSTS over HTTPS, a Referrer-Policy and a Permissions-Policy.
+- **Cross-site protection:** every non-GET request must carry our own `Origin` (the game-server ingest is exempt and authenticates with its key). The Host header is only trusted for `ISEC_HOSTS`.
+- **Content Security Policy:** scripts only from this origin plus the hash of the one inline theme script; no inlined bundles; `connect-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `form-action 'self'`, `frame-ancestors 'none'`. **Trusted Types** are enforced: the only HTML sink (the live-update parser) goes through one named policy, and no other policy may be created.
+- **Other headers:** `X-Frame-Options: DENY`, `nosniff`, COOP `same-origin-allow-popups`, CORP `same-origin`, HSTS over HTTPS, a Referrer-Policy and a Permissions-Policy. No `Server`/`X-Powered-By` banner.
+- **Request limits:** request bodies need a `Content-Length` and are capped before parsing (64 KB public, 26 MB admin uploads, 1 MB per ingest post). Ingest is rate limited per key. Live connections are capped per IP and in total.
+- **Uploads:** type sniffed from the file bytes, random names, max 5 MB, served only as same-origin images. EXIF, XMP, IPTC and PNG text chunks (GPS, camera serials, author names) are stripped before saving.
+- **No secret leaks:** feed keys never appear in the public live stream or the audit log. Data files are created owner-only (`0700` / `0600`). Error pages show no stack traces.
 - **Admin pages:** `no-store` and `noindex`.
 - **Input checks:** every form value is re-checked on the server, whatever the browser already enforced.
+- **Dependencies:** pinned versions; `npm audit` reports 0 vulnerabilities.
 
 ## Project layout
 

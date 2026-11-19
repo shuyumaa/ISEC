@@ -8,11 +8,14 @@ import type { AstroCookies } from "astro";
  *    SameSite=Lax, Secure + __Host- prefix whenever the site is served over HTTPS.
  */
 
-const isProd = process.env.NODE_ENV === "production";
 
 function resolvePassword(): string {
-  if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD;
-  if (isProd) throw new Error("ADMIN_PASSWORD must be set in production.");
+  if (process.env.ADMIN_PASSWORD) {
+    if (process.env.ADMIN_PASSWORD.length < 12) console.warn("[isec] ADMIN_PASSWORD is shorter than 12 characters.");
+    return process.env.ADMIN_PASSWORD;
+  }
+  // The fallback exists only for `astro dev`; a built server never starts without a password.
+  if (!import.meta.env.DEV) throw new Error("ADMIN_PASSWORD must be set.");
   const dev = "isec-admin";
   console.warn(`[isec] ADMIN_PASSWORD not set — using the development password "${dev}".`);
   return dev;
@@ -20,8 +23,9 @@ function resolvePassword(): string {
 
 const salt = randomBytes(16);
 const passwordHash = scryptSync(resolvePassword(), salt, 32);
-const secret = process.env.SESSION_SECRET ?? randomBytes(32).toString("hex");
-if (!process.env.SESSION_SECRET && isProd) {
+// Bound to the password, so changing ADMIN_PASSWORD signs every session out.
+const secret = `${process.env.SESSION_SECRET ?? randomBytes(32).toString("hex")}:${passwordHash.toString("hex")}`;
+if (!process.env.SESSION_SECRET && !import.meta.env.DEV) {
   console.warn("[isec] SESSION_SECRET not set — admin sessions will reset on every restart.");
 }
 
@@ -76,6 +80,8 @@ export function throttled(ip: string): boolean {
   return !!a && a.n >= 5 && a.until > Date.now();
 }
 export function recordFailure(ip: string) {
+  // Prune expired entries so the map can't grow without bound.
+  if (attempts.size > 10_000) for (const [k, v] of attempts) if (v.until < Date.now()) attempts.delete(k);
   const a = attempts.get(ip);
   const fresh = !a || a.until < Date.now();
   attempts.set(ip, { n: fresh ? 1 : a.n + 1, until: Date.now() + 10 * 60_000 });

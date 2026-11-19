@@ -1,4 +1,5 @@
 ---
+import { THEME_SCRIPT } from "../server/csp";
 import "@fontsource/ibm-plex-sans/latin-400.css";
 import "@fontsource/ibm-plex-sans/latin-500.css";
 import "@fontsource/ibm-plex-sans/latin-600.css";
@@ -41,11 +42,7 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path 
     <meta charset="utf-8" />
     <style is:inline>@layer reset, tokens, base, layout, components, utilities;</style>
     <meta name="color-scheme" content="light dark" />
-    <script is:inline>
-      try {
-        document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark";
-      } catch {}
-    </script>
+    <script is:inline set:html={THEME_SCRIPT} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/favicon.png" type="image/png" />

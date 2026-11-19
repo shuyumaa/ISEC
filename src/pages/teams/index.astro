@@ -4,7 +4,7 @@ import Base from "../../layouts/Base.astro";
 import TeamMark from "../../components/TeamMark.astro";
 import { getTeams, rankOf } from "../../data";
 
-const sorted = [...getTeams()].sort((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug) ?? 99));
+const sorted = getTeams().toSorted((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug) ?? 99));
 ---
 
 <Base title="Teams" description="Every team competing in ISEC.">

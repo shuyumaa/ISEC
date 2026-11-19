@@ -8,10 +8,26 @@ import { ingest } from "../../../../server/ingest";
  * The unguessable key in the path is the credential (CS2 can't send headers).
  */
 const MAX_BYTES = 1_000_000;
+/* Per-key rate limit: CS2 posts about once a second, GSI up to ~4/s. */
+const WINDOW_MS = 10_000;
+const MAX_PER_WINDOW = 100;
+const hits = new Map<string, { n: number; since: number }>();
+function limited(key: string) {
+  const now = Date.now();
+  const h = hits.get(key);
+  if (!h || now - h.since > WINDOW_MS) {
+    if (hits.size > 1000) hits.clear();
+    hits.set(key, { n: 1, since: now });
+    return false;
+  }
+  h.n += 1;
+  return h.n > MAX_PER_WINDOW;
+}
 
 export const POST: APIRoute = async ({ params, request }) => {
   const source = params.source === "cs2" ? "cs2-log" : params.source === "gsi" ? "gsi" : undefined;
-  if (!source || !params.key) return new Response("Not found", { status: 404 });
+  if (!source || !params.key || !/^[A-Za-z0-9_-]{20,64}$/.test(params.key)) return new Response("Not found", { status: 404 });
+  if (limited(params.key)) return new Response("Too many requests", { status: 429, headers: { "Retry-After": "5" } });
 
   const length = Number(request.headers.get("content-length") ?? 0);
   if (length > MAX_BYTES) return new Response("Payload too large", { status: 413 });

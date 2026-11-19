@@ -24,7 +24,7 @@ const filters = {
 const rows = playerRank(board, filters);
 const seasons = getSeasons();
 const events = getEvents();
-const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 const minMaps = filters.minMaps ?? getSettings().playerRankMinMaps;
 const boardHref = (key: RankBoard) => {
   const u = new URLSearchParams(params);

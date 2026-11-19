@@ -1,27 +1,17 @@
 ---
 import LiveRegion from "../LiveRegion.astro";
-import { completedMatches, getArticles, getSettings, liveMatches, team, winnerOf } from "../../data";
+import { completedMatches, getArticles, getSettings, team, winnerOf } from "../../data";
 
-// HLTV's right rail is "Recent activity": here, live matches, latest results and news.
-const live = liveMatches().slice(0, 3);
+// HLTV's right rail is "Recent activity": here, latest results and news.
 const results = completedMatches().slice(0, 8);
-const news = getArticles().slice(0, 6);
+// The home page already leads with news; the rail would only repeat it.
+const news = Astro.url.pathname === "/" ? [] : getArticles().slice(0, 6);
 ---
 
-<LiveRegion key="rail-right" deps={["match:*", "article:*", "team:*"]}>
+<LiveRegion key="rail-right" deps={["match:*", "article:*", "team:*", "settings:*"]}>
   <section class="rail-box" aria-labelledby="rail-activity">
     <h2 id="rail-activity" class="rail-title">{getSettings().rails.activityTitle}</h2>
     <ul class="activity">
-      {
-        live.map((m) => (
-          <li class="kind-live">
-            <a href={`/matches/${m.id}/`}>
-              <span class="what">{team(m.teamA).tag} vs {team(m.teamB).tag}</span>
-              <span class="meta">Live</span>
-            </a>
-          </li>
-        ))
-      }
       {
         results.map((m) => {
           const w = winnerOf(m);

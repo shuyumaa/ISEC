@@ -31,8 +31,8 @@ if (result instanceof Response) return result;
 
 const s = isNew ? undefined : getSeasons().find((x) => x.slug === slug);
 if (!isNew && !s) return Astro.rewrite("/404");
-const players = [...getPlayers()].sort((a, b) => a.nickname.localeCompare(b.nickname));
-const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const players = getPlayers().toSorted((a, b) => a.nickname.localeCompare(b.nickname));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 ---
 
 <Admin title={s ? s.name : "New season"} error={result?.error}>

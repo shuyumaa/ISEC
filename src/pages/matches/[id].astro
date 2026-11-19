@@ -123,7 +123,7 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
                         {[a, b].map((side) => (
                           <StatsTable
                             id={`${t.id}-${side.slug}`}
-                            caption={`${side.name} — ${t.label}`}
+                            caption={`${side.name} · ${t.label}`}
                             rows={statsFor(t.index, side.slug)}
                             showTeam={false}
                           />

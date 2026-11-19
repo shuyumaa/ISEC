@@ -218,21 +218,21 @@ function build(f: Fixture): Match {
 }
 
 const fixtures: Fixture[] = [
-  // — ISEC Winter Open 2026 (Berlin) —
-  { id: "2380101", event: "winter-open-2026", stage: "Group A — Opening", bestOf: 3, start: "2026-11-16T13:00", a: "northwind", b: "iron-lotus", result: [2, 0], stars: 1 },
-  { id: "2380102", event: "winter-open-2026", stage: "Group A — Opening", bestOf: 3, start: "2026-11-16T16:00", a: "vanta", b: "kairos", result: [2, 1], stars: 1 },
-  { id: "2380103", event: "winter-open-2026", stage: "Group B — Opening", bestOf: 3, start: "2026-11-16T19:00", a: "monolith", b: "parallax", result: [2, 0], stars: 1 },
-  { id: "2380104", event: "winter-open-2026", stage: "Group B — Opening", bestOf: 3, start: "2026-11-16T22:00", a: "obsidian", b: "halcyon", result: [2, 1] },
-  { id: "2380105", event: "winter-open-2026", stage: "Group A — Winners", bestOf: 3, start: "2026-11-17T13:00", a: "northwind", b: "vanta", result: [2, 1], stars: 2 },
-  { id: "2380106", event: "winter-open-2026", stage: "Group A — Elimination", bestOf: 3, start: "2026-11-17T16:00", a: "kairos", b: "iron-lotus", result: [2, 0] },
-  { id: "2380107", event: "winter-open-2026", stage: "Group B — Winners", bestOf: 3, start: "2026-11-17T19:00", a: "monolith", b: "obsidian", result: [2, 0], stars: 2 },
-  { id: "2380108", event: "winter-open-2026", stage: "Group B — Elimination", bestOf: 3, start: "2026-11-17T22:00", a: "halcyon", b: "parallax", result: [2, 1] },
-  { id: "2380109", event: "winter-open-2026", stage: "Group A — Decider", bestOf: 3, start: "2026-11-18T15:00", a: "vanta", b: "kairos", result: [2, 1], stars: 2 },
-  { id: "2380110", event: "winter-open-2026", stage: "Group B — Decider", bestOf: 3, start: "2026-11-18T18:30", a: "obsidian", b: "halcyon", result: [2, 0], stars: 1 },
+  //: ISEC Winter Open 2026 (Berlin) —
+  { id: "2380101", event: "winter-open-2026", stage: "Group A: Opening", bestOf: 3, start: "2026-11-16T13:00", a: "northwind", b: "iron-lotus", result: [2, 0], stars: 1 },
+  { id: "2380102", event: "winter-open-2026", stage: "Group A: Opening", bestOf: 3, start: "2026-11-16T16:00", a: "vanta", b: "kairos", result: [2, 1], stars: 1 },
+  { id: "2380103", event: "winter-open-2026", stage: "Group B: Opening", bestOf: 3, start: "2026-11-16T19:00", a: "monolith", b: "parallax", result: [2, 0], stars: 1 },
+  { id: "2380104", event: "winter-open-2026", stage: "Group B: Opening", bestOf: 3, start: "2026-11-16T22:00", a: "obsidian", b: "halcyon", result: [2, 1] },
+  { id: "2380105", event: "winter-open-2026", stage: "Group A: Winners", bestOf: 3, start: "2026-11-17T13:00", a: "northwind", b: "vanta", result: [2, 1], stars: 2 },
+  { id: "2380106", event: "winter-open-2026", stage: "Group A: Elimination", bestOf: 3, start: "2026-11-17T16:00", a: "kairos", b: "iron-lotus", result: [2, 0] },
+  { id: "2380107", event: "winter-open-2026", stage: "Group B: Winners", bestOf: 3, start: "2026-11-17T19:00", a: "monolith", b: "obsidian", result: [2, 0], stars: 2 },
+  { id: "2380108", event: "winter-open-2026", stage: "Group B: Elimination", bestOf: 3, start: "2026-11-17T22:00", a: "halcyon", b: "parallax", result: [2, 1] },
+  { id: "2380109", event: "winter-open-2026", stage: "Group A: Decider", bestOf: 3, start: "2026-11-18T15:00", a: "vanta", b: "kairos", result: [2, 1], stars: 2 },
+  { id: "2380110", event: "winter-open-2026", stage: "Group B: Decider", bestOf: 3, start: "2026-11-18T18:30", a: "obsidian", b: "halcyon", result: [2, 0], stars: 1 },
   { id: "2380111", event: "winter-open-2026", stage: "Semi-final 1", bestOf: 3, start: "2026-11-19T15:00", a: "northwind", b: "obsidian", live: { series: [1, 0], current: [8, 6] }, stars: 3 },
   { id: "2380112", event: "winter-open-2026", stage: "Semi-final 2", bestOf: 3, start: "2026-11-19T19:00", a: "monolith", b: "vanta", stars: 3 },
 
-  // — ISEC Academy League Season 2 (online) —
+  //: ISEC Academy League Season 2 (online) —
   { id: "2380201", event: "academy-league-s2", stage: "Round 1", bestOf: 1, start: "2026-11-05T18:00", a: "zenith", b: "arc-seven", result: [1, 0] },
   { id: "2380202", event: "academy-league-s2", stage: "Round 1", bestOf: 1, start: "2026-11-05T19:30", a: "lumen", b: "granite", result: [0, 1] },
   { id: "2380203", event: "academy-league-s2", stage: "Round 1", bestOf: 1, start: "2026-11-05T21:00", a: "quietus", b: "helix", result: [1, 0] },
@@ -249,17 +249,17 @@ const fixtures: Fixture[] = [
   { id: "2380214", event: "academy-league-s2", stage: "Round 5", bestOf: 1, start: "2026-11-24T19:30", a: "quietus", b: "arc-seven" },
   { id: "2380215", event: "academy-league-s2", stage: "Round 5", bestOf: 1, start: "2026-11-24T21:00", a: "helix", b: "granite" },
 
-  // — ISEC Masters Season 3 (Stockholm) — Swiss round 1
-  { id: "2380301", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T11:00", a: "northwind", b: "lumen", stars: 2 },
-  { id: "2380302", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T12:15", a: "monolith", b: "quietus", stars: 2 },
-  { id: "2380303", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T13:30", a: "vanta", b: "helix", stars: 2 },
-  { id: "2380304", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T14:45", a: "iron-lotus", b: "zenith", stars: 1 },
-  { id: "2380305", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T16:00", a: "nocturne", b: "granite", stars: 1 },
-  { id: "2380306", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T17:15", a: "obsidian", b: "arc-seven", stars: 1 },
-  { id: "2380307", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T18:30", a: "kairos", b: "halcyon", stars: 1 },
-  { id: "2380308", event: "masters-s3", stage: "Swiss — Round 1", bestOf: 1, start: "2026-12-03T19:45", a: "parallax", b: "static-five", stars: 1 },
+  //: ISEC Masters Season 3 (Stockholm): Swiss round 1
+  { id: "2380301", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T11:00", a: "northwind", b: "lumen", stars: 2 },
+  { id: "2380302", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T12:15", a: "monolith", b: "quietus", stars: 2 },
+  { id: "2380303", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T13:30", a: "vanta", b: "helix", stars: 2 },
+  { id: "2380304", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T14:45", a: "iron-lotus", b: "zenith", stars: 1 },
+  { id: "2380305", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T16:00", a: "nocturne", b: "granite", stars: 1 },
+  { id: "2380306", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T17:15", a: "obsidian", b: "arc-seven", stars: 1 },
+  { id: "2380307", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T18:30", a: "kairos", b: "halcyon", stars: 1 },
+  { id: "2380308", event: "masters-s3", stage: "Swiss: Round 1", bestOf: 1, start: "2026-12-03T19:45", a: "parallax", b: "static-five", stars: 1 },
 
-  // — ISEC Autumn Cup 2026 (online) —
+  //: ISEC Autumn Cup 2026 (online) —
   { id: "2370401", event: "autumn-cup-2026", stage: "Quarter-final", bestOf: 3, start: "2026-10-20T17:00", a: "nocturne", b: "lumen", result: [2, 0] },
   { id: "2370402", event: "autumn-cup-2026", stage: "Quarter-final", bestOf: 3, start: "2026-10-20T20:00", a: "granite", b: "helix", result: [2, 1] },
   { id: "2370403", event: "autumn-cup-2026", stage: "Quarter-final", bestOf: 3, start: "2026-10-21T17:00", a: "static-five", b: "quietus", result: [2, 0] },
@@ -268,7 +268,7 @@ const fixtures: Fixture[] = [
   { id: "2370406", event: "autumn-cup-2026", stage: "Semi-final", bestOf: 3, start: "2026-10-23T20:00", a: "static-five", b: "zenith", result: [2, 0], stars: 1 },
   { id: "2370407", event: "autumn-cup-2026", stage: "Grand final", bestOf: 5, start: "2026-10-25T18:00", a: "nocturne", b: "static-five", result: [3, 2], stars: 3 },
 
-  // — ISEC Pacific Invitational 2026 (Sydney) —
+  //: ISEC Pacific Invitational 2026 (Sydney) —
   { id: "2360501", event: "pacific-invitational-2026", stage: "Lower bracket final", bestOf: 3, start: "2026-09-12T15:00", a: "arc-seven", b: "static-five", result: [2, 1], stars: 2 },
   { id: "2360502", event: "pacific-invitational-2026", stage: "Grand final", bestOf: 5, start: "2026-09-13T16:00", a: "iron-lotus", b: "arc-seven", result: [3, 1], stars: 3 },
 ];

@@ -1,3 +1,19 @@
+/*
+ * Trusted Types: the only HTML sink on the site is the DOMParser below, fed the
+ * current page re-rendered by our own server (same origin, text/html, checked
+ * where it is fetched): the same markup a reload would produce. The policy is module-private
+ * and the CSP allows no other policy name. Parsed <script>s never execute.
+ */
+type TT = { createPolicy(n: string, r: { createHTML(s: string): string }): { createHTML(s: string): string } };
+const tt = (globalThis as { trustedTypes?: TT }).trustedTypes;
+let livePolicy: ReturnType<TT["createPolicy"]> | undefined;
+try {
+  livePolicy = tt?.createPolicy("isec-live", { createHTML: (html) => html });
+} catch {
+  /* already created (module evaluated twice): live updates fall back to reloads */
+}
+const toTrustedHTML = (html: string) => (livePolicy ? livePolicy.createHTML(html) : html) as string;
+
 /**
  * Live sync client.
  *  1. Subscribes to /api/live (Server-Sent Events; EventSource reconnects by itself).
@@ -58,8 +74,12 @@ async function refresh() {
       location.reload();
       return;
     }
-    if (!res.ok) return;
-    const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+    if (!res.ok || new URL(res.url).origin !== location.origin || !res.headers.get("content-type")?.startsWith("text/html")) return;
+    if (tt && !livePolicy) {
+      location.reload();
+      return;
+    }
+    const doc = new DOMParser().parseFromString(toTrustedHTML(await res.text()), "text/html");
     for (const key of keys) {
       const current = document.querySelector<HTMLElement>(`[data-live="${CSS.escape(key)}"]`);
       const next = doc.querySelector<HTMLElement>(`[data-live="${CSS.escape(key)}"]`);

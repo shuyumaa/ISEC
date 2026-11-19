@@ -15,7 +15,7 @@ export const getPlayers = () => snapshot().players;
 export const getEvents = () => snapshot().events;
 export const getMatches = () => snapshot().matches;
 export const getArticles = () =>
-  [...snapshot().articles].sort((a, b) => b.published.localeCompare(a.published));
+  snapshot().articles.toSorted((a, b) => b.published.localeCompare(a.published));
 export const getRanking = () => snapshot().ranking;
 export const getRankingUpdated = () => snapshot().meta.rankingUpdated;
 export const dataVersion = () => snapshot().version;

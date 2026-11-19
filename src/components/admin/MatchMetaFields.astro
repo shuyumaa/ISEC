@@ -5,7 +5,7 @@ interface Props {
   match?: Match;
 }
 const { match: m } = Astro.props;
-const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 const events = getEvents();
 ---
 

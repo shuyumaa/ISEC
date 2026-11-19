@@ -22,7 +22,7 @@ if (result instanceof Response) return result;
 const a = isNew ? undefined : findArticle(slug);
 if (!isNew && !a) return Astro.rewrite("/404");
 const today = Temporal.Now.plainDateISO().toString();
-const teams = [...getTeams()].sort((x, y) => x.name.localeCompare(y.name));
+const teams = getTeams().toSorted((x, y) => x.name.localeCompare(y.name));
 ---
 
 <Admin title={isNew ? "New article" : "Edit article"} error={result?.error}>
@@ -65,7 +65,7 @@ const teams = [...getTeams()].sort((x, y) => x.name.localeCompare(y.name));
     <div class="field wide">
       <label for="body">Body</label>
       <textarea id="body" name="body" required rows="14" aria-describedby="body-hint">{a?.body.join("\n\n") ?? ""}</textarea>
-      <span id="body-hint" class="hint">Separate paragraphs with a blank line. Plain text — formatting is applied by the site.</span>
+      <span id="body-hint" class="hint">Separate paragraphs with a blank line. Plain text; formatting is applied by the site.</span>
     </div>
     <fieldset>
       <legend>Teams in this story</legend>

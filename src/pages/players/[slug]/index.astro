@@ -29,7 +29,7 @@ const s = playerSummary(p.slug);
 const attrs = playerAttributes(p.slug) ?? [];
 const achievements = playerAchievements(p.slug);
 const awards = playerAwards(p.slug);
-const bestSeason = [...awards.seasonTops].sort((a, b) => a.rank - b.rank)[0];
+const bestSeason = awards.seasonTops.toSorted((a, b) => a.rank - b.rank)[0];
 const all = matchesForTeam(t.slug);
 const upcoming = all.filter((m) => m.status !== "completed").reverse().slice(0, 3);
 const recent = all.filter((m) => m.status === "completed").slice(0, 6);

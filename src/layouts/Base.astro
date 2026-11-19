@@ -1,4 +1,5 @@
 ---
+import { THEME_SCRIPT } from "../server/csp";
 import "@fontsource/ibm-plex-sans/latin-300.css";
 import "@fontsource/ibm-plex-sans/latin-400.css";
 import "@fontsource/ibm-plex-sans/latin-500.css";
@@ -40,13 +41,7 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
     <meta charset="utf-8" />
     <style is:inline>@layer reset, tokens, base, layout, components, utilities;</style>
     <meta name="color-scheme" content="light dark" />
-    <script is:inline>
-      // FOUC guard only: apply a stored colour-scheme override before first paint.
-      try {
-        document.querySelector('meta[name="color-scheme"]').content =
-          localStorage.getItem("color-scheme") ?? "light dark";
-      } catch {}
-    </script>
+    <script is:inline set:html={THEME_SCRIPT} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />

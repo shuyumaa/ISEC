@@ -7,7 +7,28 @@ import { currentVersion } from "../../server/db";
  *   event: change   id: <version>   data: {"version":n,"changes":[{kind,id,op}]}
  * Pages subscribe and re-render only the regions that depend on what changed.
  */
-export const GET: APIRoute = ({ request }) => {
+const MAX_TOTAL = 5000;
+// Generous: a whole school can sit behind one NAT address.
+const MAX_PER_IP = 64;
+const perIp = new Map<string, number>();
+let total = 0;
+
+export const GET: APIRoute = ({ request, clientAddress }) => {
+  const ip = clientAddress ?? "unknown";
+  if (total >= MAX_TOTAL || (perIp.get(ip) ?? 0) >= MAX_PER_IP) {
+    return new Response("Too many live connections", { status: 429, headers: { "Retry-After": "30" } });
+  }
+  total += 1;
+  perIp.set(ip, (perIp.get(ip) ?? 0) + 1);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    total -= 1;
+    const n = (perIp.get(ip) ?? 1) - 1;
+    if (n <= 0) perIp.delete(ip);
+    else perIp.set(ip, n);
+  };
   const encoder = new TextEncoder();
   let cleanup = () => {};
 
@@ -32,6 +53,7 @@ export const GET: APIRoute = ({ request }) => {
       const heartbeat = setInterval(() => send(`: ping ${Date.now()}\n\n`), 20_000);
 
       cleanup = () => {
+        release();
         clearInterval(heartbeat);
         unsubscribe();
         try {
