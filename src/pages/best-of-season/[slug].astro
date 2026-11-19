@@ -1,0 +1,245 @@
+---
+import Base from "../../layouts/Base.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
+import Photo from "../../components/Photo.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import Trophy from "../../components/Trophy.astro";
+import { findPlayer, formatRange, getSeasons, getSettings, playerRank, ratingTone, rosterOf, team } from "../../data";
+
+const settings = getSettings();
+const published = getSeasons().filter((s) => s.published);
+const season = published.find((s) => s.slug === Astro.params.slug);
+if (!season && Astro.params.slug !== "none") return Astro.rewrite("/404");
+
+const stats = season ? playerRank("rating", { season: season.slug, minMaps: 0 }) : [];
+const top = (season?.top ?? [])
+  .map((t, i) => ({ rank: i + 1, note: t.note, player: findPlayer(t.player), row: stats.find((r) => r.stats.player.slug === t.player) }))
+  .filter((x) => x.player);
+const first = top[0];
+const rest = top.slice(1);
+const teamOfSeason = season?.teamOfSeason ? team(season.teamOfSeason) : undefined;
+---
+
+<Base title={season ? `${settings.seasonPageName} — ${season.name}` : settings.seasonPageName} description="The top 10 players and the team of the season.">
+  <LiveRegion key="season" deps={["season:*", "player:*", "team:*"]}>
+    <header class="page-head season-head">
+      <h1>{settings.seasonPageName}{season && <span class="season-name"> — {season.name}</span>}</h1>
+      {season && <p>{formatRange(season.startDate, season.endDate)} · Top 10 players and the team of the season.</p>}
+      {
+        published.length > 1 && (
+          <nav aria-label="Seasons" class="season-nav">
+            {published.map((s) => <a href={`/best-of-season/${s.slug}/`} aria-current={s.slug === season?.slug ? "page" : undefined}>{s.name}</a>)}
+          </nav>
+        )
+      }
+    </header>
+
+    {
+      !season ? (
+        <p class="empty">The first season's awards haven't been published yet.</p>
+      ) : (
+        <>
+          {first && (
+            <section class="mvp-card" aria-labelledby="no1">
+              <div class="mvp-photo">
+                <Photo player={first.player!} size="hero" />
+              </div>
+              <div class="mvp-body">
+                <span class="rank-num big" aria-hidden="true">1</span>
+                <h2 id="no1">
+                  <span class="visually-hidden">Number 1: </span>
+                  <a href={`/players/${first.player!.slug}/`}>{first.player!.nickname}</a>
+                </h2>
+                <p class="mvp-team"><TeamMark team={team(first.player!.team)} /> {team(first.player!.team).name}</p>
+                {first.row && (
+                  <dl class="mvp-stats">
+                    <div><dt>Rating</dt><dd class:list={["rating", ratingTone(first.row.stats.rating)]}>{first.row.stats.rating.toFixed(2)}</dd></div>
+                    <div><dt>ADR</dt><dd>{first.row.stats.adr.toFixed(1)}</dd></div>
+                    <div><dt>K/D</dt><dd>{first.row.stats.kd.toFixed(2)}</dd></div>
+                    <div><dt>Maps</dt><dd>{first.row.stats.maps}</dd></div>
+                  </dl>
+                )}
+                {first.note && <p class="note">{first.note}</p>}
+              </div>
+              <Trophy kind="gold" size={88} label={`Player of the season, ${season.name}`} />
+            </section>
+          )}
+
+          {rest.length > 0 && (
+            <section aria-labelledby="top10-h" class="top10">
+              <h2 id="top10-h" class="section-title">Top 10 players</h2>
+              <ol class="top-grid" start="2">
+                {rest.map((x) => (
+                  <li>
+                    <a href={`/players/${x.player!.slug}/`}>
+                      <Photo player={x.player!} size="card" />
+                      <span class="card-foot">
+                        <span class="rank-num" aria-hidden="true">{x.rank}</span>
+                        <span>
+                          <strong>{x.player!.nickname}</strong>
+                          <span class="subtle">{team(x.player!.team).name}{x.row ? ` · ${x.row.stats.rating.toFixed(2)}` : ""}</span>
+                        </span>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {teamOfSeason && (
+            <section class="team-season" aria-labelledby="tos-h">
+              <h2 id="tos-h" class="section-title">Team of the season</h2>
+              <div class="tos-card">
+                <Trophy kind="gold" size={72} label="Team of the season" />
+                <TeamMark team={teamOfSeason} size="xl" />
+                <div>
+                  <p class="tos-name"><a href={`/teams/${teamOfSeason.slug}/`}>{teamOfSeason.name}</a></p>
+                  <p class="muted">{rosterOf(teamOfSeason.slug).map((p) => p.nickname).join(" · ")}</p>
+                  {season.teamNote && <p class="note">{season.teamNote}</p>}
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      )
+    }
+  </LiveRegion>
+</Base>
+
+<style>
+  @layer components {
+    .season-head h1 {
+      font-weight: 600;
+    }
+    .season-name {
+      font-weight: 300;
+    }
+    .season-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-05);
+      & a[aria-current="page"] {
+        font-weight: 600;
+        text-decoration: none;
+      }
+    }
+    .mvp-card {
+      display: grid;
+      gap: var(--sp-06);
+      align-items: end;
+      padding: var(--sp-06);
+      background: var(--header-bg);
+      color: var(--header-fg);
+      @container page (width >= 48rem) {
+        grid-template-columns: 16rem minmax(0, 1fr) auto;
+      }
+      & a {
+        color: inherit;
+      }
+      & .subtle,
+      & dt {
+        color: var(--header-fg-secondary);
+      }
+    }
+    .mvp-photo {
+      max-inline-size: 16rem;
+    }
+    .mvp-body {
+      display: grid;
+      gap: var(--sp-04);
+      & h2 {
+        font-size: var(--type-display);
+        line-height: 1;
+      }
+    }
+    .mvp-team {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+      font-size: var(--type-heading-sm);
+    }
+    .mvp-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-04) var(--sp-07);
+      & dt {
+        font-size: var(--type-label);
+      }
+      & dd {
+        font-family: var(--font-mono);
+        font-size: var(--type-heading);
+      }
+    }
+    .rank-num {
+      display: inline-grid;
+      place-items: center;
+      min-inline-size: 2.25rem;
+      aspect-ratio: 1;
+      background: var(--button-primary);
+      color: var(--white);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      &.big {
+        inline-size: 3.5rem;
+        font-size: var(--type-heading);
+      }
+    }
+    .section-title {
+      font-size: var(--type-heading-sm);
+      margin-block: var(--sp-08) var(--sp-05);
+    }
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+      gap: var(--sp-05);
+      list-style: none;
+      padding: 0;
+      & a {
+        display: grid;
+        text-decoration: none;
+        &:hover strong {
+          text-decoration: underline;
+        }
+      }
+    }
+    .card-foot {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+      padding: var(--sp-03);
+      background: var(--layer);
+      & > span:last-child {
+        display: grid;
+        min-inline-size: 0;
+      }
+      & .subtle {
+        font-size: var(--type-label);
+      }
+    }
+    .tos-card {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-06);
+      padding: var(--sp-06);
+      background: var(--layer);
+    }
+    .tos-name {
+      font-size: var(--type-heading);
+      font-weight: 600;
+    }
+    .note {
+      max-inline-size: 60ch;
+    }
+    .rating.good {
+      color: var(--win);
+    }
+    .rating.poor {
+      color: var(--loss);
+    }
+    .mvp-card .rating {
+      color: inherit;
+    }
+  }
+</style>

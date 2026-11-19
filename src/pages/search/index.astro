@@ -1,0 +1,125 @@
+---
+import Base from "../../layouts/Base.astro";
+import Photo from "../../components/Photo.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { search, team } from "../../data";
+
+const q = (Astro.url.searchParams.get("q") ?? "").slice(0, 80);
+const { players, teams } = search(q);
+// One exact hit: go straight to it, like a site search should.
+const exactPlayer = players.length === 1 && teams.length === 0 ? players[0] : undefined;
+const exactTeam = teams.length === 1 && players.length === 0 ? teams[0] : undefined;
+if (q && exactPlayer) return Astro.redirect(`/players/${exactPlayer.slug}/`, 302);
+if (q && exactTeam) return Astro.redirect(`/teams/${exactTeam.slug}/`, 302);
+const total = players.length + teams.length;
+---
+
+<Base title={q ? `Search: ${q}` : "Search"} description="Search ISEC players and teams.">
+  <header class="page-head">
+    <h1>Search</h1>
+  </header>
+  <search>
+    <form method="get" class="big-search">
+      <label for="q">Players and teams</label>
+      <div class="row">
+        <input id="q" type="search" name="q" value={q} required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" autofocus={!q} />
+        <button type="submit" class="btn">Search</button>
+      </div>
+    </form>
+  </search>
+
+  {
+    q && (
+      <p class="result-count" role="status">
+        {total === 0 ? `Nothing matches "${q}".` : `${total} ${total === 1 ? "result" : "results"} for "${q}"`}
+      </p>
+    )
+  }
+
+  {
+    teams.length > 0 && (
+      <section aria-labelledby="teams-h" class="results">
+        <h2 id="teams-h">Teams</h2>
+        <ul>
+          {teams.map((t) => (
+            <li>
+              <a href={`/teams/${t.slug}/`}>
+                <TeamMark team={t} size="md" />
+                <span><strong>{t.name}</strong><span class="subtle">{t.country}</span></span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+  {
+    players.length > 0 && (
+      <section aria-labelledby="players-h" class="results">
+        <h2 id="players-h">Players</h2>
+        <ul>
+          {players.map((p) => (
+            <li>
+              <a href={`/players/${p.slug}/`}>
+                <Photo player={p} size="thumb" />
+                <span><strong>{p.nickname}</strong><span class="subtle">{p.firstName} {p.lastName} · {team(p.team).name}</span></span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+</Base>
+
+<style>
+  @layer components {
+    .big-search {
+      display: grid;
+      gap: var(--sp-03);
+      max-inline-size: 40rem;
+      & label {
+        font-size: var(--type-label);
+        color: var(--text-secondary);
+      }
+      & .row {
+        display: flex;
+        gap: var(--sp-03);
+      }
+      & input {
+        flex: 1;
+        min-block-size: 3rem;
+        padding: 0 var(--sp-05);
+        border: 0;
+        border-block-end: 2px solid var(--border-strong);
+        background: var(--layer);
+        font-size: var(--type-heading-sm);
+      }
+    }
+    .result-count {
+      margin-block: var(--sp-06) var(--sp-03);
+      color: var(--text-secondary);
+    }
+    .results {
+      margin-block-start: var(--sp-06);
+      & h2 {
+        padding-block-end: var(--sp-03);
+        border-block-end: 2px solid var(--text-primary);
+      }
+      & a {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-04);
+        padding: var(--sp-04) 0;
+        border-block-end: var(--border-width) solid var(--border-subtle);
+        text-decoration: none;
+        & > span {
+          display: grid;
+        }
+        &:hover strong {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+</style>

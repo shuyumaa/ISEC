@@ -23,6 +23,8 @@ export interface Team {
   countryCode: string;
   founded: number;
   coach: string;
+  /** Uploaded logo (file name under /media/u/). */
+  logo?: string;
 }
 
 export type Role = "IGL" | "AWP" | "Entry" | "Support" | "Lurker" | "Rifler";
@@ -40,6 +42,10 @@ export interface Player {
   ign?: string;
   /** SteamID64 or [U:1:n] — the most reliable way to match server log lines to a player. */
   steamId?: string;
+  /** Uploaded portrait (file name under /media/u/). */
+  photo?: string;
+  /** Date the player joined the current team (YYYY-MM-DD). */
+  joined?: string;
 }
 
 export type EventStatus = "ongoing" | "upcoming" | "completed";
@@ -49,6 +55,8 @@ export interface PrizeSlot {
   place: string;
   prize: number;
   team?: string; // team slug, once decided
+  /** Roster that earned the placement (snapshot, so trophies follow players). */
+  players?: string[];
 }
 
 export interface EsportsEvent {
@@ -68,6 +76,11 @@ export interface EsportsEvent {
   format: string[];
   prizes: PrizeSlot[];
   winner?: string;
+  /** Event MVP (player slug) and EVPs (Exceptionally Valuable Players). */
+  mvp?: string;
+  evps?: string[];
+  /** Uploaded photo of the physical trophy (file name under /media/u/). */
+  trophyImage?: string;
 }
 
 export type MatchStatus = "live" | "upcoming" | "completed";
@@ -82,6 +95,14 @@ export interface PlayerMapStats {
   kast: number; // percentage 0–100
   hs: number; // headshot percentage 0–100
   rating: number;
+  /* Perfect World (完美世界) style extras — optional, counted when present. */
+  rws?: number;
+  firstKills?: number;
+  firstDeaths?: number;
+  clutchesWon?: number;
+  clutchesPlayed?: number;
+  utilityDamage?: number;
+  flashAssists?: number;
 }
 
 export type RoundEnd = "elimination" | "bomb" | "defuse" | "time";
@@ -179,6 +200,34 @@ export interface FeedPlayer {
   damage: number;
   headshots: number;
   kastRounds: number;
+}
+
+/** A season and its end-of-season awards ("Best of the Season"). */
+export interface Season {
+  slug: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  /** Awards are shown publicly only once published. */
+  published: boolean;
+  top: { player: string; note?: string }[]; // ordered, #1 first, up to 10
+  teamOfSeason?: string;
+  teamNote?: string;
+}
+
+/** Site-wide settings editable in the admin. */
+export interface Settings {
+  rankingName: string;
+  seasonPageName: string;
+  announcement?: { text: string; href?: string };
+  /** Pin a match to the top of the home page instead of the automatic pick. */
+  featuredMatch?: string;
+  homeNewsCount: number;
+  homeResultsCount: number;
+  homeUpcomingCount: number;
+  footerText: string;
+  /** Minimum maps for a player to appear in the player rank. */
+  playerRankMinMaps: number;
 }
 
 export interface RankingEntry {

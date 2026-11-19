@@ -1,0 +1,97 @@
+---
+import type { Medal } from "../data";
+
+/**
+ * Physical-looking trophy art (HLTV shows event trophies as objects, not
+ * icons): a metal cup on a black plinth, or a medal on a ribbon for MVP/EVP.
+ * If the event has an uploaded trophy photo, that photo is shown instead.
+ */
+interface Props {
+  kind: Medal | "mvp" | "evp";
+  size?: number;
+  /** Uploaded trophy photo for this event. */
+  image?: string;
+  label: string;
+}
+const { kind, size = 56, image, label } = Astro.props;
+const id = `t${Math.random().toString(36).slice(2, 9)}`;
+const metal = {
+  gold: ["#6f5010", "#c99a22", "#ffe9a3"],
+  silver: ["#5d6168", "#b9bfc7", "#f7f9fb"],
+  bronze: ["#56300f", "#a8642f", "#f3bf93"],
+  mvp: ["#6f5010", "#c99a22", "#ffe9a3"],
+  evp: ["#5d6168", "#b9bfc7", "#f7f9fb"],
+}[kind];
+const isMedal = kind === "mvp" || kind === "evp";
+---
+
+{
+  image ? (
+    <span class="trophy-photo protected" role="img" aria-label={label} style={`--img: url(/media/u/${image}); --size: ${size}px`} />
+  ) : (
+    <svg class="trophy" width={size} height={size * 1.25} viewBox="0 0 64 80" role="img" aria-label={label}>
+      <defs>
+        <linearGradient id={`${id}-m`} x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color={metal[0]} />
+          <stop offset="0.35" stop-color={metal[2]} />
+          <stop offset="0.6" stop-color={metal[1]} />
+          <stop offset="1" stop-color={metal[0]} />
+        </linearGradient>
+        <linearGradient id={`${id}-v`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color={metal[2]} />
+          <stop offset="1" stop-color={metal[0]} />
+        </linearGradient>
+        <linearGradient id={`${id}-b`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#3a3a3a" />
+          <stop offset="1" stop-color="#0d0d0d" />
+        </linearGradient>
+        <filter id={`${id}-s`} x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#000" flood-opacity="0.35" />
+        </filter>
+      </defs>
+      {isMedal ? (
+        <g filter={`url(#${id}-s)`}>
+          <path d="M18 2h12l6 26h-12z" fill={kind === "mvp" ? "#0f62fe" : "#393939"} />
+          <path d="M46 2H34l-6 26h12z" fill={kind === "mvp" ? "#da1e28" : "#8d8d8d"} />
+          <path d="M22 2h6l5 22h-6z" fill="#fff" opacity="0.25" />
+          <circle cx="32" cy="48" r="20" fill={`url(#${id}-v)`} />
+          <circle cx="32" cy="48" r="15.5" fill={`url(#${id}-m)`} />
+          <path d="m32 37 3.2 6.6 7.2 1-5.2 5 1.3 7.2L32 53.4l-6.5 3.4 1.3-7.2-5.2-5 7.2-1z" fill={metal[0]} opacity="0.55" />
+          <ellipse cx="25" cy="40" rx="6" ry="3" fill="#fff" opacity="0.35" transform="rotate(-30 25 40)" />
+        </g>
+      ) : (
+        <g filter={`url(#${id}-s)`}>
+          <path d="M15 12H8.5C8.5 22 12 27 18.5 28" fill="none" stroke={`url(#${id}-v)`} stroke-width="3.2" stroke-linecap="round" />
+          <path d="M49 12h6.5C55.5 22 52 27 45.5 28" fill="none" stroke={`url(#${id}-v)`} stroke-width="3.2" stroke-linecap="round" />
+          <path d="M14 8h36v10c0 12.5-7.4 21.4-18 23.4C21.4 39.4 14 30.5 14 18z" fill={`url(#${id}-m)`} />
+          <ellipse cx="32" cy="8" rx="18" ry="3.2" fill={`url(#${id}-v)`} />
+          <ellipse cx="32" cy="8.4" rx="15" ry="2" fill={metal[0]} opacity="0.55" />
+          <path d="M19 13c0 9 3 15 8 19" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.45" />
+          <path d="M29.5 41h5v10h-5z" fill={`url(#${id}-m)`} />
+          <ellipse cx="32" cy="44" rx="4.5" ry="1.8" fill={`url(#${id}-v)`} />
+          <path d="M22 51h20l3 6H19z" fill={`url(#${id}-m)`} />
+          <rect x="14" y="57" width="36" height="17" rx="1" fill={`url(#${id}-b)`} />
+          <rect x="14" y="57" width="36" height="1.5" fill="#fff" opacity="0.18" />
+          <rect x="24" y="62" width="16" height="7" rx="0.5" fill={`url(#${id}-m)`} />
+        </g>
+      )}
+    </svg>
+  )
+}
+
+<style>
+  @layer components {
+    .trophy {
+      flex: none;
+      /* Metal is real colour, not UI chrome: keep it in forced-colours mode. */
+      forced-color-adjust: none;
+    }
+    .trophy-photo {
+      display: inline-block;
+      inline-size: var(--size);
+      aspect-ratio: 4 / 5;
+      background: var(--img) center bottom / contain no-repeat;
+      forced-color-adjust: none;
+    }
+  }
+</style>

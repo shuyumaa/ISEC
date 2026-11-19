@@ -4,7 +4,7 @@ import LiveRegion from "../components/LiveRegion.astro";
 import Base from "../layouts/Base.astro";
 import Icon from "../components/Icon.astro";
 import TeamMark from "../components/TeamMark.astro";
-import { getRanking, getRankingUpdated, rosterOf, team } from "../data";
+import { getRanking, getRankingUpdated, getSettings, rosterOf, team } from "../data";
 
 const ranking = getRanking();
 const rankingUpdated = getRankingUpdated();
@@ -14,16 +14,16 @@ const updated = rankingUpdated
   : "—";
 ---
 
-<Base title="World ranking" description="The ISEC CS2 world team ranking.">
+<Base title={getSettings().rankingName} description="The ISEC CS2 school teams ranking.">
   <LiveRegion key="ranking" deps={["ranking:*", "team:*", "player:*", "meta:*"]}>
   <header class="page-head">
-    <h1>World ranking</h1>
+    <h1>{getSettings().rankingName}</h1>
     <p>Updated <time datetime={rankingUpdated}>{updated}</time>. Points weigh the last six months of results by event tier, opponent strength and recency.</p>
   </header>
 
   <div class="table-wrap" role="region" aria-labelledby="ranking-caption" tabindex="0">
     <table class="data-table ranking-table">
-      <caption id="ranking-caption" class="visually-hidden">ISEC world ranking</caption>
+      <caption id="ranking-caption" class="visually-hidden">ISEC {getSettings().rankingName}</caption>
       <thead>
         <tr>
           <th scope="col" class="n">#</th>

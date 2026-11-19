@@ -20,7 +20,7 @@ const sorted = [...getTeams()].sort((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b
             <TeamMark team={t} size="lg" />
             <strong>{t.name}</strong>
             <span class="subtle">
-              {rankOf(t.slug) ? `World #${rankOf(t.slug)} · ` : ""}
+              {rankOf(t.slug) ? `Rank #${rankOf(t.slug)} · ` : ""}
               {t.country}
             </span>
           </a>

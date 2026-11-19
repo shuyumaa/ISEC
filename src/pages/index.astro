@@ -10,21 +10,27 @@ import Scoreboard from "../components/Scoreboard.astro";
 import {
   getArticles,
   completedMatches,
+  findMatch,
   getEvents,
+  getSettings,
   formatDay,
   groupByDay,
   liveMatches,
   upcomingMatches,
 } from "../data";
 
+const settings = getSettings();
 const live = liveMatches();
 const upcoming = upcomingMatches();
-const featured = [...live, ...upcoming].sort((a, b) => b.stars - a.stars)[0];
+// Nothing live: news leads the page. Otherwise the admin's pinned match, or the top live match.
+const pinned = settings.featuredMatch ? findMatch(settings.featuredMatch) : undefined;
+const featured = live.length ? (pinned?.status === "live" ? pinned : [...live].sort((a, b) => b.stars - a.stars)[0]) : undefined;
+const newsFirst = live.length === 0;
 // The featured match is shown once, in the scoreboard, not again in the lists.
 const notFeatured = <T extends { id: string }>(list: T[]) => list.filter((m) => m.id !== featured?.id);
 const liveRest = notFeatured(live);
-const upcomingDays = groupByDay(notFeatured(upcoming).slice(0, 8));
-const results = completedMatches().slice(0, 8);
+const upcomingDays = groupByDay(notFeatured(upcoming).slice(0, settings.homeUpcomingCount));
+const results = completedMatches().slice(0, settings.homeResultsCount);
 const activeEvents = getEvents().filter((e) => e.status !== "completed");
 const news = getArticles();
 ---
@@ -35,7 +41,7 @@ const news = getArticles();
   <div class="home">
     <aside class="home-left stack" aria-label="Ranking and events">
       <LiveRegion key="ranking" deps={["ranking:*", "team:*", "meta:*"]}>
-        <Panel title="World ranking" href="/ranking/" linkLabel="Full ranking">
+        <Panel title={settings.rankingName} href="/ranking/" linkLabel="Full ranking">
           <RankingList limit={10} />
         </Panel>
       </LiveRegion>
@@ -47,8 +53,15 @@ const news = getArticles();
     </aside>
 
     <div class="home-center stack">
-      <LiveRegion key="featured" deps={["match:*", "team:*", "event:*"]}>
+      <LiveRegion key="featured" deps={["match:*", "team:*", "event:*", "article:*"]}>
         {featured && <Scoreboard match={featured} link />}
+        {
+          newsFirst && news.length > 0 && (
+            <Panel title="Latest news" id="top-news" href="/news/" linkLabel="All news">
+              <NewsList items={news.slice(0, settings.homeNewsCount)} lead />
+            </Panel>
+          )
+        }
       </LiveRegion>
 
       <LiveRegion key="live-now" deps={["match:*", "team:*", "event:*"]}>
@@ -79,10 +92,14 @@ const news = getArticles();
       </Panel>
       </LiveRegion>
 
-      <LiveRegion key="news" deps={["article:*"]}>
-        <Panel title="Latest news" href="/news/" linkLabel="All news">
-          <NewsList items={news.slice(0, 5)} lead />
-        </Panel>
+      <LiveRegion key="news" deps={["article:*", "match:*"]}>
+        {
+          !newsFirst && (
+            <Panel title="Latest news" href="/news/" linkLabel="All news">
+              <NewsList items={news.slice(0, settings.homeNewsCount)} lead />
+            </Panel>
+          )
+        }
       </LiveRegion>
     </div>
 

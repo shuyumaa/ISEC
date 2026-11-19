@@ -1,0 +1,94 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
+import { getPlayers, getSeasons, getTeams, playerRank, team } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { deleteSeason, saveSeason } from "../../../server/mutations";
+
+const slug = Astro.params.slug ?? "";
+const isNew = slug === "new";
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "delete") {
+    deleteSeason(slug);
+    return { redirect: "/admin/seasons/", message: "Season deleted" };
+  }
+  if (intent === "autofill") {
+    // Replace the top 10 with the season's best ratings, keeping anything else on the form.
+    const season = getSeasons().find((x) => x.slug === slug);
+    if (season) {
+      const best = playerRank("rating", { season: season.slug }).slice(0, 10);
+      for (let i = 0; i < 10; i++) {
+        form.set(`top_${i}`, best[i]?.stats.player.slug ?? "");
+        form.set(`note_${i}`, "");
+      }
+    }
+  }
+  const s = saveSeason(isNew ? undefined : slug, form);
+  return { redirect: `/admin/seasons/${s.slug}/`, message: intent === "autofill" ? "Top 10 filled from season ratings" : isNew ? "Season created" : "Season saved" };
+});
+if (result instanceof Response) return result;
+
+const s = isNew ? undefined : getSeasons().find((x) => x.slug === slug);
+if (!isNew && !s) return Astro.rewrite("/404");
+const players = [...getPlayers()].sort((a, b) => a.nickname.localeCompare(b.nickname));
+const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+---
+
+<Admin title={s ? s.name : "New season"} error={result?.error}>
+  <form method="post" class="form">
+    <input type="hidden" name="intent" value="save" />
+    <div class="form-grid">
+      <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="80" value={s?.name ?? ""} placeholder="Winter Season 2026" /></div>
+      <div class="field"><label for="startDate">Start date</label><input id="startDate" name="startDate" type="date" required value={s?.startDate ?? ""} /></div>
+      <div class="field"><label for="endDate">End date</label><input id="endDate" name="endDate" type="date" required value={s?.endDate ?? ""} /></div>
+    </div>
+    <div class="checks"><label><input type="checkbox" name="published" checked={s?.published} /> Published (visible on the {`"Best of the Season"`} page)</label></div>
+
+    <fieldset>
+      <legend>Top 10 players</legend>
+      <div class="table-wrap" role="region" aria-label="Top 10" tabindex="0">
+        <table class="data-table">
+          <thead><tr><th scope="col" class="n">#</th><th scope="col">Player</th><th scope="col">Note (optional)</th></tr></thead>
+          <tbody>
+            {
+              Array.from({ length: 10 }, (_, i) => (
+                <tr>
+                  <th scope="row" class="n">{i + 1}</th>
+                  <td>
+                    <select name={`top_${i}`} aria-label={`Place ${i + 1}`}>
+                      <option value="">—</option>
+                      {players.map((p) => <option value={p.slug} selected={s?.top[i]?.player === p.slug}>{p.nickname} ({team(p.team).tag})</option>)}
+                    </select>
+                  </td>
+                  <td><input name={`note_${i}`} maxlength="280" value={s?.top[i]?.note ?? ""} aria-label={`Note for place ${i + 1}`} /></td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Team of the season</legend>
+      <div class="form-grid">
+        <div class="field">
+          <label for="teamOfSeason">Team</label>
+          <select id="teamOfSeason" name="teamOfSeason">
+            <option value="">Not chosen</option>
+            {teams.map((t) => <option value={t.slug} selected={s?.teamOfSeason === t.slug}>{t.name}</option>)}
+          </select>
+        </div>
+        <div class="field wide"><label for="teamNote">Why (optional)</label><textarea id="teamNote" name="teamNote" rows="3" maxlength="400">{s?.teamNote ?? ""}</textarea></div>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" class="btn">{isNew ? "Create season" : "Save season"}</button>
+      {s && <button type="submit" class="btn ghost small" name="intent" value="autofill">Fill top 10 from season ratings</button>}
+      {s?.published && <a class="link-arrow" href={`/best-of-season/${s.slug}/`} target="_blank" rel="noopener">View page</a>}
+    </div>
+  </form>
+  {s && <div class="actions"><ConfirmDelete id="delete-season" what={s.name} action={`/admin/seasons/${s.slug}/`} label="Delete season" /></div>}
+</Admin>

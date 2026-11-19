@@ -1,19 +1,4 @@
 ---
-import LiveRegion from "../components/LiveRegion.astro";
-import Base from "../layouts/Base.astro";
-import StatsTable from "../components/StatsTable.astro";
-import { playerLeaderboard } from "../data";
-
-const MIN_MAPS = 3;
-const rows = playerLeaderboard(MIN_MAPS);
+// The stats leaderboard now lives in the player rank.
+return Astro.redirect("/players/?board=rating", 301);
 ---
-
-<Base title="Player stats" description="ISEC CS2 player statistics leaderboard.">
-  <LiveRegion key="stats" deps={["match:*", "player:*", "team:*"]}>
-  <header class="page-head">
-    <h1>Player stats</h1>
-    <p>Players with {MIN_MAPS} or more completed maps.</p>
-  </header>
-  <StatsTable id="leaderboard" caption="Player leaderboard, all ISEC events" hideCaption rows={rows} showMaps />
-  </LiveRegion>
-</Base>

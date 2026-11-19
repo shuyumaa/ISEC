@@ -73,6 +73,8 @@ function playerStats(r: () => number, team: string, rounds: number, won: boolean
       const adr = round(kpr * 118 + between(r, -10, 10), 1);
       const kast = round(between(r, won ? 68 : 58, won ? 84 : 74), 1);
       const rating = round((kpr / 0.68) * 0.45 + ((1 - dpr) / 0.32) * 0.25 + (adr / 76) * 0.3, 2);
+      const clutchesPlayed = int(r, 0, Math.max(1, Math.round(rounds / 9)));
+      const firstKills = round(rounds * between(r, 0.04, 0.16) + (p.role === "Entry" ? 2 : 0));
       return {
         player: p.slug,
         kills,
@@ -82,6 +84,14 @@ function playerStats(r: () => number, team: string, rounds: number, won: boolean
         kast,
         hs: round(between(r, 32, 62), 1),
         rating,
+        // Perfect World-style extras
+        rws: round(between(r, won ? 9 : 5, won ? 16 : 11) + (kpr - 0.7) * 10, 2),
+        firstKills,
+        firstDeaths: round(rounds * between(r, 0.04, 0.14)),
+        clutchesPlayed,
+        clutchesWon: Math.min(clutchesPlayed, int(r, 0, Math.ceil(clutchesPlayed * (won ? 0.6 : 0.35)))),
+        utilityDamage: round(rounds * between(r, 2, p.role === "Support" ? 12 : 7)),
+        flashAssists: round(rounds * between(r, 0, p.role === "Support" ? 0.25 : 0.1)),
       };
     });
 }

@@ -1,0 +1,65 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import { event, getMatches, getSettings, team } from "../../data";
+import { handlePost } from "../../server/handle";
+import { saveSettings } from "../../server/mutations";
+
+const result = await handlePost(Astro.request, (form) => {
+  saveSettings(form);
+  return { message: "Settings saved" };
+});
+if (result instanceof Response) return result;
+const s = getSettings();
+const candidates = getMatches().filter((m) => m.status !== "completed");
+---
+
+<Admin title="Site settings" error={result?.error}>
+  <form method="post" class="form">
+    <fieldset>
+      <legend>Names</legend>
+      <div class="form-grid">
+        <div class="field"><label for="rankingName">Team ranking name</label><input id="rankingName" name="rankingName" required maxlength="40" value={s.rankingName} /></div>
+        <div class="field"><label for="seasonPageName">Season awards page name</label><input id="seasonPageName" name="seasonPageName" required maxlength="40" value={s.seasonPageName} /></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Announcement bar</legend>
+      <div class="form-grid">
+        <div class="field wide"><label for="announcement">Text (leave empty to hide)</label><input id="announcement" name="announcement" maxlength="200" value={s.announcement?.text ?? ""} /></div>
+        <div class="field wide"><label for="announcementHref">Link (optional)</label><input id="announcementHref" name="announcementHref" type="text" inputmode="url" maxlength="300" spellcheck="false" placeholder="/events/masters-s3/" value={s.announcement?.href ?? ""} /></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Home page</legend>
+      <div class="form-grid">
+        <div class="field wide">
+          <label for="featuredMatch">Pinned match</label>
+          <select id="featuredMatch" name="featuredMatch" aria-describedby="pin-hint">
+            <option value="">Automatic (most important live match)</option>
+            {candidates.map((m) => <option value={m.id} selected={s.featuredMatch === m.id}>{team(m.teamA).name} vs {team(m.teamB).name} — {event(m.event).name}</option>)}
+          </select>
+          <span id="pin-hint" class="hint">Shown at the top while it is live. When nothing is live, news leads the page.</span>
+        </div>
+        <div class="field"><label for="homeNewsCount">News items</label><input id="homeNewsCount" name="homeNewsCount" type="number" min="1" max="20" required value={s.homeNewsCount} /></div>
+        <div class="field"><label for="homeUpcomingCount">Upcoming matches</label><input id="homeUpcomingCount" name="homeUpcomingCount" type="number" min="1" max="30" required value={s.homeUpcomingCount} /></div>
+        <div class="field"><label for="homeResultsCount">Recent results</label><input id="homeResultsCount" name="homeResultsCount" type="number" min="1" max="30" required value={s.homeResultsCount} /></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Player rank</legend>
+      <div class="form-grid">
+        <div class="field"><label for="playerRankMinMaps">Minimum maps to be ranked</label><input id="playerRankMinMaps" name="playerRankMinMaps" type="number" min="0" max="50" required value={s.playerRankMinMaps} /></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Footer</legend>
+      <div class="field wide"><label for="footerText">Footer text</label><textarea id="footerText" name="footerText" rows="2" required maxlength="300">{s.footerText}</textarea></div>
+    </fieldset>
+
+    <div class="actions"><button type="submit" class="btn">Save settings</button></div>
+  </form>
+</Admin>

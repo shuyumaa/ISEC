@@ -1,0 +1,55 @@
+---
+import type { Player } from "../data";
+
+/**
+ * Player portrait. Uploaded photos are protected CSS backgrounds (no <img> to
+ * save or drag); without a photo a neutral silhouette stands in.
+ */
+interface Props {
+  player: Player;
+  size?: "thumb" | "card" | "hero";
+}
+const { player: p, size = "card" } = Astro.props;
+---
+
+{
+  p.photo ? (
+    <span class:list={["photo", size, "protected"]} role="img" aria-label={`Photo of ${p.nickname}`} style={`--img: url(/media/u/${p.photo})`} />
+  ) : (
+    <span class:list={["photo", size, "empty-photo"]} aria-hidden="true">
+      <svg viewBox="0 0 120 150" preserveAspectRatio="xMidYMax meet">
+        <circle cx="60" cy="52" r="26" />
+        <path d="M14 150c0-34 20-58 46-58s46 24 46 58z" />
+      </svg>
+    </span>
+  )
+}
+
+<style>
+  @layer components {
+    .photo {
+      display: block;
+      aspect-ratio: 4 / 5;
+      background: var(--img) center bottom / cover no-repeat;
+      &.thumb {
+        inline-size: 2.5rem;
+      }
+      &.card {
+        inline-size: 100%;
+      }
+      &.hero {
+        inline-size: 100%;
+      }
+    }
+    .empty-photo {
+      display: grid;
+      align-items: end;
+      background: var(--layer);
+      & svg {
+        inline-size: 100%;
+        block-size: 85%;
+        fill: var(--layer-hover);
+      }
+    }
+  }
+</style>

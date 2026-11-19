@@ -9,7 +9,13 @@ interface Props {
 const { team, size = "sm" } = Astro.props;
 ---
 
-<span class:list={["team-mark", size]} aria-hidden="true">{team.tag}</span>
+{
+  team.logo ? (
+    <span class:list={["team-mark", "logo", size, "protected"]} aria-hidden="true" style={`--img: url(/media/u/${team.logo})`} />
+  ) : (
+    <span class:list={["team-mark", size]} aria-hidden="true">{team.tag}</span>
+  )
+}
 
 <style>
   @layer components {
@@ -27,6 +33,10 @@ const { team, size = "sm" } = Astro.props;
       letter-spacing: -0.02em;
       --mark: 1.75rem;
 
+      &.logo {
+        border: 0;
+        background: var(--img) center / contain no-repeat;
+      }
       &.md {
         --mark: 2.5rem;
       }

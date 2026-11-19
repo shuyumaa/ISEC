@@ -14,8 +14,6 @@
     padding-block: var(--sp-02);
     padding-inline: var(--gutter);
     min-block-size: var(--header-height);
-    --logo-image: var(--logo-dark);
-    color-scheme: dark;
     background: var(--header-bg);
     color: var(--header-fg);
 

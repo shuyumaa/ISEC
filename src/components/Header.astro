@@ -7,15 +7,17 @@ const links = [
   { href: "/results/", label: "Results" },
   { href: "/events/", label: "Events" },
   { href: "/ranking/", label: "Ranking" },
-  { href: "/stats/", label: "Stats" },
+  { href: "/players/", label: "Players" },
   { href: "/news/", label: "News" },
+  { href: "/best-of-season/", label: "Best of the Season" },
 ];
 
 const path = Astro.url.pathname;
 const isCurrent = (href: string) => path === href || path.startsWith(href);
 const sectionOf = (href: string) =>
   // Team & player pages live under Ranking/Stats in the IA.
-  (href === "/ranking/" && path.startsWith("/teams/")) || (href === "/stats/" && path.startsWith("/players/"));
+  (href === "/ranking/" && path.startsWith("/teams/")) || (href === "/players/" && path.startsWith("/stats/"));
+const q = Astro.url.searchParams.get("q") ?? "";
 ---
 
 <header class="site-header">
@@ -46,6 +48,13 @@ const sectionOf = (href: string) =>
     </nav>
 
     <div class="header-actions">
+      <search class="site-search">
+        <form action="/search/" method="get">
+          <label for="site-q" class="visually-hidden">Search players and teams</label>
+          <input id="site-q" type="search" name="q" value={q} placeholder="Search players, teams" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" />
+          <button type="submit" aria-label="Search"><Icon name="search" size={18} /></button>
+        </form>
+      </search>
       <span class="sync-status" data-sync-status hidden>
         <span class="dot" aria-hidden="true"></span>
         <span class="label">Live</span>
@@ -79,11 +88,9 @@ const sectionOf = (href: string) =>
       position: sticky;
       inset-block-start: 0;
       z-index: 10;
-      /* Carbon g100 UI shell: dark in both themes for maximum contrast, and
-         the white embossed logo shows its chromatic aberration best on it. */
-      --logo-image: var(--logo-dark);
+      /* Carbon UI shell in ISEC blue: light blue / deep navy per theme. The
+         logo variant follows the theme (dark letters on light, white on navy). */
       --logo-header-h: clamp(2.5rem, 2rem + 1.5vw, 3.25rem);
-      color-scheme: dark;
       background: var(--header-bg);
       color: var(--header-fg);
     }
@@ -122,6 +129,57 @@ const sectionOf = (href: string) =>
       align-items: stretch;
       order: 1;
       margin-inline-start: auto;
+    }
+
+    .site-search {
+      display: flex;
+      align-items: center;
+      padding-inline-end: var(--sp-03);
+
+      & form {
+        display: flex;
+        align-items: stretch;
+        border-block-end: var(--border-width) solid var(--header-fg-secondary);
+      }
+      & input {
+        inline-size: clamp(10rem, 14vw, 16rem);
+        min-block-size: 2.5rem;
+        padding: 0 var(--sp-04);
+        border: 0;
+        background: transparent;
+        color: var(--header-fg);
+        font-size: max(1rem, 1em);
+
+        &::placeholder {
+          color: var(--header-fg-secondary);
+          opacity: 1;
+        }
+        &:focus-visible {
+          outline: var(--focus-width) solid var(--header-fg);
+          outline-offset: 0;
+        }
+      }
+      & button {
+        display: grid;
+        place-items: center;
+        min-inline-size: 2.5rem;
+        border: 0;
+        background: transparent;
+        color: var(--header-fg);
+        cursor: pointer;
+        &:hover {
+          background: var(--header-hover);
+        }
+      }
+    }
+    /* Collapsed header: the field folds into its button, which opens /search/. */
+    .site-header:not(.is-wide) .site-search {
+      & input {
+        display: none;
+      }
+      & form {
+        border: 0;
+      }
     }
 
     .site-header :focus-visible {

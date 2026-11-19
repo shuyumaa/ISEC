@@ -1,5 +1,8 @@
 ---
 import Logo from "./Logo.astro";
+import { getSettings } from "../data";
+
+const footerText = getSettings().footerText;
 ---
 
 <footer class="site-footer">
@@ -9,7 +12,7 @@ import Logo from "./Logo.astro";
       <a href="/teams/">Teams</a>
       <a href="/admin/">Admin</a>
     </nav>
-    <p class="legal">© 2026 ISEC. Counter-Strike is a trademark of Valve Corporation; ISEC is not affiliated with Valve.</p>
+    <p class="legal">{footerText}</p>
   </div>
 </footer>
 

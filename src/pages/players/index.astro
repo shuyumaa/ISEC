@@ -1,0 +1,249 @@
+---
+import Base from "../../layouts/Base.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
+import Photo from "../../components/Photo.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { getEvents, getSeasons, getSettings, getTeams, playerRank, ratingTone, team, type RankBoard } from "../../data";
+import { ROLES } from "../../server/mutations";
+
+const params = Astro.url.searchParams;
+const boards: { key: RankBoard; label: string }[] = [
+  { key: "overall", label: "Overall" },
+  { key: "rating", label: "Rating" },
+  { key: "mvp", label: "MVPs" },
+  { key: "evp", label: "EVPs" },
+];
+const board = (boards.find((b) => b.key === params.get("board"))?.key ?? "overall") as RankBoard;
+const filters = {
+  season: params.get("season") || undefined,
+  event: params.get("event") || undefined,
+  team: params.get("team") || undefined,
+  role: params.get("role") || undefined,
+  minMaps: params.get("minMaps") ? Math.max(0, Number(params.get("minMaps")) || 0) : undefined,
+};
+const rows = playerRank(board, filters);
+const seasons = getSeasons();
+const events = getEvents();
+const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
+const minMaps = filters.minMaps ?? getSettings().playerRankMinMaps;
+const boardHref = (key: RankBoard) => {
+  const u = new URLSearchParams(params);
+  u.set("board", key);
+  return `?${u}`;
+};
+const active = Object.values(filters).some((v) => v !== undefined);
+---
+
+<Base title="Player rank" description="ISEC player rank: overall, rating, MVP and EVP rankings with filters.">
+  <header class="page-head">
+    <h1>Player rank</h1>
+    <p>Overall blends rating with MVP, EVP and trophy wins. Minimum {minMaps} maps.</p>
+  </header>
+
+  <nav class="boards" aria-label="Ranking">
+    {boards.map((b) => <a href={boardHref(b.key)} aria-current={b.key === board ? "page" : undefined}>{b.label}</a>)}
+  </nav>
+
+  <search>
+    <form method="get" class="filters" aria-label="Filter players">
+      <input type="hidden" name="board" value={board} />
+      <div class="field">
+        <label for="f-season">Season</label>
+        <select id="f-season" name="season">
+          <option value="">All time</option>
+          {seasons.map((s) => <option value={s.slug} selected={filters.season === s.slug}>{s.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-event">Event</label>
+        <select id="f-event" name="event">
+          <option value="">All events</option>
+          {events.map((e) => <option value={e.slug} selected={filters.event === e.slug}>{e.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-team">Team</label>
+        <select id="f-team" name="team">
+          <option value="">All teams</option>
+          {teams.map((t) => <option value={t.slug} selected={filters.team === t.slug}>{t.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-role">Role</label>
+        <select id="f-role" name="role">
+          <option value="">All roles</option>
+          {ROLES.map((r) => <option selected={filters.role === r}>{r}</option>)}
+        </select>
+      </div>
+      <div class="field narrow">
+        <label for="f-min">Min. maps</label>
+        <input id="f-min" name="minMaps" type="number" min="0" max="99" inputmode="numeric" value={minMaps} />
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn">Apply filters</button>
+        {active && <a href={`?board=${board}`} class="link-arrow">Reset</a>}
+      </div>
+    </form>
+  </search>
+
+  <LiveRegion key="rank" deps={["match:*", "player:*", "event:*", "season:*"]}>
+    {
+      rows.length ? (
+        <div class="table-wrap" role="region" aria-labelledby="rank-caption" tabindex="0">
+          <table class="data-table rank-table">
+            <caption id="rank-caption" class="visually-hidden">Player rank: {boards.find((b) => b.key === board)!.label}</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="n">#</th>
+                <th scope="col">Player</th>
+                <th scope="col" class="n">Maps</th>
+                <th scope="col" class="n">K–D</th>
+                <th scope="col" class="n">ADR</th>
+                <th scope="col" class="n">RWS</th>
+                <th scope="col" class:list={["n", { sorted: board === "rating" }]}>Rating</th>
+                <th scope="col" class:list={["n", { sorted: board === "mvp" }]}>MVPs</th>
+                <th scope="col" class:list={["n", { sorted: board === "evp" }]}>EVPs</th>
+                <th scope="col" class="n">Titles</th>
+                <th scope="col" class:list={["n", { sorted: board === "overall" }]}>Overall</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const p = r.stats.player;
+                const tm = team(p.team);
+                return (
+                  <tr>
+                    <td class="n pos">{i + 1}</td>
+                    <th scope="row">
+                      <a href={`/players/${p.slug}/`} class="who">
+                        <Photo player={p} size="thumb" />
+                        <span>
+                          <strong>{p.nickname}</strong>
+                          <span class="subtle team-line"><TeamMark team={tm} /> {tm.name}</span>
+                        </span>
+                      </a>
+                    </th>
+                    <td class="n">{r.stats.maps}</td>
+                    <td class="n">{r.stats.kills}–{r.stats.deaths}</td>
+                    <td class="n">{r.stats.adr.toFixed(1)}</td>
+                    <td class="n">{r.stats.rws.toFixed(2)}</td>
+                    <td class:list={["n", "rating", ratingTone(r.stats.rating), { sorted: board === "rating" }]}>{r.stats.rating.toFixed(2)}</td>
+                    <td class:list={["n", { sorted: board === "mvp" }]}>{r.mvps}</td>
+                    <td class:list={["n", { sorted: board === "evp" }]}>{r.evps}</td>
+                    <td class="n">{r.trophies}</td>
+                    <td class:list={["n", "overall", { sorted: board === "overall" }]}>{r.overall}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p class="empty">No players match these filters. Try fewer minimum maps or a wider season.</p>
+      )
+    }
+  </LiveRegion>
+</Base>
+
+<style>
+  @layer components {
+    .boards {
+      display: flex;
+      overflow-x: auto;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      & a {
+        position: relative;
+        flex: none;
+        padding: var(--sp-04) var(--sp-05);
+        color: var(--text-secondary);
+        text-decoration: none;
+        &:hover {
+          color: var(--text-primary);
+          background: var(--layer);
+        }
+        &[aria-current="page"] {
+          color: var(--text-primary);
+          font-weight: 600;
+          &::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0;
+            border-block-end: 2px solid var(--link);
+          }
+        }
+      }
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: var(--sp-04);
+      padding-block: var(--sp-05);
+      & .field {
+        display: grid;
+        gap: var(--sp-02);
+        flex: 1 1 10rem;
+        &.narrow {
+          flex: 0 1 6rem;
+        }
+      }
+      & label {
+        font-size: var(--type-label);
+        color: var(--text-secondary);
+      }
+      & :is(select, input) {
+        min-block-size: 2.5rem;
+        padding: 0 var(--sp-04);
+        border: 0;
+        border-block-end: var(--border-width) solid var(--border-strong);
+        background: var(--layer);
+        font-size: max(1rem, 1em);
+      }
+    }
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-05);
+      & .btn {
+        min-block-size: 2.5rem;
+      }
+    }
+    .rank-table {
+      & .pos {
+        font-family: var(--font-mono);
+        inline-size: 3rem;
+      }
+      & .sorted {
+        background: var(--layer);
+        font-weight: 600;
+      }
+      & .overall {
+        font-family: var(--font-mono);
+      }
+    }
+    .who {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-04);
+      text-decoration: none;
+      & > span {
+        display: grid;
+      }
+      &:hover strong {
+        text-decoration: underline;
+      }
+    }
+    .team-line {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+      font-size: var(--type-label);
+    }
+    .rating.good {
+      color: var(--win);
+    }
+    .rating.poor {
+      color: var(--loss);
+    }
+  }
+</style>

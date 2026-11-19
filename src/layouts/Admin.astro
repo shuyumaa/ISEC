@@ -29,6 +29,8 @@ const nav = [
   { href: "/admin/teams/", label: "Teams & players" },
   { href: "/admin/ranking/", label: "Ranking" },
   { href: "/admin/news/", label: "News" },
+  { href: "/admin/seasons/", label: "Seasons & awards" },
+  { href: "/admin/settings/", label: "Site settings" },
 ];
 const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path === "/admin" : path.startsWith(n.href));
 ---

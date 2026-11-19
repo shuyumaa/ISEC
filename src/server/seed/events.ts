@@ -1,4 +1,4 @@
-import type { EsportsEvent, RankingEntry } from "../../data/types";
+import type { EsportsEvent, RankingEntry, Season } from "../../data/types";
 
 export const events: EsportsEvent[] = [
   {
@@ -104,6 +104,8 @@ export const events: EsportsEvent[] = [
       { place: "5th–8th", prize: 1000, team: "lumen" },
     ],
     winner: "nocturne",
+    mvp: "certero",
+    evps: ["rush", "hrom", "luna", "tahti"],
   },
   {
     slug: "pacific-invitational-2026",
@@ -125,11 +127,33 @@ export const events: EsportsEvent[] = [
       { place: "4th", prize: 10000, team: "helix" },
     ],
     winner: "iron-lotus",
+    mvp: "jian",
+    evps: ["reef", "yun"],
   },
 ];
 
 /** ISEC world ranking, published weekly. */
 export const rankingUpdated = "2026-11-16";
+
+/** Seasons with end-of-season awards. Top lists are filled in by the seed from stats. */
+export const seasons: Omit<Season, "top">[] = [
+  {
+    slug: "2026-autumn",
+    name: "Autumn Season 2026",
+    startDate: "2026-09-01",
+    endDate: "2026-10-31",
+    published: true,
+    teamOfSeason: "nocturne",
+    teamNote: "Autumn Cup champions after a five-map final, with the event's MVP in certero.",
+  },
+  {
+    slug: "2026-winter",
+    name: "Winter Season 2026",
+    startDate: "2026-11-01",
+    endDate: "2026-12-31",
+    published: false,
+  },
+];
 
 export const ranking: RankingEntry[] = [
   { team: "northwind", points: 1000, change: 0 },

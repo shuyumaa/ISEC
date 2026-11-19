@@ -1,0 +1,24 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import { formatRange, getSeasons } from "../../../data";
+---
+
+<Admin title="Seasons & awards">
+  <p class="actions"><a class="btn" href="/admin/seasons/new/">Create a season</a></p>
+  <div class="table-wrap" role="region" aria-label="Seasons" tabindex="0">
+    <table class="data-table">
+      <thead><tr><th scope="col">Season</th><th scope="col">Dates</th><th scope="col">Awards</th></tr></thead>
+      <tbody>
+        {
+          getSeasons().map((s) => (
+            <tr>
+              <th scope="row"><a href={`/admin/seasons/${s.slug}/`}>{s.name}</a></th>
+              <td>{formatRange(s.startDate, s.endDate)}</td>
+              <td><span class:list={["badge", { green: s.published }]}>{s.published ? "Published" : "Draft"}</span> {s.top.length}/10 players</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</Admin>

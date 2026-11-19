@@ -11,16 +11,20 @@ import "../styles/components.css";
 import "../styles/protect.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { getSettings } from "../data";
 
 interface Props {
   title?: string;
   description?: string;
   /** Seconds between automatic reloads for visitors without JavaScript (pages with live data). */
   noscriptRefresh?: number;
+  /** LCP image drawn as a CSS background: preload it at high priority. */
+  preloadImage?: string;
 }
 
-const { title, noscriptRefresh, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
+const { title, noscriptRefresh, preloadImage, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
   Astro.props;
+const announcement = getSettings().announcement;
 const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competitions";
 ---
 
@@ -44,6 +48,7 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
     <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>{fullTitle}</title>
+    {preloadImage && <link rel="preload" as="image" href={preloadImage} fetchpriority="high" />}
     {
       noscriptRefresh && (
         <noscript>
@@ -55,6 +60,13 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
     <Header />
+    {
+      announcement && (
+        <p class="announcement">
+          {announcement.href ? <a href={announcement.href}>{announcement.text}</a> : announcement.text}
+        </p>
+      )
+    }
     <main id="main" class="page">
       <div class="container">
         <slot />

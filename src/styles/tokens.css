@@ -26,12 +26,14 @@
     --black: #000000;
 
     /* Carbon v11 colour ramps (only the steps in use) */
+    --blue-10: #edf5ff;
     --blue-20: #d0e2ff;
     --blue-30: #a6c8ff;
     --blue-40: #78a9ff;
     --blue-60: #0f62fe;
     --blue-70: #0043ce;
     --blue-80: #002d9c;
+    --blue-90: #001d6c;
     --red-10: #fff1f1;
     --red-40: #ff8389;
     --red-60: #da1e28;
@@ -91,12 +93,9 @@
     --duration-moderate: 240ms;
     --ease-productive: cubic-bezier(0.2, 0, 0.38, 0.9);
 
-    /* Always-dark UI shell header (Carbon g100 shell), in both themes. */
-    --header-bg: var(--gray-100);
-    --header-fg: var(--white);
-    --header-fg-secondary: var(--gray-30);
-    --header-hover: var(--gray-90);
-    --header-accent: var(--blue-40);
+    /* UI shell header: light blue in the light theme, deep navy in the dark
+       theme. Text flips with it (white on light blue would fail contrast),
+       and so does the logo variant. */
     --header-height: 4.5rem;
 
     /* Fixed brand actions (same in both themes, both 5:1+ with white). */
@@ -165,6 +164,17 @@
     --support-success-bg-light: var(--green-10);
     --support-success-bg-dark: var(--green-90);
 
+    --header-bg-light: var(--blue-20);
+    --header-bg-dark: var(--blue-90);
+    --header-fg-light: var(--black);
+    --header-fg-dark: var(--white);
+    --header-fg-secondary-light: var(--gray-80);
+    --header-fg-secondary-dark: var(--blue-20);
+    --header-hover-light: var(--blue-30);
+    --header-hover-dark: var(--blue-80);
+    --header-accent-light: var(--blue-70);
+    --header-accent-dark: var(--blue-40);
+
     color-scheme: light dark;
 
     /* Map the <meta name="color-scheme"> override back onto the property. */
@@ -205,6 +215,11 @@
     --support-error-bg: var(--support-error-bg-light);
     --support-success: var(--support-success-light);
     --support-success-bg: var(--support-success-bg-light);
+    --header-bg: var(--header-bg-light);
+    --header-fg: var(--header-fg-light);
+    --header-fg-secondary: var(--header-fg-secondary-light);
+    --header-hover: var(--header-hover-light);
+    --header-accent: var(--header-accent-light);
   }
 
   /* Fallback dark branch (no light-dark()): system preference unless pinned light, or pinned dark. */
@@ -240,6 +255,11 @@
         --support-error-bg: var(--support-error-bg-dark);
         --support-success: var(--support-success-dark);
         --support-success-bg: var(--support-success-bg-dark);
+        --header-bg: var(--header-bg-dark);
+        --header-fg: var(--header-fg-dark);
+        --header-fg-secondary: var(--header-fg-secondary-dark);
+        --header-hover: var(--header-hover-dark);
+        --header-accent: var(--header-accent-dark);
       }
     }
     :root:has(> head > meta[name="color-scheme"][content="dark"]) {
@@ -272,6 +292,11 @@
       --support-error-bg: var(--support-error-bg-dark);
       --support-success: var(--support-success-dark);
       --support-success-bg: var(--support-success-bg-dark);
+      --header-bg: var(--header-bg-dark);
+      --header-fg: var(--header-fg-dark);
+      --header-fg-secondary: var(--header-fg-secondary-dark);
+      --header-hover: var(--header-hover-dark);
+      --header-accent: var(--header-accent-dark);
     }
   }
 
@@ -307,6 +332,11 @@
       --support-error-bg: light-dark(var(--support-error-bg-light), var(--support-error-bg-dark));
       --support-success: light-dark(var(--support-success-light), var(--support-success-dark));
       --support-success-bg: light-dark(var(--support-success-bg-light), var(--support-success-bg-dark));
+      --header-bg: light-dark(var(--header-bg-light), var(--header-bg-dark));
+      --header-fg: light-dark(var(--header-fg-light), var(--header-fg-dark));
+      --header-fg-secondary: light-dark(var(--header-fg-secondary-light), var(--header-fg-secondary-dark));
+      --header-hover: light-dark(var(--header-hover-light), var(--header-hover-dark));
+      --header-accent: light-dark(var(--header-accent-light), var(--header-accent-dark));
     }
   }
 

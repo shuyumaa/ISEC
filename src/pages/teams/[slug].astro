@@ -1,15 +1,33 @@
 ---
+import { Temporal } from "temporal-polyfill";
 import Base from "../../layouts/Base.astro";
-import LiveRegion from "../../components/LiveRegion.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import LiveRegion from "../../components/LiveRegion.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
+import Photo from "../../components/Photo.astro";
 import StatsTable from "../../components/StatsTable.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { findTeam, getEvents, getRanking, matchesForTeam, playerLeaderboard, rankOf, rosterOf, winnerOf } from "../../data";
+import Trophy from "../../components/Trophy.astro";
+import {
+  findTeam,
+  formatRange,
+  getEvents,
+  getRanking,
+  getSettings,
+  mapDecided,
+  matchesForTeam,
+  playerLeaderboard,
+  rankOf,
+  ratingTone,
+  rosterOf,
+  teamAchievements,
+  winnerOf,
+} from "../../data";
 
 const t = findTeam(Astro.params.slug ?? "");
 if (!t) return Astro.rewrite("/404");
+const settings = getSettings();
 const rank = rankOf(t.slug);
 const entry = getRanking().find((r) => r.team === t.slug);
 const roster = rosterOf(t.slug);
@@ -18,93 +36,220 @@ const upcoming = all.filter((m) => m.status !== "completed").reverse();
 const results = all.filter((m) => m.status === "completed");
 const wins = results.filter((m) => winnerOf(m) === t.slug).length;
 const stats = playerLeaderboard(0).filter((s) => s.player.team === t.slug);
+const statOf = (slug: string) => stats.find((s) => s.player.slug === slug);
+const achievements = teamAchievements(t.slug);
+const titles = achievements.filter((a) => a.medal === "gold");
 const attending = getEvents().filter((e) => e.teams.includes(t.slug) && e.status !== "completed");
 const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L"));
+const ages = roster.map((p) => p.age).filter(Boolean);
+const avgAge = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1) : "—";
+const since = (d?: string) => (d ? Temporal.PlainDate.from(d).toLocaleString("en-GB", { month: "short", year: "numeric" }) : "—");
+
+// Map pool: maps played and won by this team across decided maps.
+const pool = new Map<string, { played: number; won: number }>();
+for (const m of results) {
+  for (const map of m.maps) {
+    if (!mapDecided(map)) continue;
+    const mine = m.teamA === t.slug ? map.scoreA! : map.scoreB!;
+    const theirs = m.teamA === t.slug ? map.scoreB! : map.scoreA!;
+    const row = pool.get(map.map) ?? { played: 0, won: 0 };
+    row.played += 1;
+    if (mine > theirs) row.won += 1;
+    pool.set(map.map, row);
+  }
+}
+const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
 ---
 
-<Base title={t.name} description={`${t.name} — roster, results, upcoming matches and player stats.`}>
-  <Breadcrumbs items={[{ label: "Teams", href: "/teams/" }, { label: t.name, href: `/teams/${t.slug}/` }]} />
+<Base title={t.name} description={`${t.name} — roster, results, trophies, map pool and stats.`}>
+  <Breadcrumbs items={[{ label: settings.rankingName, href: "/ranking/" }, { label: t.name, href: `/teams/${t.slug}/` }]} />
 
-  <header class="team-head">
-    <TeamMark team={t} size="xl" />
-    <div>
-      <h1>{t.name}</h1>
-      <p class="muted">{t.country} · Founded {t.founded} · Coach {t.coach}</p>
-    </div>
-  </header>
+  <LiveRegion key="team-head" deps={[`team:${t.slug}`, "player:*", "ranking:*", "match:*", "event:*"]}>
+    <section class="team-hero" aria-labelledby="team-name">
+      <TeamMark team={t} size="xl" />
+      <div class="team-id">
+        <h1 id="team-name">{t.name}</h1>
+        <p class="muted">{t.country} · Founded {t.founded}</p>
+      </div>
+      <dl class="team-facts">
+        <div><dt>{settings.rankingName}</dt><dd>{rank ? `#${rank}` : "Unranked"}</dd></div>
+        <div><dt>Points</dt><dd>{entry?.points ?? "—"}</dd></div>
+        <div><dt>Average player age</dt><dd>{avgAge}</dd></div>
+        <div><dt>Coach</dt><dd>{t.coach || "—"}</dd></div>
+        <div><dt>Series record</dt><dd>{wins}–{results.length - wins}</dd></div>
+        <div>
+          <dt>Form</dt>
+          <dd class="form" aria-label={form.map((f) => (f === "W" ? "win" : "loss")).join(", ") || "No matches"}>
+            {form.length ? form.map((f) => <span class:list={["pill", { w: f === "W" }]} aria-hidden="true">{f}</span>) : "—"}
+          </dd>
+        </div>
+      </dl>
+    </section>
 
-  <LiveRegion key="team" deps={[`team:${t.slug}`, "player:*", "match:*", "ranking:*", "event:*"]}>
-  <dl class="facts">
-    <div><dt>World ranking</dt><dd>{rank ? `#${rank}` : "Unranked"}</dd></div>
-    <div><dt>Points</dt><dd>{entry?.points ?? "—"}</dd></div>
-    <div><dt>Series record</dt><dd>{wins}–{results.length - wins}</dd></div>
-    <div>
-      <dt>Form (last 5)</dt>
-      <dd class="form" aria-label={form.map((f) => (f === "W" ? "win" : "loss")).join(", ") || "No matches"}>
-        {form.length ? form.map((f) => <span class:list={["pill", { w: f === "W" }]} aria-hidden="true">{f}</span>) : "—"}
-      </dd>
-    </div>
-  </dl>
-
-  <div class="with-sidebar team-body">
-    <div class="stack">
-      <Panel title="Roster">
-        <ul class="roster">
-          {
-            roster.map((p) => (
-              <li>
-                <a href={`/players/${p.slug}/`}>
-                  <strong>{p.nickname}</strong>
-                  <span class="subtle">
-                    {p.firstName} {p.lastName}
-                  </span>
-                  <span class="badge">{p.role}</span>
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </Panel>
-
-      {stats.length > 0 && <Panel title="Player stats" id="team-stats"><StatsTable id={`team-${t.slug}`} caption={`${t.name} player stats`} hideCaption rows={stats} showTeam={false} showMaps /></Panel>}
-
-      <Panel title="Results" id="team-results">
-        {results.length ? results.map((m) => <MatchRow match={m} showDate />) : <p class="empty">No results yet.</p>}
-      </Panel>
-    </div>
-
-    <aside class="stack" aria-label="Schedule">
-      <Panel title="Upcoming & live" id="team-upcoming">
-        {upcoming.length ? upcoming.map((m) => <MatchRow match={m} showDate />) : <p class="empty">No scheduled matches.</p>}
-      </Panel>
+    <ul class="lineup" aria-label="Lineup">
       {
-        attending.length > 0 && (
-          <Panel title="Events" id="team-events">
+        roster.map((p) => (
+          <li>
+            <a href={`/players/${p.slug}/`}>
+              <Photo player={p} size="card" />
+              <span class="lineup-name">
+                <strong>{p.nickname}</strong>
+                <span class="subtle">{p.role}</span>
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </LiveRegion>
+
+  <nav class="section-nav" aria-label="On this page">
+    <a href="#roster">Roster</a>
+    <a href="#matches">Matches</a>
+    <a href="#achievements">Achievements</a>
+    <a href="#map-pool">Map pool</a>
+    <a href="#team-stats">Stats</a>
+  </nav>
+
+  <LiveRegion key="team-body" deps={[`team:${t.slug}`, "player:*", "match:*", "event:*"]}>
+    <div class="with-sidebar">
+      <div class="stack">
+        <Panel title="Roster" id="roster">
+          <div class="table-wrap" role="region" aria-labelledby="roster" tabindex="0">
+            <table class="data-table">
+              <thead>
+                <tr><th scope="col">Player</th><th scope="col">Role</th><th scope="col">On team since</th><th scope="col" class="n">Maps</th><th scope="col" class="n">Rating</th></tr>
+              </thead>
+              <tbody>
+                {roster.map((p) => {
+                  const st = statOf(p.slug);
+                  return (
+                    <tr>
+                      <th scope="row"><a href={`/players/${p.slug}/`}>{p.nickname}</a> <span class="subtle">{p.firstName} {p.lastName}</span></th>
+                      <td>{p.role}</td>
+                      <td>{since(p.joined)}</td>
+                      <td class="n">{st?.maps ?? 0}</td>
+                      <td class:list={["n", "rating", st && ratingTone(st.rating)]}>{st ? st.rating.toFixed(2) : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+
+        <section id="matches" class="stack" aria-label="Matches">
+          <Panel title="Upcoming & live" id="team-upcoming">
+            {upcoming.length ? upcoming.map((m) => <MatchRow match={m} showDate />) : <p class="empty">No scheduled matches.</p>}
+          </Panel>
+          <Panel title="Recent results" id="team-results">
+            {results.length ? results.slice(0, 10).map((m) => <MatchRow match={m} showDate />) : <p class="empty">No results yet.</p>}
+          </Panel>
+        </section>
+
+        <Panel title="Achievements" id="achievements">
+          {titles.length > 0 && (
+            <ul class="trophies">
+              {titles.map((a) => (
+                <li>
+                  <Trophy kind="gold" image={a.event.trophyImage} label={`Winner, ${a.event.name}`} />
+                  <span class="caption">{a.event.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {achievements.length ? (
+            <div class="table-wrap" role="region" aria-label="Event placements" tabindex="0">
+              <table class="data-table">
+                <thead><tr><th scope="col">Placement</th><th scope="col">Event</th><th scope="col">Dates</th></tr></thead>
+                <tbody>
+                  {achievements.map((a) => (
+                    <tr>
+                      <th scope="row" class:list={["place", a.medal]}>{a.place}</th>
+                      <td><a href={`/events/${a.event.slug}/`}>{a.event.name}</a></td>
+                      <td>{formatRange(a.event.startDate, a.event.endDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p class="empty">No placements yet.</p>
+          )}
+        </Panel>
+
+        <Panel title="Map pool" id="map-pool">
+          {mapPool.length ? (
+            <ul class="map-pool">
+              {mapPool.map(([name, r]) => {
+                const pct = Math.round((r.won / r.played) * 100);
+                return (
+                  <li>
+                    <span class="mp-name">{name}</span>
+                    <span class="mp-bar" aria-hidden="true"><span style={`--v: ${pct}%`} /></span>
+                    <span class="mp-val">{pct}% <span class="subtle">({r.won}/{r.played})</span></span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p class="empty">No maps played yet.</p>
+          )}
+        </Panel>
+
+        {stats.length > 0 && (
+          <Panel title="Player stats" id="team-stats">
+            <StatsTable id={`team-${t.slug}`} caption={`${t.name} player stats`} hideCaption rows={stats} showTeam={false} showMaps />
+          </Panel>
+        )}
+      </div>
+
+      <aside class="stack" aria-label="Events">
+        {attending.length > 0 && (
+          <Panel title="Attending" id="team-events">
             <ul class="ev-list">
               {attending.map((e) => (
                 <li>
                   <a href={`/events/${e.slug}/`}>{e.name}</a>
+                  <span class="subtle">{formatRange(e.startDate, e.endDate)}</span>
                 </li>
               ))}
             </ul>
           </Panel>
-        )
-      }
-    </aside>
-  </div>
+        )}
+      </aside>
+    </div>
   </LiveRegion>
 </Base>
 
 <style>
   @layer components {
-    .team-head {
-      display: flex;
+    .team-hero {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      gap: var(--sp-06);
-      margin-block: var(--sp-06);
+      gap: var(--sp-05) var(--sp-06);
+      margin-block: var(--sp-05);
+      padding: var(--sp-06);
+      background: var(--layer);
+      & h1 {
+        font-size: var(--type-heading-lg);
+        font-weight: 600;
+      }
     }
-    .team-body {
-      margin-block-start: var(--sp-07);
+    .team-facts {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      gap: var(--sp-04) var(--sp-06);
+      & dt {
+        font-size: var(--type-label);
+        color: var(--text-secondary);
+      }
+      & dd {
+        font-size: var(--type-heading-sm);
+        font-weight: 600;
+      }
     }
     .form {
       display: flex;
@@ -115,48 +260,114 @@ const form = results.slice(0, 5).map((m) => (winnerOf(m) === t.slug ? "W" : "L")
       place-items: center;
       inline-size: 1.75rem;
       aspect-ratio: 1;
-      border: var(--border-width) solid var(--border-strong);
+      background: var(--red-60);
+      color: var(--white);
       font-family: var(--font-mono);
       font-size: var(--type-body-sm);
-      color: var(--text-secondary);
-
-      /* Fixed fills, 5:1 with white in both themes; the W/L letter is the cue. */
-      background: var(--red-60);
-      border-color: var(--red-60);
-      color: var(--white);
       &.w {
         background: var(--green-60);
-        border-color: var(--green-60);
       }
     }
-    .roster {
+    .lineup {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
-      gap: var(--border-width);
-      background: var(--border-subtle);
-      border: var(--border-width) solid var(--border-subtle);
-      border-block-start: 0;
-
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+      gap: var(--sp-04);
+      margin-block-end: var(--sp-06);
       & a {
         display: grid;
-        justify-items: start;
-        gap: var(--sp-02);
-        padding: var(--sp-05);
-        background: var(--background);
         text-decoration: none;
-        outline-offset: calc(var(--focus-width) * -1);
-
-        & strong {
-          font-size: var(--type-heading-sm);
-          font-weight: 500;
+        &:hover strong {
+          text-decoration: underline;
         }
+      }
+    }
+    .lineup-name {
+      display: grid;
+      padding: var(--sp-03) var(--sp-04);
+      background: var(--header-bg);
+      color: var(--header-fg);
+      & .subtle {
+        color: var(--header-fg-secondary);
+        font-size: var(--type-label);
+      }
+    }
+    .section-nav {
+      position: sticky;
+      inset-block-start: var(--header-height);
+      z-index: 5;
+      display: flex;
+      overflow-x: auto;
+      margin-block-end: var(--sp-06);
+      background: var(--background);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      & a {
+        flex: none;
+        padding: var(--sp-04) var(--sp-05);
+        color: var(--text-secondary);
+        text-decoration: none;
         &:hover {
+          color: var(--text-primary);
           background: var(--layer);
         }
       }
     }
-    .ev-list a {
-      display: block;
+    .trophies {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-05);
+      padding-block: var(--sp-05);
+      & li {
+        display: grid;
+        justify-items: center;
+        gap: var(--sp-02);
+        inline-size: 5.5rem;
+        text-align: center;
+      }
+      & .caption {
+        font-size: var(--type-label);
+        color: var(--text-secondary);
+      }
+    }
+    .place {
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .map-pool {
+      display: grid;
+      & li {
+        display: grid;
+        grid-template-columns: 6rem minmax(0, 1fr) 7rem;
+        align-items: center;
+        gap: var(--sp-04);
+        padding-block: var(--sp-03);
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+    }
+    .mp-name {
+      font-weight: 600;
+    }
+    .mp-bar {
+      block-size: 0.5rem;
+      background: var(--layer-hover);
+      & span {
+        display: block;
+        block-size: 100%;
+        inline-size: var(--v);
+        background: var(--win);
+      }
+    }
+    .mp-val {
+      text-align: end;
+      font-family: var(--font-mono);
+    }
+    .rating.good {
+      color: var(--win);
+    }
+    .rating.poor {
+      color: var(--loss);
+    }
+    .ev-list li {
+      display: grid;
       padding: var(--sp-04) 0;
       border-block-end: var(--border-width) solid var(--border-subtle);
     }

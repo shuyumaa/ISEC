@@ -4,16 +4,24 @@ import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
 import { findEvent, getTeams } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { EVENT_STATUSES, TIERS, deleteEvent, saveEvent } from "../../../server/mutations";
+import { removeUpload, saveUpload } from "../../../server/uploads";
+import { getPlayers } from "../../../data";
 
 const slug = Astro.params.slug ?? "";
 const isNew = slug === "new";
 
-const result = await handlePost(Astro.request, (form, intent) => {
+const result = await handlePost(Astro.request, async (form, intent) => {
   if (intent === "delete") {
+    const old = findEvent(slug)?.trophyImage;
     deleteEvent(slug);
+    await removeUpload(old);
     return { redirect: "/admin/events/", message: "Event deleted" };
   }
-  const ev = saveEvent(isNew ? undefined : slug, form);
+  const old = isNew ? undefined : findEvent(slug)?.trophyImage;
+  const uploaded = await saveUpload(form, "trophyImage", "Trophy photo");
+  const trophy = form.get("removeTrophy") ? null : uploaded;
+  const ev = saveEvent(isNew ? undefined : slug, form, trophy);
+  if (old && (trophy === null || uploaded)) await removeUpload(old);
   return { redirect: `/admin/events/${ev.slug}/`, message: isNew ? "Event created" : "Event saved" };
 });
 if (result instanceof Response) return result;
@@ -22,10 +30,12 @@ const ev = isNew ? undefined : findEvent(slug);
 if (!isNew && !ev) return Astro.rewrite("/404");
 const teams = [...getTeams()].sort((a, b) => a.name.localeCompare(b.name));
 const zones = Intl.supportedValuesOf("timeZone");
+// Award candidates: players of the attending teams.
+const eligible = ev ? getPlayers().filter((p) => ev.teams.includes(p.team)).sort((a, b) => a.team.localeCompare(b.team) || a.nickname.localeCompare(b.nickname)) : [];
 ---
 
 <Admin title={ev ? ev.name : "New event"} error={result?.error}>
-  <form method="post" class="form">
+  <form method="post" class="form" enctype="multipart/form-data">
     <input type="hidden" name="intent" value="save" />
     <div class="form-grid">
       <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="100" value={ev?.name ?? ""} /></div>
@@ -64,6 +74,33 @@ const zones = Intl.supportedValuesOf("timeZone");
       <textarea id="prizes" name="prizes" rows="7" spellcheck="false" aria-describedby="prizes-hint">{ev?.prizes.map((p) => [p.place, p.prize, p.team ?? ""].join(" | ").replace(/ \| $/, "")).join("\n") ?? ""}</textarea>
       <span id="prizes-hint" class="hint">One line per place: <code>place | amount | team-slug</code> (team optional), e.g. <code>1st | 100000 | northwind</code>.</span>
     </div>
+    <div class="checks"><label><input type="checkbox" name="resnapshot" /> Re-capture prize rosters from current rosters (use after a placement's lineup changed)</label></div>
+
+    <fieldset>
+      <legend>Awards</legend>
+      <div class="form-grid">
+        <div class="field">
+          <label for="mvp">Event MVP</label>
+          <select id="mvp" name="mvp">
+            <option value="">Not awarded</option>
+            {eligible.map((p) => <option value={p.slug} selected={ev?.mvp === p.slug}>{p.nickname} ({p.team})</option>)}
+          </select>
+        </div>
+      </div>
+      <p class="label">EVPs (Exceptionally Valuable Players)</p>
+      <div class="checks">
+        {eligible.map((p) => <label><input type="checkbox" name="evps" value={p.slug} checked={ev?.evps?.includes(p.slug)} /> {p.nickname}</label>)}
+      </div>
+      {!eligible.length && <p class="hint">Tick the attending teams and save to choose MVP and EVPs.</p>}
+    </fieldset>
+
+    <fieldset>
+      <legend>Trophy photo</legend>
+      <p class="hint">A photo of the physical trophy, shown on winners' profiles. PNG, JPEG or WebP, up to 5 MB; a cut-out on a transparent background looks best.</p>
+      <div class="field"><label for="trophyImage">Upload</label><input id="trophyImage" name="trophyImage" type="file" accept="image/png,image/jpeg,image/webp" /></div>
+      {ev?.trophyImage && <div class="checks"><label><input type="checkbox" name="removeTrophy" /> Remove the current photo</label></div>}
+    </fieldset>
+
     <div class="actions">
       <button type="submit" class="btn">{isNew ? "Create event" : "Save event"}</button>
       {ev && <a class="btn ghost small" href={`/events/${ev.slug}/`} target="_blank" rel="noopener">View</a>}

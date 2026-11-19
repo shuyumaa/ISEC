@@ -12,6 +12,8 @@ import type {
   PlayerMapStats,
   RankingEntry,
   Role,
+  Season,
+  Settings,
   Side,
   Team,
   VetoStep,
@@ -277,6 +279,9 @@ export function updateMatch(id: string, intent: string, form: FormData): Match {
       const map = m.maps[index]!;
       const rounds = Math.max(1, (map.scoreA ?? 0) + (map.scoreB ?? 0));
       const roster = snapshot().players.filter((p) => p.team === m.teamA || p.team === m.teamB);
+      // A pasted Perfect World / CSV export fills the per-player fields, then the normal validation runs.
+      const csv = text(form, "csv", { max: 20000 });
+      if (csv) applyStatsCsv(form, csv, roster);
       const stats: PlayerMapStats[] = [];
       for (const p of roster) {
         const k = int(form, `k_${p.slug}`, { min: 0, max: 200, label: `${p.nickname} kills` });
@@ -298,6 +303,13 @@ export function updateMatch(id: string, intent: string, form: FormData): Match {
           kast,
           hs: num(form, `hs_${p.slug}`, { min: 0, max: 100 }) ?? 0,
           rating,
+          rws: num(form, `rws_${p.slug}`, { min: 0, max: 100, label: `${p.nickname} RWS` }),
+          firstKills: int(form, `fk_${p.slug}`, { min: 0, max: 99 }),
+          firstDeaths: int(form, `fd_${p.slug}`, { min: 0, max: 99 }),
+          clutchesWon: int(form, `cw_${p.slug}`, { min: 0, max: 99 }),
+          clutchesPlayed: int(form, `cp_${p.slug}`, { min: 0, max: 99 }),
+          utilityDamage: int(form, `ud_${p.slug}`, { min: 0, max: 9999 }),
+          flashAssists: int(form, `fa_${p.slug}`, { min: 0, max: 99 }),
         });
       }
       if (stats.length) map.stats = stats;
@@ -367,7 +379,11 @@ export function deleteArticle(slug: string) {
 
 /* ============================ Teams & players ============================ */
 
-export function saveTeam(slug: string | undefined, form: FormData): Team {
+/** `upload`: new file name, `null` to remove, `undefined` to keep the current one. */
+type Upload = string | null | undefined;
+const pickUpload = (current: string | undefined, next: Upload) => (next === null ? undefined : (next ?? current));
+
+export function saveTeam(slug: string | undefined, form: FormData, logo?: Upload): Team {
   const name = text(form, "name", { required: true, max: 60, label: "Name" });
   const existing = slug ? snapshot().teams.find((t) => t.slug === slug) : undefined;
   const newSlug = existing?.slug ?? slugify(name);
@@ -380,6 +396,7 @@ export function saveTeam(slug: string | undefined, form: FormData): Team {
     countryCode: text(form, "countryCode", { required: true, max: 2, label: "Country code" }).toUpperCase(),
     founded: int(form, "founded", { required: true, min: 1990, max: 2100, label: "Founded" })!,
     coach: text(form, "coach", { max: 60 }),
+    logo: pickUpload(existing?.logo, logo),
   };
   transaction((tx) => {
     tx.put("team", t.slug, t);
@@ -399,7 +416,7 @@ export function deleteTeam(slug: string) {
   }, ACTOR, "delete team");
 }
 
-export function savePlayer(teamSlug: string, slug: string | undefined, form: FormData): Player {
+export function savePlayer(teamSlug: string, slug: string | undefined, form: FormData, photo?: Upload): Player {
   const nickname = text(form, "nickname", { required: true, max: 32, label: "Nickname" });
   const existing = slug ? snapshot().players.find((p) => p.slug === slug) : undefined;
   let newSlug = existing?.slug ?? slugify(nickname);
@@ -417,7 +434,10 @@ export function savePlayer(teamSlug: string, slug: string | undefined, form: For
     age: int(form, "age", { min: 12, max: 60, label: "Age" }) ?? 0,
     ign: optionalText(form, "ign", { max: 64 }),
     steamId: optionalText(form, "steamId", { max: 32 }),
+    photo: pickUpload(existing?.photo, photo),
+    joined: optionalText(form, "joined", { max: 10 }),
   };
+  if (p.joined && !/^\d{4}-\d{2}-\d{2}$/.test(p.joined)) throw new FormError("Join date must be a date.", "joined");
   if (p.steamId && !/^(7656\d{13}|\[U:1:\d+\]|\d{1,10})$/.test(p.steamId)) {
     throw new FormError("Steam ID must be a SteamID64 (7656…) or [U:1:123456].", "steamId");
   }
@@ -431,7 +451,7 @@ export function deletePlayer(slug: string) {
 
 /* ================================ Events ================================= */
 
-export function saveEvent(slug: string | undefined, form: FormData): EsportsEvent {
+export function saveEvent(slug: string | undefined, form: FormData, trophyImage?: Upload): EsportsEvent {
   const name = text(form, "name", { required: true, max: 100, label: "Name" });
   const existing = slug ? snapshot().events.find((e) => e.slug === slug) : undefined;
   const newSlug = existing?.slug ?? slugify(name);
@@ -440,12 +460,18 @@ export function saveEvent(slug: string | undefined, form: FormData): EsportsEven
   const endDate = isoDate(form, "endDate", "End date");
   if (endDate < startDate) throw new FormError("End date must be on or after the start date.", "endDate");
   const teamSlugs = new Set(snapshot().teams.map((t) => t.slug));
+  const resnapshot = bool(form, "resnapshot");
+  const rosterNow = (team: string) => snapshot().players.filter((p) => p.team === team).map((p) => p.slug);
+  const playerSlugs = new Set(snapshot().players.map((p) => p.slug));
   const prizes = lines(form, "prizes").map((line, i) => {
     const [place, prize, team] = line.split("|").map((x) => x.trim());
     const amount = Number((prize ?? "").replace(/[^\d.]/g, ""));
     if (!place || !Number.isFinite(amount)) throw new FormError(`Prize line ${i + 1} must look like "1st | 100000 | team-slug".`, "prizes");
     if (team && !teamSlugs.has(team)) throw new FormError(`Prize line ${i + 1}: unknown team "${team}".`, "prizes");
-    return { place, prize: amount, team: team || undefined };
+    // Keep the roster that earned this placement; snapshot the current roster for new placements.
+    const before = existing?.prizes.find((x) => x.place === place && x.team === team);
+    const players = team ? (resnapshot || !before?.players ? rosterNow(team) : before.players) : undefined;
+    return { place, prize: amount, team: team || undefined, players };
   });
   const winner = text(form, "winner");
   const ev: EsportsEvent = {
@@ -463,6 +489,9 @@ export function saveEvent(slug: string | undefined, form: FormData): EsportsEven
     format: lines(form, "format"),
     prizes,
     winner: winner && teamSlugs.has(winner) ? winner : undefined,
+    mvp: playerSlugs.has(text(form, "mvp")) ? text(form, "mvp") : undefined,
+    evps: form.getAll("evps").map(String).filter((x) => playerSlugs.has(x)),
+    trophyImage: pickUpload(existing?.trophyImage, trophyImage),
   };
   transaction((tx) => tx.put("event", ev.slug, ev), ACTOR, existing ? "edit event" : "create event");
   return ev;
@@ -494,4 +523,102 @@ export function saveRanking(form: FormData) {
     });
     tx.put("meta", "rankingUpdated", { key: "rankingUpdated", value: updated });
   }, ACTOR, "publish ranking");
+}
+
+/* ============================== Stats import ============================== */
+
+const CSV_FIELDS: Record<string, string> = {
+  kills: "k", k: "k", deaths: "d", d: "d", assists: "a", a: "a", adr: "adr", kast: "kast",
+  hs: "hs", "hs%": "hs", rating: "rating", rws: "rws", fk: "fk", "first kills": "fk", fd: "fd",
+  "first deaths": "fd", "clutches won": "cw", cw: "cw", "clutches played": "cp", cp: "cp",
+  "utility damage": "ud", ud: "ud", "flash assists": "fa", fa: "fa",
+};
+
+/**
+ * Accepts a header row plus one row per player (comma, tab or semicolon
+ * separated), e.g. a Perfect World match export:
+ *   player,kills,deaths,assists,adr,rws,rating,kast,hs,fk,fd,cw,cp,ud,fa
+ * Players are matched by nickname, in-game name or Steam ID.
+ */
+function applyStatsCsv(form: FormData, csv: string, roster: Player[]) {
+  const rows = csv.trim().split(/\r?\n/).filter(Boolean);
+  const sep = rows[0]!.includes("\t") ? "\t" : rows[0]!.includes(";") ? ";" : ",";
+  const header = rows[0]!.split(sep).map((h) => h.trim().toLowerCase());
+  const nameCol = header.findIndex((h) => ["player", "name", "nickname", "steamid", "steam id"].includes(h));
+  if (nameCol < 0) throw new FormError('CSV needs a "player" column.', "csv");
+  const norm = (x: string) => x.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const unknown: string[] = [];
+  for (const line of rows.slice(1)) {
+    const cells = line.split(sep).map((c) => c.trim());
+    const who = cells[nameCol] ?? "";
+    const p = roster.find((x) => [x.nickname, x.ign ?? "", x.steamId ?? ""].some((v) => v && norm(v) === norm(who)));
+    if (!p) {
+      if (who) unknown.push(who);
+      continue;
+    }
+    header.forEach((h, i) => {
+      const key = CSV_FIELDS[h];
+      if (key && cells[i] !== undefined && cells[i] !== "") form.set(`${key}_${p.slug}`, cells[i]!.replace("%", ""));
+    });
+  }
+  if (unknown.length) throw new FormError(`Not on either roster: ${unknown.join(", ")}. Check nicknames or Steam IDs.`, "csv");
+}
+
+/* ================================ Seasons ================================= */
+
+export function saveSeason(slug: string | undefined, form: FormData): Season {
+  const name = text(form, "name", { required: true, max: 80, label: "Name" });
+  const existing = slug ? snapshot().seasons.find((s) => s.slug === slug) : undefined;
+  const newSlug = existing?.slug ?? slugify(name);
+  if (!existing && snapshot().seasons.some((s) => s.slug === newSlug)) throw new FormError("A season with this name already exists.", "name");
+  const startDate = isoDate(form, "startDate", "Start date");
+  const endDate = isoDate(form, "endDate", "End date");
+  if (endDate < startDate) throw new FormError("End date must be on or after the start date.", "endDate");
+  const players = new Set(snapshot().players.map((p) => p.slug));
+  const top: Season["top"] = [];
+  for (let i = 0; i < 10; i++) {
+    const player = text(form, `top_${i}`);
+    if (!player) continue;
+    if (!players.has(player)) throw new FormError(`Place ${i + 1}: unknown player.`);
+    if (top.some((t) => t.player === player)) throw new FormError(`Place ${i + 1}: that player is already in the list.`);
+    top.push({ player, note: optionalText(form, `note_${i}`, { max: 280 }) });
+  }
+  const tos = text(form, "teamOfSeason");
+  const season: Season = {
+    slug: newSlug,
+    name,
+    startDate,
+    endDate,
+    published: bool(form, "published"),
+    top,
+    teamOfSeason: tos && snapshot().teams.some((t) => t.slug === tos) ? tos : undefined,
+    teamNote: optionalText(form, "teamNote", { max: 400 }),
+  };
+  transaction((tx) => tx.put("season", season.slug, season), ACTOR, existing ? "edit season" : "create season");
+  return season;
+}
+
+export function deleteSeason(slug: string) {
+  transaction((tx) => tx.remove("season", slug), ACTOR, "delete season");
+}
+
+/* ================================ Settings ================================ */
+
+export function saveSettings(form: FormData) {
+  const announcement = text(form, "announcement", { max: 200 });
+  const href = text(form, "announcementHref", { max: 300 });
+  if (href && !/^(\/|https:\/\/)/.test(href)) throw new FormError("Announcement link must start with / or https://.", "announcementHref");
+  const featured = text(form, "featuredMatch");
+  const settings: Settings = {
+    rankingName: text(form, "rankingName", { required: true, max: 40, label: "Ranking name" }),
+    seasonPageName: text(form, "seasonPageName", { required: true, max: 40, label: "Season page name" }),
+    announcement: announcement ? { text: announcement, href: href || undefined } : undefined,
+    featuredMatch: featured && snapshot().matches.some((m) => m.id === featured) ? featured : undefined,
+    homeNewsCount: int(form, "homeNewsCount", { required: true, min: 1, max: 20 })!,
+    homeResultsCount: int(form, "homeResultsCount", { required: true, min: 1, max: 30 })!,
+    homeUpcomingCount: int(form, "homeUpcomingCount", { required: true, min: 1, max: 30 })!,
+    footerText: text(form, "footerText", { required: true, max: 300, label: "Footer text" }),
+    playerRankMinMaps: int(form, "playerRankMinMaps", { required: true, min: 0, max: 50 })!,
+  };
+  transaction((tx) => tx.put("settings", "site", settings), ACTOR, "edit settings");
 }

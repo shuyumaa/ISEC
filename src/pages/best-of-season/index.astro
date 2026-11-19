@@ -1,0 +1,8 @@
+---
+import { getSeasons } from "../../data";
+
+// Always open the latest published season.
+const latest = getSeasons().find((s) => s.published);
+if (latest) return Astro.redirect(`/best-of-season/${latest.slug}/`, 302);
+return Astro.rewrite("/best-of-season/none/");
+---

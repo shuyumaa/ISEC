@@ -43,7 +43,7 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
     <div class:list={["sb-team", state(a.slug)]}>
       <TeamMark team={a} size="xl" />
       <span class="sb-name">{a.name}</span>
-      {rankOf(a.slug) && <span class="subtle">World #{rankOf(a.slug)}</span>}
+      {rankOf(a.slug) && <span class="subtle">Rank #{rankOf(a.slug)}</span>}
     </div>
 
     <div class="sb-center">
@@ -76,7 +76,7 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
     <div class:list={["sb-team", state(b.slug)]}>
       <TeamMark team={b} size="xl" />
       <span class="sb-name">{b.name}</span>
-      {rankOf(b.slug) && <span class="subtle">World #{rankOf(b.slug)}</span>}
+      {rankOf(b.slug) && <span class="subtle">Rank #{rankOf(b.slug)}</span>}
     </div>
   </div>
 </Wrap>

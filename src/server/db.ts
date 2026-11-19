@@ -1,9 +1,9 @@
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, Team } from "../data/types";
+import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, Season, Settings, Team } from "../data/types";
 import { publish } from "./bus";
-import { events as seedEvents, ranking as seedRanking, rankingUpdated as seedRankingUpdated } from "./seed/events";
+import { events as seedEvents, ranking as seedRanking, rankingUpdated as seedRankingUpdated, seasons as seedSeasons } from "./seed/events";
 import { matches as seedMatches } from "./seed/matches";
 import { articles as seedArticles } from "./seed/news";
 import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
@@ -20,7 +20,7 @@ import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
 // Loaded at runtime so bundlers don't try to resolve the prefix-only builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
-export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed";
+export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings";
 
 const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
 mkdirSync(DATA_DIR, { recursive: true });
@@ -65,8 +65,20 @@ export interface Snapshot {
   articles: Article[];
   ranking: RankingEntry[];
   feeds: Feed[];
+  seasons: Season[];
+  settings: Settings;
   meta: { rankingUpdated: string };
 }
+
+export const DEFAULT_SETTINGS: Settings = {
+  rankingName: "School Teams Rank",
+  seasonPageName: "Best of the Season",
+  homeNewsCount: 5,
+  homeResultsCount: 8,
+  homeUpcomingCount: 8,
+  footerText: "© 2026 ISEC. Counter-Strike is a trademark of Valve Corporation; ISEC is not affiliated with Valve.",
+  playerRankMinMaps: 3,
+};
 
 let cached: Snapshot | undefined;
 let version = Date.now();
@@ -89,6 +101,8 @@ export function snapshot(): Snapshot {
     articles: all<Article>("article"),
     ranking: all<RankingEntry>("ranking").sort((a, b) => b.points - a.points),
     feeds: all<Feed>("feed"),
+    seasons: all<Season>("season").sort((a, b) => b.endDate.localeCompare(a.endDate)),
+    settings: { ...DEFAULT_SETTINGS, ...(all<Settings>("settings")[0] ?? {}) },
     meta: { rankingUpdated: meta.find((m) => m.key === "rankingUpdated")?.value ?? "" },
   };
   return cached;
@@ -167,12 +181,49 @@ function ensureSeeded() {
   seedDemo();
 }
 
+/** Top 10 players by round-weighted rating over a date range (min 3 maps). */
+function seasonTop(start: string, end: string) {
+  const acc = new Map<string, { rating: number; rounds: number; maps: number }>();
+  for (const m of seedMatches) {
+    const day = m.start.slice(0, 10);
+    if (m.status !== "completed" || day < start || day > end) continue;
+    for (const map of m.maps) {
+      if (!map.stats || map.scoreA === undefined) continue;
+      const rounds = (map.scoreA ?? 0) + (map.scoreB ?? 0);
+      for (const s of map.stats) {
+        const a = acc.get(s.player) ?? { rating: 0, rounds: 0, maps: 0 };
+        a.rating += s.rating * rounds;
+        a.rounds += rounds;
+        a.maps += 1;
+        acc.set(s.player, a);
+      }
+    }
+  }
+  return [...acc]
+    .filter(([, a]) => a.maps >= 3)
+    .sort((x, y) => y[1].rating / y[1].rounds - x[1].rating / x[1].rounds)
+    .slice(0, 10)
+    .map(([player]) => ({ player }));
+}
+
 function seedDemo() {
   const insert = db.prepare("INSERT OR IGNORE INTO docs (kind, id, data) VALUES (?, ?, ?)");
   db.exec("BEGIN");
   for (const t of seedTeams) insert.run("team", t.slug, JSON.stringify(t));
-  for (const p of seedPlayers) insert.run("player", p.slug, JSON.stringify(p));
-  for (const e of seedEvents) insert.run("event", e.slug, JSON.stringify(e));
+  for (const [i, p] of seedPlayers.entries()) {
+    // Deterministic join dates between 2023 and 2026.
+    const joined = `${2023 + (i % 4)}-${String(1 + ((i * 5) % 12)).padStart(2, "0")}-${String(1 + ((i * 7) % 27)).padStart(2, "0")}`;
+    insert.run("player", p.slug, JSON.stringify({ ...p, joined }));
+  }
+  const rosterOf = (team: string) => seedPlayers.filter((p) => p.team === team).map((p) => p.slug);
+  for (const e of seedEvents) {
+    // Snapshot the roster behind every decided placement so trophies follow players.
+    const prizes = e.prizes.map((slot) => (slot.team ? { ...slot, players: rosterOf(slot.team) } : slot));
+    insert.run("event", e.slug, JSON.stringify({ ...e, prizes }));
+  }
+  for (const season of seedSeasons) {
+    insert.run("season", season.slug, JSON.stringify({ ...season, top: season.published ? seasonTop(season.startDate, season.endDate) : [] }));
+  }
   for (const m of seedMatches) insert.run("match", m.id, JSON.stringify(m));
   for (const a of seedArticles) insert.run("article", a.slug, JSON.stringify(a));
   for (const r of seedRanking) insert.run("ranking", r.team, JSON.stringify(r));
