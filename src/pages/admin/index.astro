@@ -3,7 +3,7 @@ import Admin from "../../layouts/Admin.astro";
 import LiveRegion from "../../components/LiveRegion.astro";
 import LocalTime from "../../components/LocalTime.astro";
 import MatchControl from "../../components/admin/MatchControl.astro";
-import { event, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
+import { completedMatches, event, getArticles, getPlayers, getRanking, getTeams, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
 import { listenerCount } from "../../server/bus";
 import { auditLog } from "../../server/db";
 import { handlePost } from "../../server/handle";
@@ -19,25 +19,40 @@ if (result instanceof Response) return result;
 
 const live = liveMatches();
 const next = upcomingMatches().slice(0, 6);
-const log = auditLog(15);
+const log = auditLog(12);
+const leader = getRanking()[0];
 const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
 ---
 
 <Admin title="Dashboard" error={result?.error}>
+  <a slot="actions" class="btn" href="/admin/matches/?new=1#new">Schedule a match</a>
+  <a slot="actions" class="btn ghost" href="/admin/news/new/">Write news</a>
+
+  <LiveRegion key="tiles" deps={["*"]}>
+    <div class="tiles">
+      <a href="/admin/matches/?status=live" class:list={{ "is-live": live.length > 0 }}><strong>{live.length}</strong><span>Live now</span></a>
+      <a href="/admin/matches/?status=upcoming"><strong>{upcomingMatches().length}</strong><span>Upcoming</span></a>
+      <a href="/admin/matches/?status=completed"><strong>{completedMatches().length}</strong><span>Results</span></a>
+      <a href="/admin/teams/"><strong>{getTeams().length}</strong><span>Teams · {getPlayers().length} players</span></a>
+      <a href="/admin/ranking/"><strong>{leader ? team(leader.team).tag : "–"}</strong><span>No. 1 · {leader?.points ?? 0} pts</span></a>
+      <a href="/admin/news/"><strong>{getArticles().length}</strong><span>Articles</span></a>
+    </div>
+  </LiveRegion>
+
   <section class="admin-section" aria-labelledby="live-h">
     <div class="section-head">
-      <h2 id="live-h">Live now</h2>
+      <h2 id="live-h">Live score control</h2>
       <LiveRegion key="viewers" deps={["*"]}><span class="muted">{listenerCount()} viewers connected</span></LiveRegion>
     </div>
     <LiveRegion key="live-controls" deps={["match:*"]}>
       <div class="control-grid">
-        {live.length ? live.map((m) => <MatchControl match={m} />) : <p class="empty">No live matches. Start one from "Up next".</p>}
+        {live.length ? live.map((m) => <MatchControl match={m} />) : <p class="empty">No live matches. Press "Go live" on a match below.</p>}
       </div>
     </LiveRegion>
   </section>
 
   <section class="admin-section" aria-labelledby="next-h">
-    <h2 id="next-h">Up next</h2>
+    <div class="section-head"><h2 id="next-h">Up next</h2><a href="/admin/matches/?status=upcoming">All upcoming</a></div>
     <LiveRegion key="next" deps={["match:*"]}>
       <div class="table-wrap" role="region" aria-labelledby="next-h" tabindex="0">
         <table class="data-table">
@@ -69,7 +84,7 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
   </section>
 
   <section class="admin-section" aria-labelledby="log-h">
-    <h2 id="log-h">Recent activity</h2>
+    <h2 id="log-h">Recent changes</h2>
     <LiveRegion key="log" deps={["*"]}>
       <ol class="log">
         {
@@ -88,13 +103,6 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
 
 <style>
   @layer components {
-    .section-head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: var(--sp-03) var(--sp-05);
-    }
     .control-grid {
       display: grid;
       gap: var(--sp-05);

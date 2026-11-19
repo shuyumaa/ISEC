@@ -103,7 +103,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rails: { left: true, right: true, awardTitle: "Award by ISEC", awardSubtitle: "Player of the week", rankingTitle: "Ranking by ISEC", activityTitle: "Recent activity" },
   intros: {
     matches: "Times in your time zone.",
-    ranking: "Points weigh the last six months of results by event tier, opponent strength and recency.",
+    ranking: "Points are Elo ratings worked out from every result: beat stronger teams, at bigger events, by more maps, to climb faster.",
     playerRank: "Overall blends rating with MVP, EVP and trophy wins.",
     season: "Top 10 players and the team of the season.",
   },

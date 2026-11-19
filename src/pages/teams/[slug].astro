@@ -89,7 +89,7 @@ const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
         </div>
         <dl class="team-rows">
           <div><dt>{settings.rankingName}</dt><dd>{rank ? `#${rank}` : "Unranked"}</dd></div>
-          <div><dt>Ranking points</dt><dd>{entry?.points ?? "—"}</dd></div>
+          <div><dt>Ranking points</dt><dd>{entry ? <a href="/ranking/">{entry.points}{entry.adjust ? ` (${entry.adjust > 0 ? "+" : ""}${entry.adjust} adj.)` : ""}</a> : "—"}</dd></div>
           <div><dt>Average player age</dt><dd>{avgAge}</dd></div>
           <div><dt>Coach</dt><dd>{t.coach || "—"}</dd></div>
           <div><dt>Series record</dt><dd>{wins}–{results.length - wins}</dd></div>

@@ -10,6 +10,7 @@ const params = Astro.url.searchParams;
 const boards: { key: RankBoard; label: string }[] = [
   { key: "overall", label: "Overall" },
   { key: "rating", label: "Rating" },
+  { key: "elo", label: "Elo" },
   { key: "mvp", label: "MVPs" },
   { key: "evp", label: "EVPs" },
 ];
@@ -101,6 +102,7 @@ const active = Object.values(filters).some((v) => v !== undefined);
                 <th scope="col" class="n">ADR</th>
                 <th scope="col" class="n">RWS</th>
                 <th scope="col" class:list={["n", { sorted: board === "rating" }]}>Rating</th>
+                <th scope="col" class:list={["n", { sorted: board === "elo" }]}>Elo</th>
                 <th scope="col" class:list={["n", { sorted: board === "mvp" }]}>MVPs</th>
                 <th scope="col" class:list={["n", { sorted: board === "evp" }]}>EVPs</th>
                 <th scope="col" class="n">Titles</th>
@@ -128,6 +130,7 @@ const active = Object.values(filters).some((v) => v !== undefined);
                     <td class="n">{r.stats.adr.toFixed(1)}</td>
                     <td class="n">{r.stats.rws.toFixed(2)}</td>
                     <td class:list={["n", "rating", ratingTone(r.stats.rating), { sorted: board === "rating" }]}>{r.stats.rating.toFixed(2)}</td>
+                    <td class:list={["n", { sorted: board === "elo" }]}>{r.elo}</td>
                     <td class:list={["n", { sorted: board === "mvp" }]}>{r.mvps}</td>
                     <td class:list={["n", { sorted: board === "evp" }]}>{r.evps}</td>
                     <td class="n">{r.trophies}</td>

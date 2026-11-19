@@ -1,8 +1,10 @@
 import { Temporal } from "temporal-polyfill";
 import { snapshot } from "../server/db";
+import { eloSettings, playerElo, rankingAsOf, teamTable } from "./elo";
 import type { EsportsEvent, MapResult, Match, Player, PlayerMapStats, Team } from "./types";
 
 export type * from "./types";
+export * from "./elo";
 
 /*
  * Read API for pages. Everything resolves against the current database
@@ -16,8 +18,9 @@ export const getEvents = () => snapshot().events;
 export const getMatches = () => snapshot().matches;
 export const getArticles = () =>
   snapshot().articles.toSorted((a, b) => b.published.localeCompare(a.published));
-export const getRanking = () => snapshot().ranking;
-export const getRankingUpdated = () => snapshot().meta.rankingUpdated;
+/** Computed from results (team Elo + admin adjustment); see src/data/elo.ts. */
+export const getRanking = () => teamTable();
+export const getRankingUpdated = () => rankingAsOf();
 export const dataVersion = () => snapshot().version;
 export const getSeasons = () => snapshot().seasons;
 export const getSettings = () => snapshot().settings;
@@ -374,7 +377,7 @@ export function playerAwards(slug: string) {
 
 /* ------------------------------- Player rank ------------------------------ */
 
-export type RankBoard = "overall" | "rating" | "mvp" | "evp";
+export type RankBoard = "overall" | "rating" | "elo" | "mvp" | "evp";
 
 export interface RankFilters {
   season?: string;
@@ -391,11 +394,14 @@ export interface RankRow {
   trophies: number;
   /** Overall score (see playerRank). */
   overall: number;
+  /** Career player Elo (all matches, see src/data/elo.ts). */
+  elo: number;
 }
 
 /**
  * Player rank, HLTV stats-page style.
  *   Rating:  round-weighted rating, highest first.
+ *   Elo:     career player Elo (map results against the other lineup + form).
  *   MVP/EVP: number of event MVP / EVP awards, rating breaks ties.
  *   Overall: 0–100 = 55% rating percentile + 15% per MVP + 6% per EVP +
  *            8% per event win + 4% per 2nd place, capped at 100.
@@ -415,7 +421,7 @@ export function playerRank(board: RankBoard, f: RankFilters = {}): RankRow[] {
       const evps = events.filter((e) => e.evps?.includes(slug)).length;
       const wins = events.filter((e) => e.prizes.some((p) => /^1/.test(p.place) && p.players?.includes(slug))).length;
       const seconds = events.filter((e) => e.prizes.some((p) => /^2/.test(p.place) && p.players?.includes(slug))).length;
-      return { stats, mvps, evps, trophies: wins, seconds, overall: 0 };
+      return { stats, mvps, evps, trophies: wins, seconds, overall: 0, elo: playerElo(slug)?.elo ?? eloSettings().start };
     });
   const ratings = rows.map((r) => r.stats.rating);
   rows = rows.map((r) => ({
@@ -425,6 +431,7 @@ export function playerRank(board: RankBoard, f: RankFilters = {}): RankRow[] {
   const by = {
     overall: (a: RankRow, b: RankRow) => b.overall - a.overall || b.stats.rating - a.stats.rating,
     rating: (a: RankRow, b: RankRow) => b.stats.rating - a.stats.rating,
+    elo: (a: RankRow, b: RankRow) => b.elo - a.elo || b.stats.rating - a.stats.rating,
     mvp: (a: RankRow, b: RankRow) => b.mvps - a.mvps || b.stats.rating - a.stats.rating,
     evp: (a: RankRow, b: RankRow) => b.evps - a.evps || b.stats.rating - a.stats.rating,
   }[board];

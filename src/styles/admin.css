@@ -43,8 +43,8 @@
     & > span:last-child {
       padding: var(--sp-01) var(--sp-03);
       border-radius: 1rem;
-      background: var(--header-accent);
-      color: var(--gray-100);
+      background: var(--button-primary);
+      color: var(--white);
     }
   }
 
@@ -57,16 +57,14 @@
 
   .admin-shell {
     display: grid;
-    /* body is a grid; without this the auto margins shrink the shell to fit. */
+    /* body is a grid; without this the shell shrinks to fit its content. */
     inline-size: 100%;
     grid-template-columns: minmax(0, 1fr);
-    max-inline-size: var(--container);
-    margin-inline: auto;
     container-type: inline-size;
     container-name: page;
 
     @media (width >= 56rem) {
-      grid-template-columns: 13rem minmax(0, 1fr);
+      grid-template-columns: 15rem minmax(0, 1fr);
     }
     &.bare {
       grid-template-columns: minmax(0, 28rem);
@@ -74,54 +72,114 @@
     }
   }
 
+  /* Side navigation: grouped by job, full height, sticky under the header. */
   .admin-nav {
+    background: var(--surface);
     border-block-end: var(--border-width) solid var(--border-subtle);
+    display: flex;
+    overflow-x: auto;
+
     @media (width >= 56rem) {
+      display: block;
+      position: sticky;
+      inset-block-start: var(--header-height);
+      align-self: start;
+      block-size: calc(100dvh - var(--header-height));
+      overflow-y: auto;
+      padding-block: var(--sp-05);
       border-block-end: 0;
       border-inline-end: var(--border-width) solid var(--border-subtle);
     }
 
+    & .nav-group {
+      display: flex;
+      @media (width >= 56rem) {
+        display: block;
+        & + .nav-group {
+          margin-block-start: var(--sp-05);
+        }
+      }
+    }
+    & .nav-group-label {
+      display: none;
+      @media (width >= 56rem) {
+        display: block;
+        padding: 0 var(--sp-05) var(--sp-02);
+        font-size: var(--type-label);
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+    }
     & ul {
       display: flex;
-      overflow-x: auto;
       list-style: none;
       margin: 0;
       padding: 0;
       @media (width >= 56rem) {
-        padding-block: var(--sp-05);
         display: grid;
-        position: sticky;
-        inset-block-start: var(--header-height);
       }
     }
     & a {
-      display: block;
-      padding: var(--sp-03) var(--sp-05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-03);
+      min-block-size: 2.5rem;
+      padding: var(--sp-02) var(--sp-05);
       white-space: nowrap;
       text-decoration: none;
       color: var(--text-secondary);
+      border-inline-start: 3px solid transparent;
 
       &:hover {
-        background: var(--layer);
+        background: var(--layer-hover);
         color: var(--text-primary);
       }
       &[aria-current="page"] {
         color: var(--text-primary);
         font-weight: 600;
         background: var(--layer-selected);
+        border-inline-start-color: var(--header-accent);
       }
+    }
+    & .nav-count {
+      padding: 0 var(--sp-02);
+      background: var(--live);
+      color: var(--on-live);
+      font-size: var(--type-label);
+      font-weight: 600;
     }
   }
 
   .admin-main {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--sp-07);
+    gap: var(--sp-06);
     align-content: start;
-    padding: var(--sp-07) var(--gutter) var(--sp-10);
+    max-inline-size: 80rem;
+    padding: var(--sp-06) var(--gutter) var(--sp-10);
     min-inline-size: 0;
   }
 
+  .admin-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-04);
+  }
+  .admin-title-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-03);
+
+    &:empty {
+      display: none;
+    }
+  }
   .admin-title {
     font-size: var(--type-heading);
   }
@@ -183,13 +241,14 @@
   .form {
     display: grid;
     gap: var(--sp-05);
-    max-inline-size: 60rem;
+    max-inline-size: 64rem;
   }
 
   .form-grid {
     display: grid;
     gap: var(--sp-05);
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+    align-items: start;
   }
 
   .field {
@@ -212,10 +271,13 @@
     }
   }
 
-  .admin :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+  .admin :is(input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea) {
+    box-sizing: border-box;
     inline-size: 100%;
-    min-block-size: 2.75rem;
-    padding: var(--sp-03) var(--sp-04);
+    min-inline-size: 0;
+    block-size: 2.5rem;
+    padding: 0 var(--sp-04);
+    line-height: 1.25;
     border: 0;
     border-block-end: var(--border-width) solid var(--border-strong);
     background: var(--layer);
@@ -232,7 +294,23 @@
       background-image: linear-gradient(90deg, var(--text-primary) 4px, transparent 4px);
     }
   }
+  .admin select {
+    appearance: none;
+    padding-inline-end: 2.25rem;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 1.125rem) 50%, calc(100% - 0.8125rem) 50%;
+    background-size: 0.3125rem 0.3125rem;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+  .admin input[type="file"] {
+    inline-size: 100%;
+    min-inline-size: 0;
+    font-size: var(--type-body-sm);
+  }
   .admin textarea {
+    block-size: auto;
+    padding-block: var(--sp-03);
     min-block-size: 8rem;
     resize: vertical;
     line-height: 1.5;
@@ -280,14 +358,132 @@
     gap: var(--sp-04);
   }
 
+  /* A card: one job per section, heading row with an optional action. */
   .admin-section {
     display: grid;
     gap: var(--sp-05);
-    padding-block-start: var(--sp-05);
-    border-block-start: 2px solid var(--text-primary);
+    padding: var(--sp-05);
+    background: var(--surface);
+    border: var(--border-width) solid var(--border-subtle);
+    min-inline-size: 0;
 
-    & > h2 {
+    & > h2,
+    & > .section-head > h2 {
       font-size: var(--type-heading-sm);
+    }
+    & > .table-wrap {
+      margin-inline: calc(var(--sp-05) * -1);
+      max-inline-size: none;
+    }
+  }
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-03) var(--sp-05);
+  }
+  .muted {
+    color: var(--text-secondary);
+    font-size: var(--type-body-sm);
+  }
+
+  /* Disclosure card for "create" forms: closed by default so lists come first. */
+  details.admin-section {
+    & > summary {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+      cursor: pointer;
+      list-style: none;
+      font-size: var(--type-heading-sm);
+      font-weight: 600;
+      &::-webkit-details-marker {
+        display: none;
+      }
+      &::before {
+        content: "+";
+        display: grid;
+        place-items: center;
+        inline-size: 1.5rem;
+        block-size: 1.5rem;
+        background: var(--button-primary);
+        color: var(--white);
+        font-family: var(--font-mono);
+      }
+    }
+    &[open] > summary::before {
+      content: "−";
+    }
+    &:not([open]) {
+      gap: 0;
+    }
+  }
+
+  /* Segmented filter (links, works without JS). */
+  .segmented {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border: var(--border-width) solid var(--border-strong);
+    inline-size: fit-content;
+    & a {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+      min-block-size: 2.25rem;
+      padding: 0 var(--sp-04);
+      text-decoration: none;
+      color: var(--text-secondary);
+      & + a {
+        border-inline-start: var(--border-width) solid var(--border-strong);
+      }
+      &:hover {
+        background: var(--layer-hover);
+        color: var(--text-primary);
+      }
+      &[aria-current="page"] {
+        background: var(--inverse);
+        color: var(--on-inverse);
+        font-weight: 600;
+      }
+      & .n {
+        font-family: var(--font-mono);
+        font-size: var(--type-label);
+      }
+    }
+  }
+
+  /* Dashboard numbers. */
+  .tiles {
+    display: grid;
+    gap: var(--sp-04);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    & a,
+    & div {
+      display: grid;
+      gap: var(--sp-01);
+      padding: var(--sp-04) var(--sp-05);
+      background: var(--surface);
+      border: var(--border-width) solid var(--border-subtle);
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    & a:hover {
+      border-color: var(--border-strong);
+    }
+    & strong {
+      font-family: var(--font-mono);
+      font-size: var(--type-heading-lg);
+      font-weight: 500;
+      line-height: 1.1;
+    }
+    & span {
+      color: var(--text-secondary);
+      font-size: var(--type-body-sm);
+    }
+    & .is-live strong {
+      color: var(--live);
     }
   }
 
@@ -315,5 +511,27 @@
       color: var(--text-secondary);
       margin-block-end: var(--sp-05);
     }
+  }
+}
+
+@layer components {
+  /* Tables and forms placed straight on a page sit on the same card surface. */
+  .admin-main > .table-wrap {
+    background: var(--surface);
+    border: var(--border-width) solid var(--border-subtle);
+    max-inline-size: none;
+  }
+  .admin-main > form.form {
+    padding: var(--sp-05);
+    background: var(--surface);
+    border: var(--border-width) solid var(--border-subtle);
+  }
+}
+
+@layer components {
+  .admin-title-actions .btn {
+    min-block-size: 2.5rem;
+    padding-block: var(--sp-03);
+    white-space: nowrap;
   }
 }

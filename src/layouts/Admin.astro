@@ -12,6 +12,7 @@ import "../styles/protect.css";
 import "../styles/admin.css";
 import Icon from "../components/Icon.astro";
 import LogoMark from "../components/LogoMark.astro";
+import { liveMatches } from "../data";
 
 interface Props {
   title: string;
@@ -23,17 +24,29 @@ interface Props {
 const { title, error, bare = false } = Astro.props;
 const saved = Astro.url.searchParams.get("saved");
 const path = Astro.url.pathname;
-const nav = [
-  { href: "/admin/", label: "Dashboard", exact: true },
-  { href: "/admin/matches/", label: "Matches" },
-  { href: "/admin/events/", label: "Events" },
-  { href: "/admin/teams/", label: "Teams & players" },
-  { href: "/admin/ranking/", label: "Ranking" },
-  { href: "/admin/news/", label: "News" },
-  { href: "/admin/seasons/", label: "Seasons & awards" },
-  { href: "/admin/settings/", label: "Site settings" },
+const liveCount = bare ? 0 : liveMatches().length;
+type NavItem = { href: string; label: string; exact?: boolean; count?: number };
+const groups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Run",
+    items: [
+      { href: "/admin/", label: "Dashboard", exact: true },
+      { href: "/admin/matches/", label: "Matches", count: liveCount },
+      { href: "/admin/ranking/", label: "Ranking" },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { href: "/admin/events/", label: "Events" },
+      { href: "/admin/teams/", label: "Teams & players" },
+      { href: "/admin/news/", label: "News" },
+      { href: "/admin/seasons/", label: "Seasons & awards" },
+    ],
+  },
+  { label: "Site", items: [{ href: "/admin/settings/", label: "Site settings" }] },
 ];
-const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path === "/admin" : path.startsWith(n.href));
+const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" : path.startsWith(n.href));
 ---
 
 <!doctype html>
@@ -77,20 +90,29 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path 
       {
         !bare && (
           <nav class="admin-nav" aria-label="Admin">
-            <ul>
-              {nav.map((n) => (
-                <li>
-                  <a href={n.href} aria-current={current(n) ? "page" : undefined}>
-                    {n.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+            {groups.map((g) => (
+              <div class="nav-group">
+                <p class="nav-group-label" aria-hidden="true">{g.label}</p>
+                <ul>
+                  {g.items.map((n) => (
+                    <li>
+                      <a href={n.href} aria-current={current(n) ? "page" : undefined}>
+                        <span>{n.label}</span>
+                        {n.count ? <span class="nav-count" aria-label={`${n.count} live`}>{n.count} live</span> : null}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </nav>
         )
       }
       <main id="main" class="admin-main">
-        <h1 class="admin-title">{title}</h1>
+        <div class="admin-title-row">
+          <h1 class="admin-title">{title}</h1>
+          <div class="admin-title-actions"><slot name="actions" /></div>
+        </div>
         {error && <p class="notice error" role="alert">{error}</p>}
         {saved && !error && <p class="notice success" role="status">{saved}</p>}
         <slot />

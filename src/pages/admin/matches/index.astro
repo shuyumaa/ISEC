@@ -15,36 +15,43 @@ if (result instanceof Response) return result;
 
 const filter = Astro.url.searchParams.get("status") ?? "all";
 const order = { live: 0, upcoming: 1, completed: 2 } as const;
-const list = getMatches()
+const all = getMatches();
+const counts = { all: all.length, live: 0, upcoming: 0, completed: 0 };
+for (const m of all) counts[m.status] += 1;
+const list = all
   .filter((m) => filter === "all" || m.status === filter)
-  .sort((a, b) => order[a.status] - order[b.status] || matchStart(b).epochMilliseconds - matchStart(a).epochMilliseconds);
+  .toSorted((a, b) => order[a.status] - order[b.status] || matchStart(b).epochMilliseconds - matchStart(a).epochMilliseconds);
+const openNew = Astro.url.searchParams.has("new") || Boolean(result?.error);
+const filters = [["all", "All"], ["live", "Live"], ["upcoming", "Upcoming"], ["completed", "Completed"]] as const;
 ---
 
 <Admin title="Matches" error={result?.error}>
-  <section class="admin-section" aria-labelledby="new-h">
-    <h2 id="new-h">Schedule a match</h2>
-    <form method="post" class="form" aria-labelledby="new-h">
+  <a slot="actions" class="btn" href="?new=1#new">Schedule a match</a>
+
+  <details class="admin-section" id="new" open={openNew}>
+    <summary>Schedule a match</summary>
+    <form method="post" class="form">
       <MatchMetaFields />
       <div class="actions"><button type="submit" class="btn">Create match</button></div>
     </form>
-  </section>
+  </details>
 
   <section class="admin-section" aria-labelledby="all-h">
-    <h2 id="all-h">All matches</h2>
-    <search>
-      <form method="get" class="actions" aria-label="Filter matches">
-        <label for="status-filter">Show</label>
-        <select id="status-filter" name="status">
-          {["all", "live", "upcoming", "completed"].map((s) => <option value={s} selected={filter === s}>{s[0]!.toUpperCase() + s.slice(1)}</option>)}
-        </select>
-        <button type="submit" class="btn ghost small">Filter</button>
-      </form>
-    </search>
+    <div class="section-head">
+      <h2 id="all-h">All matches</h2>
+      <nav class="segmented" aria-label="Filter matches">
+        {filters.map(([k, label]) => (
+          <a href={k === "all" ? "?" : `?status=${k}`} aria-current={filter === k ? "page" : undefined}>
+            {label} <span class="n">{counts[k]}</span>
+          </a>
+        ))}
+      </nav>
+    </div>
     <LiveRegion key="list" deps={["match:*"]}>
       <div class="table-wrap" role="region" aria-labelledby="all-h" tabindex="0">
         <table class="data-table">
           <thead>
-            <tr><th scope="col">Match</th><th scope="col">Status</th><th scope="col" class="n">Score</th><th scope="col">Event</th><th scope="col">Start</th></tr>
+            <tr><th scope="col">Match</th><th scope="col">Status</th><th scope="col" class="n">Score</th><th scope="col">Event</th><th scope="col">Start (your time)</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
           </thead>
           <tbody>
             {
@@ -55,11 +62,13 @@ const list = getMatches()
                   <td class="n mono">{m.status === "upcoming" ? "–" : `${m.seriesA}–${m.seriesB}`}</td>
                   <td>{event(m.event).name} · {m.stage}</td>
                   <td><LocalTime instant={matchInstant(m)} zone={event(m.event).timeZone} format="datetime" /></td>
+                  <td><a class="btn ghost small" href={`/admin/matches/${m.id}/`}>{m.status === "live" ? "Control" : m.status === "upcoming" ? "Edit" : "Stats"}</a></td>
                 </tr>
               ))
             }
           </tbody>
         </table>
+        {list.length === 0 && <p class="empty">No matches here.</p>}
       </div>
     </LiveRegion>
   </section>

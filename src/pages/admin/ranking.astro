@@ -1,58 +1,205 @@
 ---
-import { Temporal } from "temporal-polyfill";
 import Admin from "../../layouts/Admin.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { getRanking, getRankingUpdated, team } from "../../data";
+import { eloSettings, expected, getRanking, getRankingUpdated, getTeams, playerEloTable, player, team } from "../../data";
 import { handlePost } from "../../server/handle";
-import { saveRanking } from "../../server/mutations";
+import { saveRankingAdjustments, saveRankingMath } from "../../server/mutations";
 
-const result = await handlePost(Astro.request, (form) => {
-  saveRanking(form);
-  return { message: "Ranking published" };
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "math") {
+    saveRankingMath(form);
+    return { message: "Ranking maths saved; every rating was recalculated" };
+  }
+  saveRankingAdjustments(form);
+  return { message: "Adjustments saved" };
 });
 if (result instanceof Response) return result;
 
-const ranking = getRanking();
+const cfg = eloSettings();
+const rows = getRanking();
+const rankedSlugs = new Set(rows.map((r) => r.team));
+const unranked = getTeams().filter((t) => !rankedSlugs.has(t.slug));
+const topPlayers = playerEloTable().slice(0, 10);
+
+// Worked example with the current constants: a 1000 team beats a 1100 team 2–0 in a Bo3 Open event.
+const exK = cfg.k * cfg.tier.Open * cfg.format.bo3 * (1 + cfg.marginStep);
+const exGain = Math.round(exK * (1 - expected(1000, 1100)));
+const exFav = Math.round(cfg.k * cfg.tier.Open * cfg.format.bo3 * (1 - expected(1100, 1000)));
+const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
 ---
 
 <Admin title="Ranking" error={result?.error}>
-  <form method="post" class="form">
-    <div class="form-grid">
-      <div class="field">
-        <label for="updated">Ranking date</label>
-        <input id="updated" name="updated" type="date" required value={Temporal.Now.plainDateISO().toString()} aria-describedby="updated-hint" />
-        <span id="updated-hint" class="hint">Last published: {getRankingUpdated() || "never"}</span>
-      </div>
+  <a slot="actions" class="btn ghost" href="/ranking/" target="_blank" rel="noopener">View public ranking</a>
+
+  <section class="admin-section" aria-labelledby="how-h">
+    <h2 id="how-h">How points work</h2>
+    <ol class="how">
+      <li>Every team starts on <strong>{cfg.start}</strong>. Each completed series moves points from the loser to the winner.</li>
+      <li>How many points move depends on the surprise: beating a stronger team pays more, beating a weaker one pays less.</li>
+      <li>Bigger events, longer series and wider wins (2–0 instead of 2–1) move more points.</li>
+      <li>Players get their own rating per map: the map result against the other lineup, plus a bonus or penalty for their HLTV rating.</li>
+    </ol>
+    <p class="example">
+      Example with the numbers below: a {cfg.start} team beats a team 100 points higher 2–0 in a Bo3 at an Open event and gains <strong>{sign(exGain)}</strong>. If the stronger team had won 2–1 it would gain only <strong>{sign(exFav)}</strong>.
+    </p>
+    <p class="muted">Ratings update by themselves when a result is saved. As of the last result: {getRankingUpdated() || "no results yet"}.</p>
+  </section>
+
+  <section class="admin-section" aria-labelledby="table-h">
+    <div class="section-head">
+      <h2 id="table-h">Team ranking</h2>
+      <span class="muted">Points = Elo + adjustment. Movement is over the last 7 days.</span>
     </div>
-    <div class="checks"><label><input type="checkbox" name="autoChange" checked /> Work out movement (↑/↓) from the previous ranking</label></div>
-    <div class="table-wrap" role="region" aria-label="Ranking points" tabindex="0">
+    <form method="post" class="form full" data-enhance>
+      <input type="hidden" name="intent" value="adjust" />
+      <div class="table-wrap" role="region" aria-labelledby="table-h" tabindex="0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col" class="n">#</th>
+              <th scope="col">Team</th>
+              <th scope="col" class="n">Points</th>
+              <th scope="col" class="n">Elo</th>
+              <th scope="col" class="n">W–L</th>
+              <th scope="col">Last 5</th>
+              <th scope="col" class="n">Move</th>
+              <th scope="col">Adjustment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rows.map((r, i) => {
+                const t = team(r.team);
+                return (
+                  <tr>
+                    <td class="n mono">{i + 1}</td>
+                    <th scope="row"><a class="team-cell" href={`/admin/teams/${t.slug}/`}><TeamMark team={t} /> {t.name}</a></th>
+                    <td class="n mono"><strong>{r.points}</strong></td>
+                    <td class="n mono">{r.elo}</td>
+                    <td class="n mono">{r.wins}–{r.losses}</td>
+                    <td>
+                      <span class="form-strip">
+                        {r.history.slice(-5).map((h) => (
+                          <span class:list={["delta", h.won ? "up" : "down"]} title={`${h.won ? "Won" : "Lost"} vs ${team(h.opponent).name}, ${h.date}`}>{sign(h.delta)}</span>
+                        ))}
+                      </span>
+                    </td>
+                    <td class="n mono">{r.isNew ? "new" : r.change ? (r.change > 0 ? `▲${r.change}` : `▼${-r.change}`) : "–"}</td>
+                    <td><input class="adjust" name={`adjust_${t.slug}`} type="number" min="-1000" max="1000" step="1" value={r.adjust} aria-label={`${t.name} adjustment`} /></td>
+                  </tr>
+                );
+              })
+            }
+          </tbody>
+        </table>
+      </div>
+      {unranked.map((t) => <input type="hidden" name={`adjust_${t.slug}`} value="0" />)}
+      {unranked.length > 0 && <p class="muted">Not ranked yet (fewer than {cfg.minMatches} completed series): {unranked.map((t) => t.name).join(", ")}.</p>}
+      <div class="actions"><button type="submit" class="btn">Save adjustments</button><span class="muted">Use for penalties or bonuses, e.g. −50 for a forfeit.</span></div>
+    </form>
+  </section>
+
+  <section class="admin-section" aria-labelledby="players-h">
+    <div class="section-head">
+      <h2 id="players-h">Top player ratings</h2>
+      <a href="/players/?board=elo" target="_blank" rel="noopener">Full player rank</a>
+    </div>
+    <div class="table-wrap" role="region" aria-labelledby="players-h" tabindex="0">
       <table class="data-table">
-        <thead><tr><th scope="col" class="n">#</th><th scope="col">Team</th><th scope="col">Points</th><th scope="col">Manual change</th></tr></thead>
+        <thead><tr><th scope="col" class="n">#</th><th scope="col">Player</th><th scope="col" class="n">Elo</th><th scope="col" class="n">Peak</th><th scope="col" class="n">Maps</th></tr></thead>
         <tbody>
           {
-            ranking.map((r, i) => {
-              const t = team(r.team);
-              return (
-                <tr>
-                  <td class="n mono">{i + 1}</td>
-                  <th scope="row"><span class="team-cell"><TeamMark team={t} /> {t.name}</span></th>
-                  <td><input name={`points_${t.slug}`} type="number" min="0" max="100000" required value={r.points} aria-label={`${t.name} points`} /></td>
-                  <td><input name={`change_${t.slug}`} type="number" min="-100" max="100" value={r.change} aria-label={`${t.name} manual change`} /></td>
-                </tr>
-              );
-            })
+            topPlayers.map((p, i) => (
+              <tr>
+                <td class="n mono">{i + 1}</td>
+                <th scope="row">{player(p.player).nickname} <span class="muted">{team(player(p.player).team).tag}</span></th>
+                <td class="n mono"><strong>{p.elo}</strong></td>
+                <td class="n mono">{p.peak}</td>
+                <td class="n mono">{p.maps}</td>
+              </tr>
+            ))
           }
         </tbody>
       </table>
     </div>
-    <div class="actions"><button type="submit" class="btn">Publish ranking</button></div>
-  </form>
+  </section>
+
+  <details class="admin-section" open={Boolean(result?.error)}>
+    <summary>Ranking maths</summary>
+    <form method="post" class="form">
+      <input type="hidden" name="intent" value="math" />
+      <div class="form-grid">
+        <div class="field"><label for="start">Starting rating</label><input id="start" name="start" type="number" required min="100" max="5000" value={cfg.start} /></div>
+        <div class="field"><label for="k">Team K (max swing per series)</label><input id="k" name="k" type="number" required min="1" max="200" value={cfg.k} /></div>
+        <div class="field"><label for="marginStep">Margin bonus per extra map</label><input id="marginStep" name="marginStep" type="number" required min="0" max="5" step="0.05" value={cfg.marginStep} /></div>
+        <div class="field"><label for="minMatches">Series needed to be ranked</label><input id="minMatches" name="minMatches" type="number" required min="0" max="50" value={cfg.minMatches} /></div>
+        <div class="field"><label for="playerK">Player K (map result)</label><input id="playerK" name="playerK" type="number" required min="0" max="200" value={cfg.playerK} /></div>
+        <div class="field"><label for="perf">Player form weight</label><input id="perf" name="perf" type="number" required min="0" max="200" value={cfg.perf} aria-describedby="perf-hint" /><span id="perf-hint" class="hint">Points per 1.00 of rating away from 1.00 (capped at half).</span></div>
+      </div>
+      <fieldset>
+        <legend>Event tier weight</legend>
+        <div class="form-grid">
+          {(["Major", "Premier", "Open", "Academy"] as const).map((tier) => (
+            <div class="field"><label for={`tier_${tier}`}>{tier}</label><input id={`tier_${tier}`} name={`tier_${tier}`} type="number" required min="0" max="5" step="0.05" value={cfg.tier[tier]} /></div>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Series format weight</legend>
+        <div class="form-grid">
+          {(["bo1", "bo3", "bo5"] as const).map((f) => (
+            <div class="field"><label for={f}>Best of {f.slice(2)}</label><input id={f} name={f} type="number" required min="0" max="5" step="0.05" value={cfg.format[f]} /></div>
+          ))}
+        </div>
+      </fieldset>
+      <div class="actions"><button type="submit" class="btn">Save and recalculate</button><span class="muted">Every team and player rating is recalculated from all results.</span></div>
+    </form>
+  </details>
 </Admin>
 
 <style>
-  .team-cell {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-03);
+  @layer components {
+    .how {
+      display: grid;
+      gap: var(--sp-02);
+      margin: 0;
+      padding-inline-start: var(--sp-06);
+      max-inline-size: 70ch;
+    }
+    .example {
+      max-inline-size: 70ch;
+      padding: var(--sp-04);
+      background: var(--layer);
+    }
+    .form.full {
+      max-inline-size: none;
+    }
+    .team-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .form-strip {
+      display: inline-flex;
+      gap: var(--sp-01);
+    }
+    .delta {
+      min-inline-size: 2.25rem;
+      padding: 0 var(--sp-02);
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+      &.up {
+        background: var(--tag-green-bg);
+        color: var(--tag-green-fg);
+      }
+      &.down {
+        background: var(--support-error-bg);
+        color: var(--loss);
+      }
+    }
+    input.adjust {
+      inline-size: 6rem;
+    }
   }
 </style>

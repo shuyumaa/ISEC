@@ -239,15 +239,37 @@ export interface Settings {
   /** Uploaded footer logo overrides (file names under /media/u/). */
   footerLogoLight?: string;
   footerLogoDark?: string;
+  /** Ranking maths constants (src/data/elo.ts); missing values use the defaults. */
+  elo?: Partial<Omit<EloSettings, "tier" | "format">> & { tier?: Partial<EloSettings["tier"]>; format?: Partial<EloSettings["format"]> };
+}
+
+export interface EloSettings {
+  /** Rating every new team and player starts on. */
+  start: number;
+  /** Team K-factor: the most a single series can move a team (before weights). */
+  k: number;
+  /** Player K-factor for the team-result part of a map. */
+  playerK: number;
+  /** Player form part: points per 1.00 of HLTV rating above/below 1.00. */
+  perf: number;
+  /** Extra K per extra map of winning margin (2–0 vs 2–1). */
+  marginStep: number;
+  tier: Record<EventTier, number>;
+  format: { bo1: number; bo3: number; bo5: number };
+  /** Completed series a team needs before it appears in the ranking. */
+  minMatches: number;
 }
 
 export type NavKey = "matches" | "results" | "events" | "ranking" | "players" | "news" | "season";
 
 export interface RankingEntry {
   team: string;
+  /** Ranking points = Elo + adjust (computed, see src/data/elo.ts). */
   points: number;
-  /** Positive = moved up since last ranking. */
+  /** Positions gained over the last 7 days. */
   change: number;
+  /** Manual points adjustment set by an admin (the only stored part). */
+  adjust?: number;
 }
 
 export interface Article {

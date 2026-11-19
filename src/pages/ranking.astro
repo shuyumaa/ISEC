@@ -4,7 +4,8 @@ import LiveRegion from "../components/LiveRegion.astro";
 import Base from "../layouts/Base.astro";
 import Icon from "../components/Icon.astro";
 import TeamMark from "../components/TeamMark.astro";
-import { getRanking, getRankingUpdated, getSettings, rosterOf, team } from "../data";
+import { eloSettings, getRanking, getRankingUpdated, getSettings, rosterOf, team } from "../data";
+const cfg = eloSettings();
 
 const ranking = getRanking();
 const rankingUpdated = getRankingUpdated();
@@ -15,11 +16,22 @@ const updated = rankingUpdated
 ---
 
 <Base title={getSettings().rankingName} description="The ISEC CS2 school teams ranking.">
-  <LiveRegion key="ranking" deps={["ranking:*", "team:*", "player:*", "meta:*"]}>
+  <LiveRegion key="ranking" deps={["ranking:*", "team:*", "player:*", "match:*", "event:*", "settings:*"]}>
   <header class="page-head">
     <h1>{getSettings().rankingName}</h1>
     <p>Updated <time datetime={rankingUpdated}>{updated}</time>. {getSettings().intros.ranking}</p>
   </header>
+
+  <details class="how-points">
+    <summary>How points work</summary>
+    <ul>
+      <li>Every team starts on {cfg.start} points. A win takes points from the loser; the total never changes.</li>
+      <li>The surprise decides the size: an upset win pays a lot, beating a much weaker team pays little.</li>
+      <li>Majors count {cfg.tier.Major}×, Premier {cfg.tier.Premier}×, Open {cfg.tier.Open}× and Academy {cfg.tier.Academy}×. Bo5 counts {cfg.format.bo5}×, Bo1 {cfg.format.bo1}×.</li>
+      <li>Each extra map of winning margin (2–0 rather than 2–1) adds {Math.round(cfg.marginStep * 100)}%.</li>
+      <li>Movement compares positions with 7 days ago.</li>
+    </ul>
+  </details>
 
   <div class="table-wrap" role="region" aria-labelledby="ranking-caption" tabindex="0">
     <table class="data-table ranking-table">
@@ -29,6 +41,7 @@ const updated = rankingUpdated
           <th scope="col" class="n">#</th>
           <th scope="col">Team</th>
           <th scope="col" class="hide-sm">Roster</th>
+          <th scope="col" class="n hide-sm">W–L</th>
           <th scope="col" class="n">Points</th>
           <th scope="col" class="n">Change</th>
         </tr>
@@ -50,6 +63,7 @@ const updated = rankingUpdated
                   </a>
                 </th>
                 <td class="hide-sm muted">{rosterOf(t.slug).map((p) => p.nickname).join(", ")}</td>
+                <td class="n mono hide-sm">{r.wins}–{r.losses}</td>
                 <td class="n mono">{r.points}</td>
                 <td class="n">
                   {r.change === 0 ? (
@@ -74,6 +88,24 @@ const updated = rankingUpdated
 
 <style>
   @layer components {
+    .how-points {
+      margin-block-end: var(--sp-05);
+      padding: var(--sp-04) var(--sp-05);
+      background: var(--surface);
+      border: var(--border-width) solid var(--border-subtle);
+      & summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      & ul {
+        display: grid;
+        gap: var(--sp-02);
+        margin: var(--sp-03) 0 0;
+        padding-inline-start: var(--sp-05);
+        color: var(--text-secondary);
+        max-inline-size: 70ch;
+      }
+    }
     .ranking-table {
       & .pos {
         font-family: var(--font-mono);

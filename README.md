@@ -60,6 +60,24 @@ Stats come per map, either from the server feed, entered in the admin, or pasted
 
 The overall player rank is out of 100: 55% rating percentile, plus 15 per MVP, 6 per EVP, 8 per event win and 4 per runner-up, capped at 100.
 
+## Ranking maths (automatic)
+
+The team ranking and player Elo are worked out from results (`src/data/elo.ts`); nobody types points in. They recalculate whenever a result changes, and open pages update live.
+
+**Teams** (one update per completed series, zero-sum):
+
+- Expected result: `E = 1 / (1 + 10^((opponent − team) / 400))`
+- Weight: `K = k × tier × format × margin`, where margin = `1 + marginStep × (map difference − 1)`
+- Change: `Δ = round(K × (result − E))`, result 1 for a win and 0 for a loss. The loser loses what the winner gains.
+- Ranking points = Elo + the admin's adjustment (for forfeits, penalties). Movement compares positions with 7 days ago.
+
+**Players** (one update per map with stats):
+
+- Team part: `playerK × tier × (map result − E)`, with E from the two lineups' average Elo
+- Form part: `perf × (HLTV rating − 1.00)`, capped at ±perf/2
+
+Defaults: start 1000, k 40, playerK 24, perf 30, marginStep 0.25; tiers Major 1.5, Premier 1.25, Open 1, Academy 0.75; Bo1 0.8, Bo3 1, Bo5 1.2. All of them can be edited in **Admin → Ranking → Ranking maths**.
+
 ## Admin panel (`/admin`)
 
 | Section | What you can do |

@@ -7,7 +7,7 @@ const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 ---
 
 <Admin title="Teams & players">
-  <p class="actions"><a class="btn" href="/admin/teams/new/">Add a team</a></p>
+  <a slot="actions" class="btn" href="/admin/teams/new/">Add a team</a>
   <div class="table-wrap" role="region" aria-label="Teams" tabindex="0">
     <table class="data-table">
       <thead><tr><th scope="col">Team</th><th scope="col">Country</th><th scope="col" class="n">Rank</th><th scope="col">Roster</th></tr></thead>

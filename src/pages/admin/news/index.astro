@@ -4,7 +4,7 @@ import { getArticles } from "../../../data";
 ---
 
 <Admin title="News">
-  <p class="actions"><a class="btn" href="/admin/news/new/">Write an article</a></p>
+  <a slot="actions" class="btn" href="/admin/news/new/">Write an article</a>
   <div class="table-wrap" role="region" aria-label="Articles" tabindex="0">
     <table class="data-table">
       <thead><tr><th scope="col">Title</th><th scope="col">Category</th><th scope="col">Published</th><th scope="col"><span class="visually-hidden">Links</span></th></tr></thead>

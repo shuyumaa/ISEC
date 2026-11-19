@@ -66,22 +66,11 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
 
   <form method="post" action={action} class="control-status" data-enhance>
     <input type="hidden" name="intent" value="status" />
-    <fieldset>
-      <legend>Status</legend>
-      <div class="checks">
-        {
-          (["upcoming", "live", "completed"] as const).map((s) => (
-            <label>
-              <input type="radio" name="status" value={s} checked={m.status === s} />
-              {s[0]!.toUpperCase() + s.slice(1)}
-            </label>
-          ))
-        }
-      </div>
-      <div class="actions">
-        <button type="submit" class="btn small">Update status</button>
-      </div>
-    </fieldset>
+    {m.status === "upcoming" && <button type="submit" class="btn" name="status" value="live">Go live</button>}
+    {m.status === "live" && <button type="submit" class="btn" name="status" value="completed">Finish match</button>}
+    {m.status === "live" && <button type="submit" class="btn ghost" name="status" value="upcoming">Back to upcoming</button>}
+    {m.status === "completed" && <button type="submit" class="btn ghost" name="status" value="live">Reopen as live</button>}
+    <a class="link-arrow" href={action}>Maps, stats &amp; server</a>
   </form>
 </article>
 
@@ -159,6 +148,17 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
     }
     .hint {
       font-size: var(--type-label);
+    }
+    .control-status {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03) var(--sp-04);
+      padding-block-start: var(--sp-04);
+      border-block-start: var(--border-width) solid var(--border-subtle);
+      & .link-arrow {
+        margin-inline-start: auto;
+      }
     }
   }
 </style>

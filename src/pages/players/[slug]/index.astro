@@ -15,6 +15,7 @@ import {
   playerAttributes,
   playerAwards,
   playerSummary,
+  playerElo,
   playerRank,
   prizeMoney,
   ratingTone,
@@ -37,6 +38,7 @@ const titles = achievements.filter((a) => a.medal === "gold").length;
 const prize = prizeMoney(p.slug);
 const overallPos = playerRank("overall").findIndex((r) => r.stats.player.slug === p.slug) + 1;
 const ratingPos = playerRank("rating").findIndex((r) => r.stats.player.slug === p.slug) + 1;
+const elo = playerElo(p.slug);
 const opponent = (m: (typeof all)[number]) => team(m.teamA === t.slug ? m.teamB : m.teamA);
 const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA}:${m.seriesB}` : `${m.seriesB}:${m.seriesA}`);
 ---
@@ -68,6 +70,7 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
           <div><dt>Prize money</dt><dd>{money(prize)}</dd></div>
           <div><dt>Trophies</dt><dd>{titles}</dd></div>
           <div><dt>Player rank</dt><dd>{overallPos ? <a href="/players/">#{overallPos} overall · #{ratingPos} by rating</a> : "Not ranked yet"}</dd></div>
+          <div><dt>Player Elo</dt><dd>{elo ? <a href="/players/?board=elo">{elo.elo} <span class="subtle">(peak {elo.peak})</span></a> : "—"}</dd></div>
           <div><dt>Top 10 of the season</dt><dd>{bestSeason ? `#${bestSeason.rank} (${bestSeason.season.name})` : "—"}</dd></div>
         </dl>
       </div>

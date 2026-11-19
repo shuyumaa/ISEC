@@ -1,5 +1,6 @@
 import { mapDecided, seriesScore } from "../data";
 import type {
+  EloSettings,
   Article,
   EsportsEvent,
   EventStatus,
@@ -504,25 +505,32 @@ export function deleteEvent(slug: string) {
 
 /* ================================ Ranking ================================ */
 
-export function saveRanking(form: FormData) {
+/** Manual points adjustments, one per team (the rest of the ranking is computed). */
+export function saveRankingAdjustments(form: FormData) {
   const s = snapshot();
-  const before = new Map(s.ranking.map((r, i) => [r.team, i + 1]));
-  const entries = s.teams.map((t) => ({
-    team: t.slug,
-    points: int(form, `points_${t.slug}`, { min: 0, max: 100000, label: `${t.name} points` }) ?? 0,
-  }));
-  entries.sort((a, b) => b.points - a.points);
-  const updated = isoDate(form, "updated", "Ranking date");
-  const autoChange = bool(form, "autoChange");
   transaction((tx) => {
-    entries.forEach((e, i) => {
-      const prev = before.get(e.team);
-      const manual = int(form, `change_${e.team}`, { min: -100, max: 100 }) ?? 0;
-      const change = autoChange ? (prev ? prev - (i + 1) : 0) : manual;
-      tx.put("ranking", e.team, { team: e.team, points: e.points, change } satisfies RankingEntry);
-    });
-    tx.put("meta", "rankingUpdated", { key: "rankingUpdated", value: updated });
-  }, ACTOR, "publish ranking");
+    for (const t of s.teams) {
+      const adjust = int(form, `adjust_${t.slug}`, { min: -1000, max: 1000, label: `${t.name} adjustment` }) ?? 0;
+      tx.put("ranking", t.slug, { team: t.slug, points: 0, change: 0, adjust } satisfies RankingEntry);
+    }
+  }, ACTOR, "adjust ranking");
+}
+
+/** Ranking maths constants (see src/data/elo.ts). */
+export function saveRankingMath(form: FormData) {
+  const w = (name: string, label: string) => num(form, name, { required: true, min: 0, max: 5, label })!;
+  const elo: EloSettings = {
+    start: int(form, "start", { required: true, min: 100, max: 5000, label: "Starting rating" })!,
+    k: int(form, "k", { required: true, min: 1, max: 200, label: "Team K" })!,
+    playerK: int(form, "playerK", { required: true, min: 0, max: 200, label: "Player K" })!,
+    perf: int(form, "perf", { required: true, min: 0, max: 200, label: "Form weight" })!,
+    marginStep: w("marginStep", "Margin bonus"),
+    tier: { Major: w("tier_Major", "Major weight"), Premier: w("tier_Premier", "Premier weight"), Open: w("tier_Open", "Open weight"), Academy: w("tier_Academy", "Academy weight") },
+    format: { bo1: w("bo1", "Bo1 weight"), bo3: w("bo3", "Bo3 weight"), bo5: w("bo5", "Bo5 weight") },
+    minMatches: int(form, "minMatches", { required: true, min: 0, max: 50, label: "Matches to be ranked" })!,
+  };
+  const settings = { ...snapshot().settings, elo };
+  transaction((tx) => tx.put("settings", "site", settings), ACTOR, "edit ranking maths");
 }
 
 /* ============================== Stats import ============================== */
@@ -645,6 +653,7 @@ export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upl
     },
     footerLogoLight: pickUpload(current.footerLogoLight, logos.light),
     footerLogoDark: pickUpload(current.footerLogoDark, logos.dark),
+    elo: current.elo,
   };
   transaction((tx) => tx.put("settings", "site", settings), ACTOR, "edit settings");
 }
