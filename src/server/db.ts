@@ -70,6 +70,20 @@ export interface Snapshot {
   meta: { rankingUpdated: string };
 }
 
+/** Saved settings over the defaults, nested groups merged so new fields always exist. */
+function mergeSettings(saved?: Partial<Settings>): Settings {
+  const d = DEFAULT_SETTINGS;
+  return {
+    ...d,
+    ...saved,
+    nav: { ...d.nav, ...saved?.nav },
+    rails: { ...d.rails, ...saved?.rails },
+    intros: { ...d.intros, ...saved?.intros },
+    navHidden: saved?.navHidden ?? d.navHidden,
+    footerLinks: saved?.footerLinks ?? d.footerLinks,
+  };
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   rankingName: "School Teams Rank",
   seasonPageName: "Best of the Season",
@@ -78,6 +92,19 @@ export const DEFAULT_SETTINGS: Settings = {
   homeUpcomingCount: 8,
   footerText: "© 2026 ISEC. Counter-Strike is a trademark of Valve Corporation; ISEC is not affiliated with Valve.",
   playerRankMinMaps: 3,
+  nav: { matches: "Matches", results: "Results", events: "Events", ranking: "Ranking", players: "Players", news: "News", season: "Best of the Season" },
+  navHidden: [],
+  footerLinks: [
+    { label: "Teams", href: "/teams/" },
+    { label: "Admin", href: "/admin/" },
+  ],
+  rails: { left: true, right: true, awardTitle: "Award by ISEC", awardSubtitle: "Player of the week", rankingTitle: "Ranking by ISEC", activityTitle: "Recent activity" },
+  intros: {
+    matches: "Times in your time zone.",
+    ranking: "Points weigh the last six months of results by event tier, opponent strength and recency.",
+    playerRank: "Overall blends rating with MVP, EVP and trophy wins.",
+    season: "Top 10 players and the team of the season.",
+  },
 };
 
 let cached: Snapshot | undefined;
@@ -102,7 +129,7 @@ export function snapshot(): Snapshot {
     ranking: all<RankingEntry>("ranking").sort((a, b) => b.points - a.points),
     feeds: all<Feed>("feed"),
     seasons: all<Season>("season").sort((a, b) => b.endDate.localeCompare(a.endDate)),
-    settings: { ...DEFAULT_SETTINGS, ...(all<Settings>("settings")[0] ?? {}) },
+    settings: mergeSettings(all<Settings>("settings")[0]),
     meta: { rankingUpdated: meta.find((m) => m.key === "rankingUpdated")?.value ?? "" },
   };
   return cached;

@@ -24,7 +24,7 @@ const teamOfSeason = season?.teamOfSeason ? team(season.teamOfSeason) : undefine
   <LiveRegion key="season" deps={["season:*", "player:*", "team:*"]}>
     <header class="page-head season-head">
       <h1>{settings.seasonPageName}{season && <span class="season-name"> — {season.name}</span>}</h1>
-      {season && <p>{formatRange(season.startDate, season.endDate)} · Top 10 players and the team of the season.</p>}
+      {season && <p>{formatRange(season.startDate, season.endDate)}{settings.intros.season && ` · ${settings.intros.season}`}</p>}
       {
         published.length > 1 && (
           <nav aria-label="Seasons" class="season-nav">

@@ -11,6 +11,7 @@ import "../styles/components.css";
 import "../styles/protect.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import Icon from "../components/Icon.astro";
 import LeftRail from "../components/rails/LeftRail.astro";
 import RightRail from "../components/rails/RightRail.astro";
 import { getSettings } from "../data";
@@ -28,7 +29,8 @@ interface Props {
 
 const { title, noscriptRefresh, preloadImage, rails = true, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
   Astro.props;
-const announcement = getSettings().announcement;
+const siteSettings = getSettings();
+const announcement = siteSettings.announcement;
 const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competitions";
 ---
 
@@ -67,7 +69,8 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
     {
       announcement && (
         <p class="announcement">
-          {announcement.href ? <a href={announcement.href}>{announcement.text}</a> : announcement.text}
+          <Icon name="notice" size={16} />
+          {announcement.href ? <a href={announcement.href}>{announcement.text}</a> : <span>{announcement.text}</span>}
         </p>
       )
     }
@@ -76,15 +79,17 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
         <slot />
       </main>
       {
-        rails && (
-          <>
-            <aside class="rail rail-left" aria-label="Spotlight and ranking">
-              <LeftRail />
-            </aside>
-            <aside class="rail rail-right" aria-label="Recent activity">
-              <RightRail />
-            </aside>
-          </>
+        rails && siteSettings.rails.left && (
+          <aside class="rail rail-left" aria-label="Spotlight and ranking">
+            <LeftRail />
+          </aside>
+        )
+      }
+      {
+        rails && siteSettings.rails.right && (
+          <aside class="rail rail-right" aria-label={siteSettings.rails.activityTitle}>
+            <RightRail />
+          </aside>
         )
       }
     </div>

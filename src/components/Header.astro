@@ -1,16 +1,21 @@
 ---
 import Icon from "./Icon.astro";
-import Logo from "./Logo.astro";
+import LogoMark from "./LogoMark.astro";
 
-const links = [
-  { href: "/matches/", label: "Matches" },
-  { href: "/results/", label: "Results" },
-  { href: "/events/", label: "Events" },
-  { href: "/ranking/", label: "Ranking" },
-  { href: "/players/", label: "Players" },
-  { href: "/news/", label: "News" },
-  { href: "/best-of-season/", label: "Best of the Season" },
+import { getSettings, type NavKey } from "../data";
+
+// Labels and visibility come from Admin → Site settings.
+const settings = getSettings();
+const routes: [NavKey, string][] = [
+  ["matches", "/matches/"],
+  ["results", "/results/"],
+  ["events", "/events/"],
+  ["ranking", "/ranking/"],
+  ["players", "/players/"],
+  ["news", "/news/"],
+  ["season", "/best-of-season/"],
 ];
+const links = routes.filter(([k]) => !settings.navHidden.includes(k)).map(([k, href]) => ({ href, label: settings.nav[k] }));
 
 const path = Astro.url.pathname;
 const isCurrent = (href: string) => path === href || path.startsWith(href);
@@ -23,7 +28,7 @@ const q = Astro.url.searchParams.get("q") ?? "";
 <header class="site-header">
   <div class="header-inner">
     <a class="site-logo" href="/" aria-label="ISEC home">
-      <Logo height="var(--logo-header-h)" label="ISEC" />
+      <LogoMark height="var(--logo-header-h)" label="ISEC" />
     </a>
 
     <nav class="site-nav" aria-label="Primary">
@@ -89,8 +94,8 @@ const q = Astro.url.searchParams.get("q") ?? "";
       inset-block-start: 0;
       z-index: 10;
       /* Carbon UI shell in ISEC blue: light blue / deep navy per theme. The
-         logo variant follows the theme (dark letters on light, white on navy). */
-      --logo-header-h: clamp(2.5rem, 2rem + 1.5vw, 3.25rem);
+         vector logo follows the bar's text colour. */
+      --logo-header-h: 1.625rem;
       background: var(--header-bg);
       color: var(--header-fg);
     }

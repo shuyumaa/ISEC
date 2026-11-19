@@ -135,6 +135,9 @@
     /* Rows, tables and cards run edge to edge inside the card. */
     & > :is(.match-row, .table-wrap, .event-card, .day-head) {
       margin-inline: calc(var(--sp-05) * -1);
+      inline-size: calc(100% + var(--sp-05) * 2);
+      max-inline-size: none;
+      box-sizing: border-box;
     }
     & > .day-head {
       padding-inline: var(--sp-05);
@@ -591,15 +594,24 @@
 }
 
 @layer components {
-  /* Site-wide announcement set in Admin → Settings. */
+  /* Site-wide announcement (Admin → Settings). Deliberately quieter than the
+     blue top bar and visibly separate from it: card surface, hairline, icon. */
   .announcement {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-03);
     padding: var(--sp-03) var(--gutter);
-    background: var(--tag-blue-bg);
-    color: var(--tag-blue-fg);
-    text-align: center;
-    font-weight: 500;
+    background: var(--surface);
+    border-block: var(--border-width) solid var(--border-subtle);
+    color: var(--text-primary);
+    font-size: var(--type-body-sm);
+    & .icon {
+      color: var(--link);
+    }
     & a {
-      color: inherit;
+      color: var(--link);
+      font-weight: 600;
     }
   }
 }

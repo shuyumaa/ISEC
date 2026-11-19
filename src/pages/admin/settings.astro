@@ -3,18 +3,34 @@ import Admin from "../../layouts/Admin.astro";
 import { event, getMatches, getSettings, team } from "../../data";
 import { handlePost } from "../../server/handle";
 import { saveSettings } from "../../server/mutations";
+import { removeUpload, saveUpload } from "../../server/uploads";
 
-const result = await handlePost(Astro.request, (form) => {
-  saveSettings(form);
+const result = await handlePost(Astro.request, async (form) => {
+  const before = getSettings();
+  const light = await saveUpload(form, "footerLogoLight", "Light logo");
+  const dark = await saveUpload(form, "footerLogoDark", "Dark logo");
+  const logos = { light: form.get("removeLogoLight") ? null : light, dark: form.get("removeLogoDark") ? null : dark };
+  saveSettings(form, logos);
+  if (before.footerLogoLight && (logos.light === null || light)) await removeUpload(before.footerLogoLight);
+  if (before.footerLogoDark && (logos.dark === null || dark)) await removeUpload(before.footerLogoDark);
   return { message: "Settings saved" };
 });
 if (result instanceof Response) return result;
 const s = getSettings();
 const candidates = getMatches().filter((m) => m.status !== "completed");
+const navKeys = [
+  ["matches", "Matches page"],
+  ["results", "Results page"],
+  ["events", "Events page"],
+  ["ranking", "Team ranking page"],
+  ["players", "Player rank page"],
+  ["news", "News page"],
+  ["season", "Season awards page"],
+] as const;
 ---
 
 <Admin title="Site settings" error={result?.error}>
-  <form method="post" class="form">
+  <form method="post" class="form" enctype="multipart/form-data">
     <fieldset>
       <legend>Names</legend>
       <div class="form-grid">
@@ -56,8 +72,69 @@ const candidates = getMatches().filter((m) => m.status !== "completed");
     </fieldset>
 
     <fieldset>
+      <legend>Top bar menu</legend>
+      <div class="table-wrap" role="region" aria-label="Menu links" tabindex="0">
+        <table class="data-table">
+          <thead><tr><th scope="col">Links to</th><th scope="col">Label</th><th scope="col">Hide</th></tr></thead>
+          <tbody>
+            {navKeys.map(([k, what]) => (
+              <tr>
+                <th scope="row">{what}</th>
+                <td><input name={`nav_${k}`} required maxlength="30" value={s.nav[k]} aria-label={`${what} label`} /></td>
+                <td><input type="checkbox" name={`navHide_${k}`} checked={s.navHidden.includes(k)} aria-label={`Hide ${what} link`} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Side rails</legend>
+      <div class="checks">
+        <label><input type="checkbox" name="railLeft" checked={s.rails.left} /> Show the left rail (match, award, ranking, events)</label>
+        <label><input type="checkbox" name="railRight" checked={s.rails.right} /> Show the right rail (recent activity)</label>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label for="awardTitle">Award heading</label><input id="awardTitle" name="awardTitle" required maxlength="40" value={s.rails.awardTitle} /></div>
+        <div class="field"><label for="awardSubtitle">Award name</label><input id="awardSubtitle" name="awardSubtitle" required maxlength="40" value={s.rails.awardSubtitle} /></div>
+        <div class="field"><label for="rankingTitle">Ranking heading</label><input id="rankingTitle" name="rankingTitle" required maxlength="40" value={s.rails.rankingTitle} /></div>
+        <div class="field"><label for="activityTitle">Activity heading</label><input id="activityTitle" name="activityTitle" required maxlength="40" value={s.rails.activityTitle} /></div>
+      </div>
+      <p class="hint">The award goes to the best rating over the 7 days up to the latest result (minimum 2 maps), calculated automatically.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Page intro lines</legend>
+      <div class="form-grid">
+        <div class="field wide"><label for="introMatches">Matches page</label><input id="introMatches" name="introMatches" maxlength="200" value={s.intros.matches} /></div>
+        <div class="field wide"><label for="introRanking">Team ranking page (after the update date)</label><input id="introRanking" name="introRanking" maxlength="300" value={s.intros.ranking} /></div>
+        <div class="field wide"><label for="introPlayerRank">Player rank page</label><input id="introPlayerRank" name="introPlayerRank" maxlength="300" value={s.intros.playerRank} /></div>
+        <div class="field wide"><label for="introSeason">Season awards page</label><input id="introSeason" name="introSeason" maxlength="300" value={s.intros.season} /></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
       <legend>Footer</legend>
       <div class="field wide"><label for="footerText">Footer text</label><textarea id="footerText" name="footerText" rows="2" required maxlength="300">{s.footerText}</textarea></div>
+      <div class="field wide">
+        <label for="footerLinks">Footer links</label>
+        <textarea id="footerLinks" name="footerLinks" rows="3" spellcheck="false" aria-describedby="fl-hint">{s.footerLinks.map((l) => `${l.label} | ${l.href}`).join("\n")}</textarea>
+        <span id="fl-hint" class="hint">One per line: <code>Label | /path/</code> or <code>Label | https://…</code></span>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="footerLogoLight">Footer logo, light theme</label>
+          <input id="footerLogoLight" name="footerLogoLight" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="logo-hint" />
+          {s.footerLogoLight && <label class="inline"><input type="checkbox" name="removeLogoLight" /> Use the built-in logo</label>}
+        </div>
+        <div class="field">
+          <label for="footerLogoDark">Footer logo, dark theme</label>
+          <input id="footerLogoDark" name="footerLogoDark" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="logo-hint" />
+          {s.footerLogoDark && <label class="inline"><input type="checkbox" name="removeLogoDark" /> Use the built-in logo</label>}
+        </div>
+      </div>
+      <p id="logo-hint" class="hint">PNG, JPEG or WebP up to 5 MB, roughly 2.2 : 1 with a transparent background. The top-bar logo is a vector and follows the bar colour.</p>
     </fieldset>
 
     <div class="actions"><button type="submit" class="btn">Save settings</button></div>

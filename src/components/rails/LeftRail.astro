@@ -40,11 +40,11 @@ const ongoing = getEvents().filter((e) => e.status === "ongoing");
     {
       potw && (
         <section class="rail-box" aria-labelledby="rail-award">
-          <h2 id="rail-award" class="rail-title">Award by ISEC</h2>
+          <h2 id="rail-award" class="rail-title">{settings.rails.awardTitle}</h2>
           <a href={`/players/${potw.stats.player.slug}/`} class="award">
             <span class="award-photo"><Photo player={potw.stats.player} size="card" /></span>
             <span class="award-name">{potw.stats.player.nickname}</span>
-            <span class="award-what">Player of the week</span>
+            <span class="award-what">{settings.rails.awardSubtitle}</span>
             <span class="award-stat">
               <span class:list={["big", ratingTone(potw.stats.rating)]}>{potw.stats.rating.toFixed(2)}</span>
               <span class="subtle">Rating</span>
@@ -55,7 +55,7 @@ const ongoing = getEvents().filter((e) => e.status === "ongoing");
     }
 
     <section class="rail-box" aria-labelledby="rail-rank">
-      <h2 id="rail-rank" class="rail-title">Ranking by ISEC</h2>
+      <h2 id="rail-rank" class="rail-title">{settings.rails.rankingTitle}</h2>
       <ol class="rail-rank">
         {
           top5.map((r, i) => (

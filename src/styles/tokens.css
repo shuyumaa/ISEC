@@ -97,7 +97,7 @@
     /* UI shell header: light blue in the light theme, deep navy in the dark
        theme. Text flips with it (white on light blue would fail contrast),
        and so does the logo variant. */
-    --header-height: 4.5rem;
+    --header-height: 3.5rem;
 
     /* Fixed brand actions (same in both themes, both 5:1+ with white). */
     --button-primary: var(--blue-60);

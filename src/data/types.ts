@@ -228,7 +228,20 @@ export interface Settings {
   footerText: string;
   /** Minimum maps for a player to appear in the player rank. */
   playerRankMinMaps: number;
+  /** Top-bar links: label per section, and sections hidden from the bar. */
+  nav: Record<NavKey, string>;
+  navHidden: NavKey[];
+  footerLinks: { label: string; href: string }[];
+  /** Rail headings and visibility. */
+  rails: { left: boolean; right: boolean; awardTitle: string; awardSubtitle: string; rankingTitle: string; activityTitle: string };
+  /** Short intro lines under page headings. */
+  intros: { matches: string; ranking: string; playerRank: string; season: string };
+  /** Uploaded footer logo overrides (file names under /media/u/). */
+  footerLogoLight?: string;
+  footerLogoDark?: string;
 }
+
+export type NavKey = "matches" | "results" | "events" | "ranking" | "players" | "news" | "season";
 
 export interface RankingEntry {
   team: string;

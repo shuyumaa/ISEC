@@ -15,6 +15,7 @@ import {
   playerAttributes,
   playerAwards,
   playerSummary,
+  playerRank,
   prizeMoney,
   ratingTone,
   team,
@@ -34,6 +35,8 @@ const upcoming = all.filter((m) => m.status !== "completed").reverse().slice(0, 
 const recent = all.filter((m) => m.status === "completed").slice(0, 6);
 const titles = achievements.filter((a) => a.medal === "gold").length;
 const prize = prizeMoney(p.slug);
+const overallPos = playerRank("overall").findIndex((r) => r.stats.player.slug === p.slug) + 1;
+const ratingPos = playerRank("rating").findIndex((r) => r.stats.player.slug === p.slug) + 1;
 const opponent = (m: (typeof all)[number]) => team(m.teamA === t.slug ? m.teamB : m.teamA);
 const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA}:${m.seriesB}` : `${m.seriesB}:${m.seriesA}`);
 ---
@@ -64,6 +67,7 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
           <div><dt>Role</dt><dd>{p.role}</dd></div>
           <div><dt>Prize money</dt><dd>{money(prize)}</dd></div>
           <div><dt>Trophies</dt><dd>{titles}</dd></div>
+          <div><dt>Player rank</dt><dd>{overallPos ? <a href="/players/">#{overallPos} overall · #{ratingPos} by rating</a> : "Not ranked yet"}</dd></div>
           <div><dt>Top 10 of the season</dt><dd>{bestSeason ? `#${bestSeason.rank} (${bestSeason.season.name})` : "—"}</dd></div>
         </dl>
       </div>
@@ -218,6 +222,7 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
     }
     .portrait {
       position: relative;
+      align-self: start;
       background: linear-gradient(var(--layer-selected), var(--layer));
       max-inline-size: 22rem;
     }
@@ -248,7 +253,8 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
     }
     .stats-btn {
       position: absolute;
-      inset-block-end: 0;
+      /* Sits on the lower part of the photo, as on HLTV, not under it. */
+      inset-block-end: var(--sp-05);
       inset-inline-start: 50%;
       translate: -50% 0;
       padding: var(--sp-03) var(--sp-05);

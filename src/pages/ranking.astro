@@ -18,7 +18,7 @@ const updated = rankingUpdated
   <LiveRegion key="ranking" deps={["ranking:*", "team:*", "player:*", "meta:*"]}>
   <header class="page-head">
     <h1>{getSettings().rankingName}</h1>
-    <p>Updated <time datetime={rankingUpdated}>{updated}</time>. Points weigh the last six months of results by event tier, opponent strength and recency.</p>
+    <p>Updated <time datetime={rankingUpdated}>{updated}</time>. {getSettings().intros.ranking}</p>
   </header>
 
   <div class="table-wrap" role="region" aria-labelledby="ranking-caption" tabindex="0">

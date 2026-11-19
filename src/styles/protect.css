@@ -23,13 +23,23 @@
 
   /* Critical branching (must work everywhere), so the dark rule is duplicated
      for "system dark" and "pinned dark" rather than using style queries. */
+  /* Re-declared on the footer so uploaded logos (set there) take effect. */
+  .site-footer {
+    --logo-image: var(--logo-light);
+  }
   @media (prefers-color-scheme: dark) {
     :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
-      --logo-image: var(--logo-dark);
+      &,
+      & .site-footer {
+        --logo-image: var(--logo-dark);
+      }
     }
   }
   :root:has(> head > meta[name="color-scheme"][content="dark"]) {
-    --logo-image: var(--logo-dark);
+    &,
+    & .site-footer {
+      --logo-image: var(--logo-dark);
+    }
   }
 
   .brand-logo {

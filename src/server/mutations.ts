@@ -604,7 +604,10 @@ export function deleteSeason(slug: string) {
 
 /* ================================ Settings ================================ */
 
-export function saveSettings(form: FormData) {
+const NAV_KEYS = ["matches", "results", "events", "ranking", "players", "news", "season"] as const;
+
+export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upload } = {}) {
+  const current = snapshot().settings;
   const announcement = text(form, "announcement", { max: 200 });
   const href = text(form, "announcementHref", { max: 300 });
   if (href && !/^(\/|https:\/\/)/.test(href)) throw new FormError("Announcement link must start with / or https://.", "announcementHref");
@@ -619,6 +622,29 @@ export function saveSettings(form: FormData) {
     homeUpcomingCount: int(form, "homeUpcomingCount", { required: true, min: 1, max: 30 })!,
     footerText: text(form, "footerText", { required: true, max: 300, label: "Footer text" }),
     playerRankMinMaps: int(form, "playerRankMinMaps", { required: true, min: 0, max: 50 })!,
+    nav: Object.fromEntries(NAV_KEYS.map((k) => [k, text(form, `nav_${k}`, { required: true, max: 30, label: "Menu label" })])) as Settings["nav"],
+    navHidden: NAV_KEYS.filter((k) => bool(form, `navHide_${k}`)),
+    footerLinks: lines(form, "footerLinks").map((line, i) => {
+      const [label, href] = line.split("|").map((x) => x.trim());
+      if (!label || !href || !/^(\/|https:\/\/)/.test(href)) throw new FormError(`Footer link ${i + 1} must look like "Teams | /teams/".`, "footerLinks");
+      return { label, href };
+    }),
+    rails: {
+      left: bool(form, "railLeft"),
+      right: bool(form, "railRight"),
+      awardTitle: text(form, "awardTitle", { required: true, max: 40, label: "Award heading" }),
+      awardSubtitle: text(form, "awardSubtitle", { required: true, max: 40, label: "Award name" }),
+      rankingTitle: text(form, "rankingTitle", { required: true, max: 40, label: "Ranking heading" }),
+      activityTitle: text(form, "activityTitle", { required: true, max: 40, label: "Activity heading" }),
+    },
+    intros: {
+      matches: text(form, "introMatches", { max: 200 }),
+      ranking: text(form, "introRanking", { max: 300 }),
+      playerRank: text(form, "introPlayerRank", { max: 300 }),
+      season: text(form, "introSeason", { max: 300 }),
+    },
+    footerLogoLight: pickUpload(current.footerLogoLight, logos.light),
+    footerLogoDark: pickUpload(current.footerLogoDark, logos.dark),
   };
   transaction((tx) => tx.put("settings", "site", settings), ACTOR, "edit settings");
 }

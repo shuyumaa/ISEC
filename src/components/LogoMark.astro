@@ -1,0 +1,25 @@
+---
+import { LOGO_PATH, LOGO_VIEWBOX } from "./logo-path";
+
+/** Top-bar logo: the traced ISEC wordmark as one vector. Fill is currentColor,
+    so it follows the bar's text colour in both themes and stays crisp at any size. */
+interface Props {
+  height?: string;
+  label?: string;
+}
+const { height = "1.625rem", label = "ISEC" } = Astro.props;
+---
+
+<svg class="logo-mark protected" viewBox={LOGO_VIEWBOX} style={`--logo-h: ${height}`} role="img" aria-label={label}>
+  <path fill="currentColor" fill-rule="evenodd" d={LOGO_PATH}></path>
+</svg>
+
+<style>
+  @layer components {
+    .logo-mark {
+      block-size: var(--logo-h);
+      inline-size: auto;
+      aspect-ratio: 1916 / 830;
+    }
+  }
+</style>

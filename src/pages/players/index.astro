@@ -37,7 +37,7 @@ const active = Object.values(filters).some((v) => v !== undefined);
 <Base title="Player rank" description="ISEC player rank: overall, rating, MVP and EVP rankings with filters.">
   <header class="page-head">
     <h1>Player rank</h1>
-    <p>Overall blends rating with MVP, EVP and trophy wins. Minimum {minMaps} maps.</p>
+    <p>{getSettings().intros.playerRank} Minimum {minMaps} maps.</p>
   </header>
 
   <nav class="boards" aria-label="Ranking">

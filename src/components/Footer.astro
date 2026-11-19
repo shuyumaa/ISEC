@@ -2,15 +2,20 @@
 import Logo from "./Logo.astro";
 import { getSettings } from "../data";
 
-const footerText = getSettings().footerText;
+const settings = getSettings();
+const footerText = settings.footerText;
+// Uploaded footer logos (Admin → Site settings) replace the built-in artwork.
+const logoVars = [
+  settings.footerLogoLight && `--logo-light: url(/media/u/${settings.footerLogoLight})`,
+  settings.footerLogoDark && `--logo-dark: url(/media/u/${settings.footerLogoDark})`,
+].filter(Boolean).join("; ");
 ---
 
-<footer class="site-footer">
+<footer class="site-footer" style={logoVars || undefined}>
   <div class="footer-inner">
     <a href="/" class="footer-logo" aria-label="ISEC home"><Logo height="clamp(4rem, 2.5rem + 6vw, 8rem)" /></a>
     <nav aria-label="More" class="footer-links">
-      <a href="/teams/">Teams</a>
-      <a href="/admin/">Admin</a>
+      {settings.footerLinks.map((l) => <a href={l.href}>{l.label}</a>)}
     </nav>
     <p class="legal">{footerText}</p>
   </div>

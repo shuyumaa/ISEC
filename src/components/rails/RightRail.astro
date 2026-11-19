@@ -1,6 +1,6 @@
 ---
 import LiveRegion from "../LiveRegion.astro";
-import { completedMatches, getArticles, liveMatches, team, winnerOf } from "../../data";
+import { completedMatches, getArticles, getSettings, liveMatches, team, winnerOf } from "../../data";
 
 // HLTV's right rail is "Recent activity": here, live matches, latest results and news.
 const live = liveMatches().slice(0, 3);
@@ -10,7 +10,7 @@ const news = getArticles().slice(0, 6);
 
 <LiveRegion key="rail-right" deps={["match:*", "article:*", "team:*"]}>
   <section class="rail-box" aria-labelledby="rail-activity">
-    <h2 id="rail-activity" class="rail-title">Recent activity</h2>
+    <h2 id="rail-activity" class="rail-title">{getSettings().rails.activityTitle}</h2>
     <ul class="activity">
       {
         live.map((m) => (

@@ -10,7 +10,7 @@ import "../styles/components.css";
 import "../styles/protect.css";
 import "../styles/admin.css";
 import Icon from "../components/Icon.astro";
-import Logo from "../components/Logo.astro";
+import LogoMark from "../components/LogoMark.astro";
 
 interface Props {
   title: string;
@@ -55,7 +55,7 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href || path 
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="admin-header">
       <a href="/admin/" class="admin-brand" aria-label="ISEC admin home">
-        <Logo height="clamp(2.25rem, 2rem + 1vw, 2.75rem)" />
+        <LogoMark height="1.5rem" />
         <span>Admin</span>
       </a>
       {

@@ -3,7 +3,7 @@ import Base from "../../layouts/Base.astro";
 import LiveRegion from "../../components/LiveRegion.astro";
 import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
-import { formatDay, groupByDay, liveMatches, upcomingMatches } from "../../data";
+import { formatDay, getSettings, groupByDay, liveMatches, upcomingMatches } from "../../data";
 
 const live = liveMatches();
 const days = groupByDay(upcomingMatches());
@@ -12,7 +12,7 @@ const days = groupByDay(upcomingMatches());
 <Base title="Matches" description="Live and upcoming ISEC CS2 matches." noscriptRefresh={30}>
   <header class="page-head">
     <h1>Matches</h1>
-    <p>Times in your time zone.</p>
+    {getSettings().intros.matches && <p>{getSettings().intros.matches}</p>}
   </header>
 
   <LiveRegion key="matches" deps={["match:*", "team:*", "event:*"]}>
