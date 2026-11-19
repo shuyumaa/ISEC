@@ -11,6 +11,8 @@ import "../styles/components.css";
 import "../styles/protect.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import LeftRail from "../components/rails/LeftRail.astro";
+import RightRail from "../components/rails/RightRail.astro";
 import { getSettings } from "../data";
 
 interface Props {
@@ -20,9 +22,11 @@ interface Props {
   noscriptRefresh?: number;
   /** LCP image drawn as a CSS background: preload it at high priority. */
   preloadImage?: string;
+  /** HLTV-style left and right rails (on by default). */
+  rails?: boolean;
 }
 
-const { title, noscriptRefresh, preloadImage, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
+const { title, noscriptRefresh, preloadImage, rails = true, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
   Astro.props;
 const announcement = getSettings().announcement;
 const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competitions";
@@ -67,11 +71,23 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
         </p>
       )
     }
-    <main id="main" class="page">
-      <div class="container">
+    <div class="shell">
+      <main id="main" class="page">
         <slot />
-      </div>
-    </main>
+      </main>
+      {
+        rails && (
+          <>
+            <aside class="rail rail-left" aria-label="Spotlight and ranking">
+              <LeftRail />
+            </aside>
+            <aside class="rail rail-right" aria-label="Recent activity">
+              <RightRail />
+            </aside>
+          </>
+        )
+      }
+    </div>
     <Footer />
     <p id="live-announcer" class="visually-hidden" role="status"></p>
   </body>

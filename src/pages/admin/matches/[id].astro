@@ -238,7 +238,7 @@ const gsiConfig = feed
                   <thead>
                     <tr>
                       <th scope="col">Player</th>
-                      {["K", "D", "A", "ADR", "KAST %", "HS %", "Rating"].map((h) => <th scope="col">{h}</th>)}
+                      {["K", "D", "A", "ADR", "KAST %", "HS %", "Rating", "RWS", "First K", "First D", "Clutch W", "Clutch P", "Util dmg", "Flash ast"].map((h) => <th scope="col">{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -247,6 +247,8 @@ const gsiConfig = feed
                       const cells: [string, number | undefined, string][] = [
                         ["k", s?.kills, "1"], ["d", s?.deaths, "1"], ["a", s?.assists, "1"],
                         ["adr", s?.adr, "0.1"], ["kast", s?.kast, "0.1"], ["hs", s?.hs, "0.1"], ["rating", s?.rating, "0.01"],
+                        ["rws", s?.rws, "0.01"], ["fk", s?.firstKills, "1"], ["fd", s?.firstDeaths, "1"], ["cw", s?.clutchesWon, "1"],
+                        ["cp", s?.clutchesPlayed, "1"], ["ud", s?.utilityDamage, "1"], ["fa", s?.flashAssists, "1"],
                       ];
                       return (
                         <tr>
@@ -270,6 +272,14 @@ const gsiConfig = feed
                   </tbody>
                 </table>
               </div>
+              <details>
+                <summary>Paste a Perfect World / CSV export instead</summary>
+                <div class="field">
+                  <label for={`csv-${i}`}>One header row, then one row per player</label>
+                  <textarea id={`csv-${i}`} name="csv" rows="6" spellcheck="false" aria-describedby={`csv-hint-${i}`} placeholder="player,kills,deaths,assists,adr,rws,rating,kast,hs,fk,fd,cw,cp,ud,fa"></textarea>
+                  <span id={`csv-hint-${i}`} class="hint">Comma, tab or semicolon separated. Players are matched by nickname, in-game name or Steam ID; pasted values replace the table.</span>
+                </div>
+              </details>
               <div class="actions"><button type="submit" class="btn small">Save stats for map {i + 1}</button></div>
             </fieldset>
           </form>

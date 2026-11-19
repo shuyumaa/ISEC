@@ -1,17 +1,14 @@
 ---
 import Base from "../layouts/Base.astro";
 import LiveRegion from "../components/LiveRegion.astro";
-import EventCard from "../components/EventCard.astro";
 import MatchRow from "../components/MatchRow.astro";
 import NewsList from "../components/NewsList.astro";
 import Panel from "../components/Panel.astro";
-import RankingList from "../components/RankingList.astro";
 import Scoreboard from "../components/Scoreboard.astro";
 import {
   getArticles,
   completedMatches,
   findMatch,
-  getEvents,
   getSettings,
   formatDay,
   groupByDay,
@@ -31,7 +28,6 @@ const notFeatured = <T extends { id: string }>(list: T[]) => list.filter((m) => 
 const liveRest = notFeatured(live);
 const upcomingDays = groupByDay(notFeatured(upcoming).slice(0, settings.homeUpcomingCount));
 const results = completedMatches().slice(0, settings.homeResultsCount);
-const activeEvents = getEvents().filter((e) => e.status !== "completed");
 const news = getArticles();
 ---
 
@@ -39,19 +35,6 @@ const news = getArticles();
   <h1 class="visually-hidden">ISEC — CS2 matches, results and rankings</h1>
 
   <div class="home">
-    <aside class="home-left stack" aria-label="Ranking and events">
-      <LiveRegion key="ranking" deps={["ranking:*", "team:*", "meta:*"]}>
-        <Panel title={settings.rankingName} href="/ranking/" linkLabel="Full ranking">
-          <RankingList limit={10} />
-        </Panel>
-      </LiveRegion>
-      <LiveRegion key="events" deps={["event:*"]}>
-        <Panel title="Events" href="/events/" linkLabel="All events">
-          {activeEvents.map((e) => <EventCard event={e} compact />)}
-        </Panel>
-      </LiveRegion>
-    </aside>
-
     <div class="home-center stack">
       <LiveRegion key="featured" deps={["match:*", "team:*", "event:*", "article:*"]}>
         {featured && <Scoreboard match={featured} link />}
@@ -103,13 +86,13 @@ const news = getArticles();
       </LiveRegion>
     </div>
 
-    <aside class="home-right stack" aria-label="Recent results">
+    <div class="home-results">
       <LiveRegion key="results" deps={["match:*", "team:*", "event:*"]}>
         <Panel title="Recent results" href="/results/" linkLabel="All results">
           {results.map((m) => <MatchRow match={m} showDate />)}
         </Panel>
       </LiveRegion>
-    </aside>
+    </div>
   </div>
 </Base>
 
@@ -117,34 +100,16 @@ const news = getArticles();
   @layer layout {
     .home {
       display: grid;
-      gap: var(--sp-07);
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-areas: "center" "right" "left";
-    }
-
-    @container page (width >= 60rem) {
-      .home {
-        grid-template-columns: minmax(0, 1fr) 19rem;
-        grid-template-areas: "center right" "left right";
-      }
-    }
-
-    @container page (width >= 84rem) {
-      .home {
-        grid-template-columns: 17rem minmax(0, 1fr) 21rem;
-        grid-template-areas: "left center right";
-      }
-    }
-
-    .home-left {
-      grid-area: left;
+      gap: var(--sp-06);
     }
     .home-center {
-      grid-area: center;
+      --stack-gap: var(--sp-06);
     }
-    .home-right {
-      grid-area: right;
+    /* The right rail shows recent results from 82rem; below that they live here. */
+    @media (width >= 82rem) {
+      .home-results {
+        display: none;
+      }
     }
   }
-
 </style>

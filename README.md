@@ -30,6 +30,36 @@ docker run -p 4321:4321 -v isec-data:/data --env-file .env isec
 
 Requires Node 22.13 or newer. Serve it behind HTTPS (Caddy, nginx, or your host's proxy) and list the public URL in `ISEC_HOSTS`.
 
+## Pages
+
+The layout follows HLTV: a top bar with search, a left rail (live or next match, "Award by ISEC" player of the week, "Ranking by ISEC" top 5, ongoing events) and a right "Recent activity" rail, around slate content cards.
+
+| Route | What it shows |
+| --- | --- |
+| `/` | Featured live match, or the latest news when nothing is live; then live now, upcoming and news |
+| `/players/` | Player rank: Overall, Rating, MVPs and EVPs, filterable by season, event, team, role and minimum maps |
+| `/players/<slug>/` | Profile: portrait, age, team, role, prize money, trophy count, trophy strip, statistics bars, upcoming and recent matches, achievements, trophy case |
+| `/players/<slug>/stats/` | Stats: rating gauge, KPR/DPR/KAST/ADR/opening/HS% with GOOD/OKAY/POOR verdicts, attribute cards; season/event/role filters |
+| `/teams/<slug>/` | Lineup band, rank, points, average age, coach, form, trophy strip, roster, matches, achievements, map pool, stats |
+| `/best-of-season/` | Latest published season: #1 player, top 10, team of the season, archive |
+| `/search/?q=` | Players and teams; an exact single match opens it directly |
+| `/ranking/` | School Teams Rank (the name is editable in settings) |
+
+## Player stats and attributes
+
+Stats come per map, either from the server feed, entered in the admin, or pasted as a Perfect World (完美世界) / CSV export. Rating, ADR, KAST, HS%, RWS and K/D are shown as reported. The HLTV-style attributes are each a 0–100 percentile against ranked players (or the same role), next to the raw value:
+
+| Attribute | Based on |
+| --- | --- |
+| Firepower | ADR |
+| Entrying | K/D |
+| Opening | RWS |
+| Trading | KAST |
+| Clutching | Clutch win % from raw clutch wins ÷ attempts. Small samples are pulled toward the field average (5-attempt prior), so one lucky 1v1 isn't a 100% clutcher |
+| Utility | (utility damage + 25 × flash assists) ÷ rounds |
+
+The overall player rank is out of 100: 55% rating percentile, plus 15 per MVP, 6 per EVP, 8 per event win and 4 per runner-up, capped at 100.
+
 ## Admin panel (`/admin`)
 
 | Section | What you can do |
@@ -40,6 +70,16 @@ Requires Node 22.13 or newer. Serve it behind HTTPS (Caddy, nginx, or your host'
 | Teams & players | Add and edit teams; add, edit and remove players |
 | Ranking | Edit points and publish. Order and ↑/↓ movement are worked out for you |
 | News | Write, edit and delete articles |
+| Seasons & awards | Create seasons, set the top 10 (or fill it from the season's ratings) and the team of the season, publish |
+| Site settings | Ranking and season page names, announcement bar, pinned home match, home list sizes, minimum maps for the player rank, footer text |
+
+More customisation:
+- **Events:** MVP and EVP awards, a photo of the real trophy, and prize rosters captured automatically.
+- **Teams:** logo upload.
+- **Players:** photo upload, join date, in-game name and Steam ID.
+- **Match stats:** the extra Perfect World fields (RWS, first kills and deaths, clutches, utility damage, flash assists), plus a CSV paste box.
+
+Uploads are checked by their actual file bytes (PNG, JPEG or WebP, up to 5 MB), stored under `DATA_DIR/uploads`, and served through `/media/u/` with the same protection as the logo.
 
 Live scoring works like this:
 - Press **+1** for the team that won the round.

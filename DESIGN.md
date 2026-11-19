@@ -1,6 +1,10 @@
 # ISEC design system
 
-Modern, simple and direct. It follows the structure of IBM's Carbon design system (2x grid, square corners, IBM Plex, productive type, the g100 UI shell), with game-semantic colour in the HLTV tradition.
+Modern, simple and direct. It is built on IBM's Carbon design system (2x grid, square corners, IBM Plex, productive type) and laid out like HLTV:
+- a three-column shell with left and right rails;
+- slate cards on a darker page;
+- label and value rows, trophy strips and attribute bars;
+- game-semantic colour.
 
 ## Principles
 
@@ -14,16 +18,23 @@ Modern, simple and direct. It follows the structure of IBM's Carbon design syste
 
 | Role | Light | Dark | Used for |
 | --- | --- | --- | --- |
-| Interaction | blue-60 `#0f62fe` | blue-40 `#78a9ff` | links, primary buttons, focus, selected tab, sort state |
+| Interaction | blue-70 `#0043ce` (buttons blue-60) | blue-30 `#a6c8ff` | links, primary buttons, focus, selected tab, sort state |
 | Live | red-60 `#da1e28` (fill) | same | LIVE tag, live map outline, live scoreboard rule |
-| Win / up | green-60 `#198038` | green-40 `#42be65` | winning scores, rank rises, success |
-| Loss / down | red-60 | red-40 `#ff8389` | losing scores, rank drops, errors |
+| Win / up | green-70 `#0e6027` | green-30 `#6fdc8c` | winning scores, rank rises, success |
+| Loss / down | red-70 `#a2191f` | `#ffb3b8` | losing scores, rank drops, errors |
 | CT side | `#4a6896` | `#7d9bd1` | round history, live log names |
 | T side | `#9a6a1c` | `#de9b35` | round history, live log names |
 | Tags | Carbon tag pairs (blue / green / purple / gray) | | event status (upcoming blue, ongoing green), Major tier purple |
 | Neutrals | white → gray ramp → black | | surfaces, text, borders |
 
-The UI shell header is gray-100 in both themes (`--header-*` tokens). Tokens are built with `light-dark()` and fall back to a `prefers-color-scheme` branch in older browsers. Forced-colours mode maps them to system colours.
+The top bar is light blue (blue-20, near-black text, dark-letter logo) in the light theme and deep navy (blue-90, white text, white embossed logo) in the dark theme. The text colour switches with it because white on light blue fails contrast. Pages use `--background`, and cards, panels and rails use `--surface`:
+
+| Surface | Light | Dark |
+| --- | --- | --- |
+| Page background | `#e6ebf1` | `#161f2a` |
+| Card surface | `#ffffff` | `#243040` |
+
+All text pairs are checked on both surfaces. Tokens are built with `light-dark()` and fall back to a `prefers-color-scheme` branch in older browsers. Forced-colours mode maps them to system colours.
 
 - **Type:** IBM Plex Sans 300/400/500/600, with IBM Plex Mono for scores, times and tags. Sizes use `rem`, and the large display sizes use `clamp()`.
 - **Spacing:** Carbon scale `--sp-01` (2px) to `--sp-11` (80px).
@@ -55,5 +66,8 @@ The UI shell header is gray-100 in both themes (`--header-*` tokens). Tokens are
 | `MatchRow` | List row used for live, upcoming and results |
 | `Panel` | Titled section with an optional "View all" link |
 | `StatsTable` | Sortable, sticky-header, horizontally scrollable stats table |
-| `TeamMark` | Monochrome monogram (replace with real team SVGs using `currentColor`) |
+| `TeamMark` | Uploaded team logo, or a monochrome monogram |
+| `Photo` | Protected player portrait (CSS background), or a silhouette |
+| `Trophy`, `TrophyStrip` | Physical-looking cups (gold, silver, bronze on a black plinth) and MVP/EVP medals, or an uploaded trophy photo; HLTV-style tile strip |
+| `LeftRail`, `RightRail` | Spotlight match, player of the week, ranking top 5, events; recent activity |
 | `EventCard`, `RankingList`, `NewsList`, `Breadcrumbs`, `LocalTime`, `Countdown`, `Icon`, `Stars` | Supporting components |

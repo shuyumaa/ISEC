@@ -1,0 +1,466 @@
+---
+import Base from "../../../layouts/Base.astro";
+import LiveRegion from "../../../components/LiveRegion.astro";
+import Photo from "../../../components/Photo.astro";
+import TeamMark from "../../../components/TeamMark.astro";
+import Trophy from "../../../components/Trophy.astro";
+import TrophyStrip from "../../../components/TrophyStrip.astro";
+import {
+  event,
+  findPlayer,
+  formatRange,
+  matchesForTeam,
+  money,
+  playerAchievements,
+  playerAttributes,
+  playerAwards,
+  playerSummary,
+  prizeMoney,
+  ratingTone,
+  team,
+  winnerOf,
+} from "../../../data";
+
+const p = findPlayer(Astro.params.slug ?? "");
+if (!p) return Astro.rewrite("/404");
+const t = team(p.team);
+const s = playerSummary(p.slug);
+const attrs = playerAttributes(p.slug) ?? [];
+const achievements = playerAchievements(p.slug);
+const awards = playerAwards(p.slug);
+const bestSeason = [...awards.seasonTops].sort((a, b) => a.rank - b.rank)[0];
+const all = matchesForTeam(t.slug);
+const upcoming = all.filter((m) => m.status !== "completed").reverse().slice(0, 3);
+const recent = all.filter((m) => m.status === "completed").slice(0, 6);
+const titles = achievements.filter((a) => a.medal === "gold").length;
+const prize = prizeMoney(p.slug);
+const opponent = (m: (typeof all)[number]) => team(m.teamA === t.slug ? m.teamB : m.teamA);
+const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA}:${m.seriesB}` : `${m.seriesB}:${m.seriesA}`);
+---
+
+<Base
+  title={`${p.nickname} (${p.firstName} ${p.lastName})`}
+  description={`${p.nickname} of ${t.name}: age, team, trophies, rating and attributes.`}
+  preloadImage={p.photo ? `/media/u/${p.photo}` : undefined}
+>
+  <LiveRegion key="player" deps={[`player:${p.slug}`, `team:${t.slug}`, "match:*", "event:*", "season:*"]}>
+    <section class="profile-card" aria-labelledby="player-name">
+      <div class="portrait">
+        <span class="tag">Player</span>
+        <span class="side-icons" aria-hidden="true">
+          <span class="cc">{p.countryCode}</span>
+          <TeamMark team={t} />
+        </span>
+        <Photo player={p} size="hero" />
+        <a class="stats-btn" href={`/players/${p.slug}/stats/`}>Player stats</a>
+      </div>
+
+      <div class="identity">
+        <h1 id="player-name">{p.nickname}</h1>
+        <p class="realname">{p.firstName} {p.lastName}</p>
+        <dl class="rows">
+          <div><dt>Age</dt><dd>{p.age ? `${p.age} years` : "—"}</dd></div>
+          <div><dt>Current team</dt><dd><a href={`/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a></dd></div>
+          <div><dt>Role</dt><dd>{p.role}</dd></div>
+          <div><dt>Prize money</dt><dd>{money(prize)}</dd></div>
+          <div><dt>Trophies</dt><dd>{titles}</dd></div>
+          <div><dt>Top 10 of the season</dt><dd>{bestSeason ? `#${bestSeason.rank} (${bestSeason.season.name})` : "—"}</dd></div>
+        </dl>
+      </div>
+
+      <div class="strip">
+        <TrophyStrip achievements={achievements} mvps={awards.mvps} evps={awards.evps} seasonTops={awards.seasonTops} />
+      </div>
+    </section>
+
+    <nav class="page-tabs" aria-label="Player sections">
+      <a href="#info" aria-current="location">Info</a>
+      <a href={`/teams/${t.slug}/`}>Teams</a>
+      <a href="#matches">Matches</a>
+      <a href="#achievements">Achievements</a>
+      <a href="#trophies">Trophies</a>
+      <a href={`/players/${p.slug}/stats/`}>Stats</a>
+    </nav>
+
+    <div id="info" class="two-col">
+      <section class="panel" aria-labelledby="stat-h">
+        <div class="panel-head">
+          <h2 id="stat-h">{p.nickname} statistics</h2>
+          {s && <span class="subtle">All time · {s.maps} maps</span>}
+        </div>
+        <div class="panel-body">
+          {
+            s ? (
+              <ul class="stat-bars">
+                <li class="rating-row">
+                  <span class="label">Rating</span>
+                  <span class:list={["value", "rating", ratingTone(s.rating)]}>{s.rating.toFixed(2)}</span>
+                </li>
+                {attrs.map((a) => (
+                  <li>
+                    <span class="label">{a.label} <span class="subtle src">· {a.source} {a.raw}</span></span>
+                    <span class="value">{a.score}<span class="subtle">/100</span></span>
+                    <span class="bar" aria-hidden="true"><span style={`--v: ${a.score}%`} /></span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p class="empty">No completed maps yet.</p>
+            )
+          }
+        </div>
+        <a class="panel-foot" href={`/players/${p.slug}/stats/`}>Complete statistics for {p.nickname}</a>
+      </section>
+
+      <section id="matches" class="panel" aria-labelledby="m-h">
+        <div class="panel-head"><h2 id="m-h">Upcoming &amp; recent matches</h2></div>
+        <div class="panel-body">
+          <ul class="match-list">
+            {
+              [...upcoming, ...recent].map((m) => {
+                const w = winnerOf(m);
+                const state = m.status === "completed" ? (w === t.slug ? "win" : "loss") : m.status;
+                return (
+                  <li class={state}>
+                    <a href={`/matches/${m.id}/`}>
+                      <span class="vs">
+                        <span class="subtle">vs</span> <TeamMark team={opponent(m)} /> <strong>{opponent(m).name}</strong>
+                      </span>
+                      <span class="ev subtle">{event(m.event).name}</span>
+                      <span class="sc">
+                        {m.status === "upcoming" ? <span class="badge blue">Upcoming</span> : m.status === "live" ? <span class="badge live">Live</span> : ourScore(m)}
+                        {(state === "win" || state === "loss") && <span class="visually-hidden">{state === "win" ? "won" : "lost"}</span>}
+                      </span>
+                    </a>
+                  </li>
+                );
+              })
+            }
+          </ul>
+          {upcoming.length + recent.length === 0 && <p class="empty">No matches yet.</p>}
+        </div>
+      </section>
+    </div>
+
+    <section id="achievements" class="panel section" aria-labelledby="ach-h">
+      <div class="panel-head"><h2 id="ach-h">Achievements</h2></div>
+      <div class="panel-body">
+        {
+          achievements.length ? (
+            <div class="table-wrap" role="region" aria-labelledby="ach-h" tabindex="0">
+              <table class="data-table">
+                <thead><tr><th scope="col">Placement</th><th scope="col">Event</th><th scope="col">Team</th><th scope="col">Dates</th></tr></thead>
+                <tbody>
+                  {achievements.map((a) => (
+                    <tr>
+                      <th scope="row" class="place">{a.place}</th>
+                      <td><a href={`/events/${a.event.slug}/`}>{a.event.name}</a></td>
+                      <td>{a.team ? team(a.team).name : "—"}</td>
+                      <td>{formatRange(a.event.startDate, a.event.endDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p class="empty">No placements yet.</p>
+          )
+        }
+      </div>
+    </section>
+
+    <section id="trophies" class="panel section" aria-labelledby="tr-h">
+      <div class="panel-head"><h2 id="tr-h">Trophies</h2><span class="subtle">{titles} won</span></div>
+      <div class="panel-body">
+        {
+          achievements.some((a) => a.medal) || awards.mvps.length || awards.evps.length ? (
+            <ul class="trophy-case">
+              {achievements.filter((a) => a.medal).map((a) => (
+                <li>
+                  <Trophy kind={a.medal!} size={64} image={a.medal === "gold" ? a.event.trophyImage : undefined} label={`${a.place}, ${a.event.name}`} />
+                  <span>{a.place}</span>
+                  <span class="subtle">{a.event.name}</span>
+                </li>
+              ))}
+              {awards.mvps.map((e) => (
+                <li>
+                  <Trophy kind="mvp" size={64} label={`MVP, ${e.name}`} />
+                  <span>MVP</span>
+                  <span class="subtle">{e.name}</span>
+                </li>
+              ))}
+              {awards.evps.map((e) => (
+                <li>
+                  <Trophy kind="evp" size={64} label={`EVP, ${e.name}`} />
+                  <span>EVP</span>
+                  <span class="subtle">{e.name}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="empty">No trophies yet.</p>
+          )
+        }
+      </div>
+    </section>
+  </LiveRegion>
+</Base>
+
+<style>
+  @layer components {
+    .profile-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      background: var(--surface);
+      @container page (width >= 40rem) {
+        grid-template-columns: 15rem minmax(0, 1fr);
+      }
+    }
+    .portrait {
+      position: relative;
+      background: linear-gradient(var(--layer-selected), var(--layer));
+      max-inline-size: 22rem;
+    }
+    .tag {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      z-index: 1;
+      padding: var(--sp-01) var(--sp-03);
+      background: var(--layer-selected);
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+    }
+    .side-icons {
+      position: absolute;
+      inset-block-start: var(--sp-07);
+      inset-inline-start: var(--sp-03);
+      z-index: 1;
+      display: grid;
+      gap: var(--sp-03);
+      justify-items: center;
+      & .cc {
+        padding: 0 var(--sp-02);
+        background: var(--surface);
+        font-family: var(--font-mono);
+        font-size: var(--type-label);
+      }
+    }
+    .stats-btn {
+      position: absolute;
+      inset-block-end: 0;
+      inset-inline-start: 50%;
+      translate: -50% 0;
+      padding: var(--sp-03) var(--sp-05);
+      background: var(--layer-selected);
+      color: var(--text-primary);
+      text-decoration: none;
+      white-space: nowrap;
+      &:hover {
+        background: var(--layer-hover);
+      }
+    }
+    .identity {
+      display: grid;
+      align-content: start;
+      gap: var(--sp-02);
+      padding: var(--sp-05) var(--sp-06);
+      & h1 {
+        font-size: var(--type-heading-lg);
+        font-weight: 600;
+        line-height: 1.1;
+      }
+    }
+    .realname {
+      color: var(--text-secondary);
+      margin-block-end: var(--sp-03);
+    }
+    .rows {
+      display: grid;
+      & > div {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--sp-05);
+        padding-block: var(--sp-03);
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+      & dt {
+        font-weight: 600;
+      }
+      & dd {
+        text-align: end;
+      }
+    }
+    .team-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+    }
+    .strip {
+      grid-column: 1 / -1;
+    }
+    .page-tabs {
+      display: flex;
+      overflow-x: auto;
+      margin-block: var(--sp-05);
+      background: var(--surface);
+      & a {
+        position: relative;
+        flex: none;
+        padding: var(--sp-04) var(--sp-06);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-decoration: none;
+        &:hover {
+          color: var(--text-primary);
+          background: var(--layer);
+        }
+        &[aria-current] {
+          color: var(--text-primary);
+          &::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0;
+            border-block-end: 2px solid var(--link);
+          }
+        }
+      }
+    }
+    .two-col {
+      display: grid;
+      gap: var(--sp-05);
+      @container page (width >= 46rem) {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+    .stat-bars {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      & li {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--sp-02) var(--sp-03);
+        padding-block: var(--sp-03);
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+      & .label {
+        font-weight: 600;
+      }
+      & .src {
+        font-weight: 400;
+        font-size: var(--type-label);
+      }
+      & .value {
+        font-family: var(--font-mono);
+      }
+      & .bar {
+        grid-column: 1 / -1;
+        block-size: 0.25rem;
+        background: var(--layer-hover);
+        & span {
+          display: block;
+          block-size: 100%;
+          inline-size: var(--v);
+          background: var(--link);
+        }
+      }
+      & .rating-row .value {
+        font-size: var(--type-heading-sm);
+        font-weight: 600;
+      }
+    }
+    .rating.good {
+      color: var(--win);
+    }
+    .rating.poor {
+      color: var(--loss);
+    }
+    .panel-foot {
+      display: block;
+      padding: var(--sp-04);
+      background: var(--layer-selected);
+      color: var(--text-primary);
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none;
+      &:hover {
+        background: var(--layer-hover);
+      }
+    }
+    .match-list {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      gap: var(--sp-02);
+      padding-block-start: var(--sp-03);
+      & li {
+        background: var(--layer);
+        /* HLTV marks the result with a coloured right edge; the score says it too. */
+        border-inline-end: 4px solid transparent;
+        &.win {
+          border-color: var(--win);
+        }
+        &.loss {
+          border-color: var(--loss);
+        }
+      }
+      & a {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "vs sc" "ev sc";
+        gap: var(--sp-01) var(--sp-04);
+        padding: var(--sp-03) var(--sp-04);
+        text-decoration: none;
+        &:hover strong {
+          text-decoration: underline;
+        }
+      }
+    }
+    .vs {
+      grid-area: vs;
+      display: flex;
+      align-items: center;
+      gap: var(--sp-02);
+    }
+    .ev {
+      grid-area: ev;
+      font-size: var(--type-label);
+    }
+    .sc {
+      grid-area: sc;
+      align-self: center;
+      font-family: var(--font-mono);
+      font-size: var(--type-heading-sm);
+      font-weight: 600;
+    }
+    .section {
+      margin-block-start: var(--sp-05);
+    }
+    .place {
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .trophy-case {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-06);
+      list-style: none;
+      margin: 0;
+      padding: var(--sp-05) 0;
+      & li {
+        display: grid;
+        justify-items: center;
+        gap: var(--sp-01);
+        inline-size: 7rem;
+        text-align: center;
+        font-size: var(--type-body-sm);
+      }
+      & .subtle {
+        font-size: var(--type-label);
+      }
+    }
+  }
+</style>

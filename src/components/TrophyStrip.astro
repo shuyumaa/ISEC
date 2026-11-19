@@ -1,0 +1,95 @@
+---
+import type { Achievement, EsportsEvent } from "../data";
+import Trophy from "./Trophy.astro";
+
+/**
+ * HLTV's trophy strip: one square tile per trophy, with a small badge for
+ * repeats (×2) or the year. Identical trophies (same kind + event name) stack.
+ */
+interface Props {
+  achievements: Achievement[];
+  mvps?: EsportsEvent[];
+  evps?: EsportsEvent[];
+  seasonTops?: { season: { slug: string; name: string }; rank: number }[];
+}
+const { achievements, mvps = [], evps = [], seasonTops = [] } = Astro.props;
+type Tile = { key: string; kind: "gold" | "silver" | "bronze" | "mvp" | "evp"; label: string; image?: string; count: number; year: string };
+const tiles: Tile[] = [];
+const add = (t: Omit<Tile, "count">) => {
+  const same = tiles.find((x) => x.key === t.key);
+  if (same) same.count += 1;
+  else tiles.push({ ...t, count: 1 });
+};
+for (const a of achievements.filter((x) => x.medal)) {
+  add({ key: `${a.medal}-${a.event.name}`, kind: a.medal!, label: `${a.place}, ${a.event.name}`, image: a.medal === "gold" ? a.event.trophyImage : undefined, year: a.event.endDate.slice(2, 4) });
+}
+for (const e of mvps) add({ key: `mvp-${e.slug}`, kind: "mvp", label: `MVP, ${e.name}`, year: e.endDate.slice(2, 4) });
+for (const e of evps) add({ key: `evp-${e.slug}`, kind: "evp", label: `EVP, ${e.name}`, year: e.endDate.slice(2, 4) });
+---
+
+{
+  (tiles.length > 0 || seasonTops.length > 0) && (
+    <ul class="trophy-strip" aria-label="Trophies">
+      {tiles.map((t) => (
+        <li>
+          <Trophy kind={t.kind} size={40} image={t.image} label={t.count > 1 ? `${t.label} (${t.count} times)` : t.label} />
+          <span class="tile-badge" aria-hidden="true">{t.count > 1 ? `×${t.count}` : `'${t.year}`}</span>
+        </li>
+      ))}
+      {seasonTops.map(({ season, rank }) => (
+        <li>
+          <a href={`/best-of-season/${season.slug}/`} class="season-tile" aria-label={`Number ${rank} of ${season.name}`}>
+            <span class="num">#{rank}</span>
+          </a>
+          <span class="tile-badge" aria-hidden="true">Top 10</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  @layer components {
+    .trophy-strip {
+      display: flex;
+      flex-wrap: wrap;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      background: var(--layer);
+      border-block-start: var(--border-width) solid var(--border-subtle);
+      & li {
+        position: relative;
+        display: grid;
+        place-items: center;
+        inline-size: 4.5rem;
+        block-size: 4.5rem;
+        border-inline-end: var(--border-width) solid var(--border-subtle);
+      }
+    }
+    .tile-badge {
+      position: absolute;
+      inset-block-end: var(--sp-02);
+      inset-inline-end: var(--sp-02);
+      padding: 0 var(--sp-02);
+      border-radius: 1rem;
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+    }
+    .season-tile {
+      display: grid;
+      place-items: center;
+      inline-size: 2.75rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--button-primary);
+      color: var(--white);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+  }
+</style>

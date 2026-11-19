@@ -1,5 +1,6 @@
 /*
- * ISEC design tokens — Carbon structure, game-semantic colour.
+ * ISEC design tokens — Carbon structure, HLTV-style slate panels on a darker
+ * page, game-semantic colour.
  *
  * Colour always encodes meaning and is always paired with a non-colour cue:
  *   blue   = interaction (links, primary buttons, focus, selected tab)
@@ -105,39 +106,39 @@
     --on-live: var(--white);
 
     /* ---- Tier 2: semantic pairs (light / dark) --------------------------- */
-    --background-light: var(--white);
-    --background-dark: var(--black);
-    --layer-light: var(--gray-10);
-    --layer-dark: var(--gray-100);
-    --layer-hover-light: var(--gray-20);
-    --layer-hover-dark: var(--gray-90);
-    --layer-selected-light: var(--gray-20);
-    --layer-selected-dark: var(--gray-80);
-    --border-subtle-light: var(--gray-20);
-    --border-subtle-dark: var(--gray-80);
-    --border-strong-light: var(--gray-60);
-    --border-strong-dark: var(--gray-60);
-    --text-primary-light: var(--black);
-    --text-primary-dark: var(--white);
-    --text-secondary-light: var(--gray-70);
-    --text-secondary-dark: var(--gray-30);
-    --text-muted-light: var(--gray-60);
-    --text-muted-dark: var(--gray-50);
+    --background-light: #e6ebf1;
+    --background-dark: #161f2a;
+    --layer-light: #f1f4f8;
+    --layer-dark: #2c3a4b;
+    --layer-hover-light: #e3e9f0;
+    --layer-hover-dark: #354558;
+    --layer-selected-light: #d7e0ea;
+    --layer-selected-dark: #3d4f63;
+    --border-subtle-light: #d5dde6;
+    --border-subtle-dark: #3a4a5d;
+    --border-strong-light: #6f7f92;
+    --border-strong-dark: #7c8fa5;
+    --text-primary-light: #0b0f14;
+    --text-primary-dark: #ffffff;
+    --text-secondary-light: #3c4957;
+    --text-secondary-dark: #c5d0db;
+    --text-muted-light: #55626f;
+    --text-muted-dark: #a3b2c2;
     --inverse-light: var(--black);
     --inverse-dark: var(--white);
     --on-inverse-light: var(--white);
     --on-inverse-dark: var(--black);
-    --link-light: var(--blue-60);
-    --link-dark: var(--blue-40);
+    --link-light: var(--blue-70);
+    --link-dark: var(--blue-30);
     --focus-light: var(--blue-60);
     --focus-dark: var(--white);
-    --win-light: var(--green-60);
-    --win-dark: var(--green-40);
-    --loss-light: var(--red-60);
-    --loss-dark: var(--red-40);
+    --win-light: var(--green-70);
+    --win-dark: var(--green-30);
+    --loss-light: var(--red-70);
+    --loss-dark: #ffb3b8;
     --side-ct-light: var(--ct-light);
-    --side-ct-dark: var(--ct-dark);
-    --side-t-light: var(--t-light);
+    --side-ct-dark: #8fabdc;
+    --side-t-light: #8a5d14;
     --side-t-dark: var(--t-dark);
     --tag-blue-bg-light: var(--blue-20);
     --tag-blue-bg-dark: var(--blue-80);
@@ -155,12 +156,12 @@
     --tag-gray-bg-dark: var(--gray-80);
     --tag-gray-fg-light: var(--gray-70);
     --tag-gray-fg-dark: var(--gray-30);
-    --support-error-light: var(--red-60);
-    --support-error-dark: var(--red-40);
+    --support-error-light: var(--red-70);
+    --support-error-dark: #ffb3b8;
     --support-error-bg-light: var(--red-10);
     --support-error-bg-dark: var(--red-90);
-    --support-success-light: var(--green-60);
-    --support-success-dark: var(--green-40);
+    --support-success-light: var(--green-70);
+    --support-success-dark: var(--green-30);
     --support-success-bg-light: var(--green-10);
     --support-success-bg-dark: var(--green-90);
 
@@ -175,6 +176,9 @@
     --header-accent-light: var(--blue-70);
     --header-accent-dark: var(--blue-40);
 
+    --surface-light: #ffffff;
+    --surface-dark: #243040;
+
     color-scheme: light dark;
 
     /* Map the <meta name="color-scheme"> override back onto the property. */
@@ -187,6 +191,7 @@
 
     /* ---- Tier 3: UI tokens (light defaults; fallback for no light-dark()) - */
     --background: var(--background-light);
+    --surface: var(--surface-light);
     --layer: var(--layer-light);
     --layer-hover: var(--layer-hover-light);
     --layer-selected: var(--layer-selected-light);
@@ -227,6 +232,8 @@
     @media (prefers-color-scheme: dark) {
       :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
         --background: var(--background-dark);
+      --surface: var(--surface-dark);
+        --surface: var(--surface-dark);
         --layer: var(--layer-dark);
         --layer-hover: var(--layer-hover-dark);
         --layer-selected: var(--layer-selected-dark);
@@ -304,6 +311,7 @@
   @supports (color: light-dark(#000, #fff)) {
     :root {
       --background: light-dark(var(--background-light), var(--background-dark));
+      --surface: light-dark(var(--surface-light), var(--surface-dark));
       --layer: light-dark(var(--layer-light), var(--layer-dark));
       --layer-hover: light-dark(var(--layer-hover-light), var(--layer-hover-dark));
       --layer-selected: light-dark(var(--layer-selected-light), var(--layer-selected-dark));
@@ -343,6 +351,7 @@
   @media (forced-colors: active) {
     :root {
       --background: Canvas;
+      --surface: Canvas;
       --layer: Canvas;
       --layer-hover: Canvas;
       --layer-selected: Highlight;

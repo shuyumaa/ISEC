@@ -274,11 +274,32 @@ function percentile(value: number, all: number[]) {
 const clutchRate = (s: AggregatedStats, prior: number) => (s.clutchesWon + prior * 5) / (s.clutchesPlayed + 5);
 const utilityPerRound = (s: AggregatedStats) => (s.utilityDamage + 25 * s.flashAssists) / Math.max(1, s.rounds);
 
-export function playerAttributes(slug: string): Attribute[] | undefined {
-  const field = playerLeaderboard(getSettings().playerRankMinMaps);
-  const me = playerLeaderboard(0).find((x) => x.player.slug === slug);
+/** Match filter shared by attributes and the player rank. */
+export function matchFilter(f: RankFilters = {}) {
+  const season = f.season ? getSeasons().find((s) => s.slug === f.season) : undefined;
+  const inRange = (day: string) => !season || (day >= season.startDate && day <= season.endDate);
+  return {
+    season,
+    inRange,
+    include: (m: Match) => (!f.event || m.event === f.event) && inRange(m.start.slice(0, 10)),
+  };
+}
+
+/** The field a player is compared against, and the player's own line. */
+export function comparison(slug: string, f: RankFilters & { sameRole?: boolean } = {}) {
+  const { include } = matchFilter(f);
+  const me = playerLeaderboard(0, include).find((x) => x.player.slug === slug);
   if (!me) return undefined;
+  let field = playerLeaderboard(getSettings().playerRankMinMaps, include);
+  if (f.sameRole) field = field.filter((x) => x.player.role === me.player.role);
   const pool = field.some((x) => x.player.slug === slug) ? field : [...field, me];
+  return { me, pool, percentile: (f: (s: AggregatedStats) => number) => percentile(f(me), pool.map(f)) };
+}
+
+export function playerAttributes(slug: string, f: RankFilters & { sameRole?: boolean } = {}): Attribute[] | undefined {
+  const cmp = comparison(slug, f);
+  if (!cmp) return undefined;
+  const { me, pool } = cmp;
   const totalWon = pool.reduce((n, x) => n + x.clutchesWon, 0);
   const totalPlayed = pool.reduce((n, x) => n + x.clutchesPlayed, 0);
   const prior = totalPlayed ? totalWon / totalPlayed : 0.3;
@@ -382,9 +403,7 @@ export interface RankRow {
  * shown (team, role, minimum maps).
  */
 export function playerRank(board: RankBoard, f: RankFilters = {}): RankRow[] {
-  const season = f.season ? getSeasons().find((s) => s.slug === f.season) : undefined;
-  const inRange = (day: string) => (!season || (day >= season.startDate && day <= season.endDate));
-  const include = (m: Match) => (!f.event || m.event === f.event) && inRange(m.start.slice(0, 10));
+  const { inRange, include } = matchFilter(f);
   const events = getEvents().filter((e) => (!f.event || e.slug === f.event) && inRange(e.endDate));
 
   const minMaps = f.minMaps ?? getSettings().playerRankMinMaps;
@@ -441,3 +460,30 @@ export function search(query: string) {
 
 /** HLTV colours ratings: ≥ 1.10 good, < 0.95 poor (the number itself is the cue). */
 export const ratingTone = (r: number) => (r >= 1.1 ? "good" : r < 0.95 ? "poor" : "even");
+
+/* --------------------------------- Rails ---------------------------------- */
+
+/**
+ * "Player of the week": best round-weighted rating over the 7 days up to the
+ * most recent completed match (min. 2 maps), like HLTV's award card.
+ */
+export function playerOfWeek() {
+  const done = completedMatches();
+  if (!done.length) return undefined;
+  const last = matchDate(done[0]!);
+  const from = last.subtract({ days: 6 });
+  const inWeek = (m: Match) =>
+    m.status === "completed" &&
+    Temporal.PlainDate.compare(matchDate(m), from) >= 0 &&
+    Temporal.PlainDate.compare(matchDate(m), last) <= 0;
+  const best = playerLeaderboard(2, inWeek)[0];
+  return best ? { stats: best, from, to: last } : undefined;
+}
+
+/** Money a player earned from placements (prize split across the 5-player roster snapshot). */
+export function prizeMoney(slug: string) {
+  return playerAchievements(slug).reduce((sum, a) => {
+    const slot = a.event.prizes.find((p) => p.place === a.place && p.players?.includes(slug));
+    return sum + (slot ? slot.prize / Math.max(1, slot.players!.length) : 0);
+  }, 0);
+}

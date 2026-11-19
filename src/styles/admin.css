@@ -296,7 +296,7 @@
     max-inline-size: min(28rem, calc(100vw - 2rem));
     padding: var(--sp-06);
     border: 2px solid var(--text-primary);
-    background: var(--background);
+    background: var(--surface);
     color: var(--text-primary);
 
     &:modal {

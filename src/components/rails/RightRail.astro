@@ -1,0 +1,53 @@
+---
+import LiveRegion from "../LiveRegion.astro";
+import { completedMatches, getArticles, liveMatches, team, winnerOf } from "../../data";
+
+// HLTV's right rail is "Recent activity": here, live matches, latest results and news.
+const live = liveMatches().slice(0, 3);
+const results = completedMatches().slice(0, 8);
+const news = getArticles().slice(0, 6);
+---
+
+<LiveRegion key="rail-right" deps={["match:*", "article:*", "team:*"]}>
+  <section class="rail-box" aria-labelledby="rail-activity">
+    <h2 id="rail-activity" class="rail-title">Recent activity</h2>
+    <ul class="activity">
+      {
+        live.map((m) => (
+          <li class="kind-live">
+            <a href={`/matches/${m.id}/`}>
+              <span class="what">{team(m.teamA).tag} vs {team(m.teamB).tag}</span>
+              <span class="meta">Live</span>
+            </a>
+          </li>
+        ))
+      }
+      {
+        results.map((m) => {
+          const w = winnerOf(m);
+          return (
+            <li class="kind-result">
+              <a href={`/matches/${m.id}/`}>
+                <span class="what">
+                  <span class:list={{ won: w === m.teamA }}>{team(m.teamA).tag}</span> vs <span class:list={{ won: w === m.teamB }}>{team(m.teamB).tag}</span>
+                </span>
+                <span class="meta">{m.seriesA}:{m.seriesB}</span>
+              </a>
+            </li>
+          );
+        })
+      }
+      {
+        news.map((a) => (
+          <li class="kind-news">
+            <a href={`/news/${a.slug}/`}>
+              <span class="what">{a.title}</span>
+              <span class="meta">{a.category}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <a class="rail-button" href="/results/">All results</a>
+  </section>
+</LiveRegion>

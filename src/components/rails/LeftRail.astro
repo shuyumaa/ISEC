@@ -1,0 +1,93 @@
+---
+import LiveRegion from "../LiveRegion.astro";
+import Photo from "../Photo.astro";
+import TeamMark from "../TeamMark.astro";
+import { event, getEvents, getRanking, getRankingUpdated, getSettings, liveMatches, playerOfWeek, ratingTone, team, upcomingMatches } from "../../data";
+import { Temporal } from "temporal-polyfill";
+
+const settings = getSettings();
+const spotlight = liveMatches()[0] ?? upcomingMatches()[0];
+const potw = playerOfWeek();
+const top5 = getRanking().slice(0, 5);
+const updated = getRankingUpdated();
+const updatedText = updated ? Temporal.PlainDate.from(updated).toLocaleString("en-GB", { day: "numeric", month: "short" }) : "";
+const ongoing = getEvents().filter((e) => e.status === "ongoing");
+---
+
+<LiveRegion key="rail-left" deps={["match:*", "ranking:*", "team:*", "event:*", "player:*", "meta:*"]}>
+  <div class="rail-stack">
+    {
+      spotlight && (
+        <section class="rail-box spotlight" aria-labelledby="rail-match">
+          <h2 id="rail-match" class="rail-title">{spotlight.status === "live" ? "Live now" : "Next match"}</h2>
+          <a href={`/matches/${spotlight.id}/`} class="spot">
+            <span class="spot-team"><TeamMark team={team(spotlight.teamA)} size="md" /><span>{team(spotlight.teamA).tag}</span></span>
+            <span class="spot-mid">
+              {spotlight.status === "live" ? (
+                <span class="badge live">Live</span>
+              ) : (
+                <span class="subtle">{spotlight.start.slice(11)}</span>
+              )}
+              <span class="spot-score">{spotlight.status === "live" ? `${spotlight.seriesA}:${spotlight.seriesB}` : "vs"}</span>
+            </span>
+            <span class="spot-team"><TeamMark team={team(spotlight.teamB)} size="md" /><span>{team(spotlight.teamB).tag}</span></span>
+            <span class="spot-event subtle">{event(spotlight.event).name}</span>
+          </a>
+        </section>
+      )
+    }
+
+    {
+      potw && (
+        <section class="rail-box" aria-labelledby="rail-award">
+          <h2 id="rail-award" class="rail-title">Award by ISEC</h2>
+          <a href={`/players/${potw.stats.player.slug}/`} class="award">
+            <span class="award-photo"><Photo player={potw.stats.player} size="card" /></span>
+            <span class="award-name">{potw.stats.player.nickname}</span>
+            <span class="award-what">Player of the week</span>
+            <span class="award-stat">
+              <span class:list={["big", ratingTone(potw.stats.rating)]}>{potw.stats.rating.toFixed(2)}</span>
+              <span class="subtle">Rating</span>
+            </span>
+          </a>
+        </section>
+      )
+    }
+
+    <section class="rail-box" aria-labelledby="rail-rank">
+      <h2 id="rail-rank" class="rail-title">Ranking by ISEC</h2>
+      <ol class="rail-rank">
+        {
+          top5.map((r, i) => (
+            <li>
+              <a href={`/teams/${r.team}/`}>
+                <span class="pos">{i + 1}.</span>
+                <TeamMark team={team(r.team)} />
+                <span>{team(r.team).name}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+      <a class="rail-button" href="/ranking/">
+        Complete {settings.rankingName.toLowerCase()}
+        {updatedText && <span>Last updated: {updatedText}</span>}
+      </a>
+    </section>
+
+    {
+      ongoing.length > 0 && (
+        <section class="rail-box" aria-labelledby="rail-events">
+          <h2 id="rail-events" class="rail-title">Ongoing events</h2>
+          <ul class="rail-list">
+            {ongoing.map((e) => (
+              <li>
+                <a href={`/events/${e.slug}/`}>{e.name}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</LiveRegion>
