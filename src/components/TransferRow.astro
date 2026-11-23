@@ -1,7 +1,7 @@
 ---
 import Photo from "./Photo.astro";
 import TeamMark from "./TeamMark.astro";
-import { moveLabel, player, team, type Transfer } from "../data";
+import { findTeam, moveLabel, player, type Transfer } from "../data";
 
 interface Props {
   transfer: Transfer;
@@ -12,7 +12,11 @@ interface Props {
 }
 const { transfer: t, deletable = false, compact = false } = Astro.props;
 const p = player(t.player);
-const end = (slug: string, status: Transfer["toStatus"]) => ({ team: slug ? team(slug) : undefined, label: moveLabel(slug, status) });
+// A deleted team has no record any more: say so instead of showing "?".
+const end = (slug: string, status: Transfer["toStatus"]) => {
+  const t = slug ? findTeam(slug) : undefined;
+  return { team: t, label: slug && !t ? "Disbanded" : moveLabel(slug, status) };
+};
 const from = end(t.from, t.fromStatus);
 const to = end(t.to, t.toStatus);
 const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).join(" ") || "No team";
@@ -59,7 +63,8 @@ const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).joi
     .move.compact {
       grid-template-columns: auto minmax(0, 1fr);
       gap: var(--sp-03);
-      padding: var(--sp-02) var(--sp-03);
+      /* Same inset as the rail box title. */
+      padding: var(--sp-03) var(--sp-05);
       & .move-path {
         justify-content: center;
       }

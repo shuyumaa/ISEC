@@ -111,6 +111,16 @@ Every change is saved, written to the activity log and pushed to visitors immedi
 
 All admin forms work as normal form posts without JavaScript. With JavaScript on, the score buttons save in place without reloading the page.
 
+## Accounts and the team panel
+
+Everyone signs in at **`/login`**. Admins land in `/admin/`, team accounts in `/team/`.
+
+- **Root admin:** `ADMIN_USER` / `ADMIN_PASSWORD` on the server.
+- **More accounts:** Admin → **Accounts** creates admin accounts (full access) and team accounts (one team each). Passwords are at least 10 characters and hashed with scrypt. Resetting a password or disabling an account signs that account out everywhere. Deleting a team disables its team accounts.
+- **Team panel** (`/team/`): the team's ranking, roster and next matches; edit the team profile and logo; add players and edit them (photo, country, role, Steam ID); bench or activate players.
+- **Requests:** releasing, retiring or moving a player to another team, signing a player, and joining an event are sent as requests. Admins approve or reject them under **Team requests**; approving applies the change and records the transfer.
+- **Isolation:** every team action is checked on the server, so a team account can't open or change another team's players, the admin pages, or the event list directly. The activity log names the account behind each change.
+
 ## Transfers
 
 Changing a player's team or status (active, benched, free agent, retired) records a move with its date and an optional note. Moves feed the home page's transfer box, `/transfers/`, team pages and player profiles. Results stay on the right team after a move: lineups and Elo use the team a player was on *on the match day*. Deleting a team turns its players into free agents instead of deleting them, and a player with stats can only be retired, not deleted.

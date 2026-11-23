@@ -5,8 +5,10 @@ interface Props {
   what: string;
   action: string;
   label?: string;
+  /** Extra hidden fields to post (e.g. which row to delete). */
+  hidden?: Record<string, string>;
 }
-const { id, what, action, label = "Delete" } = Astro.props;
+const { id, what, action, label = "Delete", hidden = {} } = Astro.props;
 ---
 
 <button type="button" class="btn danger small" command="show-modal" commandfor={id}>{label}…</button>
@@ -15,6 +17,7 @@ const { id, what, action, label = "Delete" } = Astro.props;
   <p id={`${id}-desc`}>This can't be undone. Visitors will see the change immediately.</p>
   <form method="post" action={action} class="actions">
     <input type="hidden" name="intent" value="delete" />
+    {Object.entries(hidden).map(([name, value]) => <input type="hidden" name={name} value={value} />)}
     <button type="button" class="btn ghost" command="close" commandfor={id} autofocus>Cancel</button>
     <button type="submit" class="btn danger">{label}</button>
   </form>

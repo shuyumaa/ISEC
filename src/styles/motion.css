@@ -52,7 +52,9 @@
       animation: scroll-reveal linear both;
       /* Declared after the shorthand so it doesn't reset them. */
       animation-timeline: view();
-      animation-range: entry 0% entry 35%;
+      /* A fixed scroll distance, so cards side by side reveal in step
+         whatever their height. */
+      animation-range: entry 0% entry 120px;
     }
   }
 }

@@ -1,0 +1,167 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import ConfirmDelete from "../../components/admin/ConfirmDelete.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { findTeam, getTeams } from "../../data";
+import { MIN_PASSWORD, ROOT_USER, createAccount, deleteAccount, listAccounts, setAccountDisabled, setAccountPassword } from "../../server/auth";
+import { FormError } from "../../server/forms";
+import { handlePost } from "../../server/handle";
+
+const me = Astro.locals.user!;
+const result = await handlePost(Astro.request, (form, intent) => {
+  const id = String(form.get("id") ?? "");
+  switch (intent) {
+    case "create": {
+      const role = String(form.get("role")) === "admin" ? "admin" : "team";
+      const team = String(form.get("team") ?? "");
+      if (role === "team" && !findTeam(team)) throw new FormError("Choose the team this account manages.", "team");
+      const a = createAccount({ username: String(form.get("username") ?? ""), password: String(form.get("new-password") ?? ""), role, team }, me.username);
+      return { message: `Account ${a.username} created. Share the password with them privately.` };
+    }
+    case "password":
+      setAccountPassword(id, String(form.get("new-password") ?? ""), me.username);
+      return { message: "Password changed; that account was signed out everywhere" };
+    case "disable":
+    case "enable":
+      if (id === me.id) throw new FormError("You can't disable your own account.");
+      setAccountDisabled(id, intent === "disable", me.username);
+      return { message: intent === "disable" ? "Account disabled and signed out" : "Account enabled" };
+    case "delete":
+      if (id === me.id) throw new FormError("You can't delete your own account.");
+      deleteAccount(id, me.username);
+      return { message: "Account deleted" };
+  }
+});
+if (result instanceof Response) return result;
+
+const accounts = listAccounts().toSorted((a, b) => a.role.localeCompare(b.role) || a.username.localeCompare(b.username));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
+const presetTeam = Astro.url.searchParams.get("team") ?? "";
+---
+
+<Admin title="Accounts" error={result?.error}>
+  <details class="admin-section" id="new" open={Boolean(result?.error) || Astro.url.searchParams.has("new")}>
+    <summary>Create an account</summary>
+    <form method="post" class="form" aria-label="Create an account">
+      <input type="hidden" name="intent" value="create" />
+      <div class="form-grid">
+        <div class="field">
+          <label for="role">Type</label>
+          <select id="role" name="role">
+            <option value="team" selected>Team account (manages one team)</option>
+            <option value="admin">Admin account (everything)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="team">Team</label>
+          <select id="team" name="team" aria-describedby="team-hint">
+            <option value="">Choose a team…</option>
+            {teams.map((t) => <option value={t.slug} selected={presetTeam === t.slug}>{t.name}</option>)}
+          </select>
+          <span id="team-hint" class="hint">Only for team accounts.</span>
+        </div>
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]{3,32}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-describedby="user-hint" />
+          <span id="user-hint" class="hint">Letters, numbers, dots, dashes, underscores.</span>
+        </div>
+        <div class="field">
+          <label for="new-password">Password</label>
+          <input id="new-password" name="new-password" type="password" required minlength={MIN_PASSWORD} maxlength="200" autocomplete="new-password" aria-describedby="pw-hint" />
+          <span id="pw-hint" class="hint">At least {MIN_PASSWORD} characters. Share it privately.</span>
+        </div>
+      </div>
+      <div class="actions"><button type="submit" class="btn">Create account</button></div>
+    </form>
+  </details>
+
+  <section class="admin-section" aria-labelledby="list-h">
+    <div class="section-head">
+      <h2 id="list-h">{accounts.length + 1} accounts</h2>
+      <span class="muted">Team accounts sign in at /login and can only change their own team.</span>
+    </div>
+    <div class="table-wrap" role="region" aria-labelledby="list-h" tabindex="0">
+      <table class="data-table">
+        <thead><tr><th scope="col">Username</th><th scope="col">Type</th><th scope="col">Team</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          <tr>
+            <th scope="row">{ROOT_USER}</th>
+            <td>Admin (owner)</td>
+            <td class="muted">—</td>
+            <td><span class="badge green">Active</span></td>
+            <td class="muted">Set on the server</td>
+            <td class="muted">Change ADMIN_PASSWORD on the server</td>
+          </tr>
+          {
+            accounts.map((a) => {
+              const t = a.team ? findTeam(a.team) : undefined;
+              return (
+                <tr>
+                  <th scope="row">{a.username}{a.id === me.id && <span class="muted"> (you)</span>}</th>
+                  <td>{a.role === "admin" ? "Admin" : "Team"}</td>
+                  <td>{t ? <span class="team-cell"><TeamMark team={t} /> {t.name}</span> : a.role === "team" ? <span class="badge">Team deleted</span> : <span class="muted">—</span>}</td>
+                  <td><span class:list={["badge", { green: !a.disabled }]}>{a.disabled ? "Disabled" : "Active"}</span></td>
+                  <td class="mono">{a.createdAt.slice(0, 10)}</td>
+                  <td>
+                    <div class="row-actions">
+                      <details class="inline-reset">
+                        <summary class="btn ghost small">Reset password</summary>
+                        <form method="post" class="reset-form">
+                          <input type="hidden" name="intent" value="password" />
+                          <input type="hidden" name="id" value={a.id} />
+                          <input type="hidden" name="username" value={a.username} autocomplete="username" />
+                          <label class="visually-hidden" for={`pw-${a.id}`}>New password for {a.username}</label>
+                          <input id={`pw-${a.id}`} name="new-password" type="password" required minlength={MIN_PASSWORD} autocomplete="new-password" placeholder="New password" />
+                          <button class="btn small">Save</button>
+                        </form>
+                      </details>
+                      {a.id !== me.id && (
+                        <form method="post" data-enhance>
+                          <input type="hidden" name="id" value={a.id} />
+                          <button class="btn ghost small" name="intent" value={a.disabled ? "enable" : "disable"}>{a.disabled ? "Enable" : "Disable"}</button>
+                        </form>
+                      )}
+                      {a.id !== me.id && <ConfirmDelete id={`del-${a.id}`} what={`account ${a.username}`} action="/admin/accounts/" label="Delete" hidden={{ id: a.id }} />}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Admin>
+
+<style>
+  @layer components {
+    .team-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      align-items: start;
+      gap: var(--sp-02);
+    }
+    .inline-reset > summary {
+      list-style: none;
+      cursor: pointer;
+      &::-webkit-details-marker {
+        display: none;
+      }
+    }
+    .reset-form {
+      display: flex;
+      gap: var(--sp-02);
+      margin-block-start: var(--sp-02);
+      & input[type="password"] {
+        inline-size: 12rem;
+      }
+    }
+  }
+</style>

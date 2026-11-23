@@ -266,20 +266,28 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
         inline-size: 1.5rem;
       }
     }
-    /* Directly under the photo, full width of it. */
+    /* A Carbon primary button, centred under the photo. */
     .stats-btn {
-      display: block;
-      padding: var(--sp-03) var(--sp-05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: fit-content;
+      min-block-size: 2.5rem;
+      margin: var(--sp-04) auto var(--sp-05);
+      padding: 0 var(--sp-06);
       background: var(--button-primary);
       color: var(--white);
-      text-align: center;
+      font-size: var(--type-body-sm);
       text-decoration: none;
       white-space: nowrap;
       &:hover {
         background: var(--button-primary-hover);
       }
+      &:focus-visible {
+        outline: var(--focus-width) solid var(--focus);
+        outline-offset: 2px;
+      }
     }
-
     .nat {
       display: inline-flex;
       align-items: center;

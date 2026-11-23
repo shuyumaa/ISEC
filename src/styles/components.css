@@ -10,6 +10,7 @@
   /* HLTV shell: left rail · content · right rail. The content column is the
      "page" container, so page grids respond to the space they really get. */
   .shell {
+    flex: 1 0 auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "main" "left";
@@ -143,6 +144,15 @@
     padding-block-end: var(--sp-03);
     container-type: inline-size;
 
+    /* A list that ends edge to edge closes the card itself: no empty strip
+       under the last row. */
+    &:has(> :is(.match-row, .table-wrap, .event-card):last-child) {
+      padding-block-end: 0;
+    }
+    & > .match-row:last-child {
+      border-block-end: 0;
+    }
+
     /* Rows, tables and cards run edge to edge inside the card. */
     & > :is(.match-row, .table-wrap, .event-card, .day-head) {
       margin-inline: calc(var(--sp-05) * -1);
@@ -170,6 +180,8 @@
 
   /* ---- Buttons --------------------------------------------------------- */
   .btn {
+    /* Carbon sizes are the whole box (48px default, 32px small). */
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: space-between;

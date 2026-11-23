@@ -1,0 +1,48 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import RequestRow from "../../components/admin/RequestRow.astro";
+import { getRequests } from "../../data";
+import { handlePost } from "../../server/handle";
+import { decideRequest } from "../../server/team";
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  const id = String(form.get("id") ?? "");
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 200);
+  if (intent !== "approve" && intent !== "reject") return { message: "Nothing changed" };
+  decideRequest(id, intent === "approve", reason);
+  return { message: intent === "approve" ? "Approved and applied" : "Rejected" };
+});
+if (result instanceof Response) return result;
+
+const all = getRequests();
+const pending = all.filter((r) => r.status === "pending");
+const decided = all.filter((r) => r.status !== "pending").slice(0, 30);
+---
+
+<Admin title="Team requests" error={result?.error}>
+  <section class="admin-section" aria-labelledby="pending-h">
+    <div class="section-head">
+      <h2 id="pending-h">Waiting for a decision</h2>
+      <span class="muted">Approving applies the move or sign-up straight away and records it in the transfer history.</span>
+    </div>
+    {pending.length ? <ol class="reqs">{pending.map((r) => <RequestRow request={r} as="admin" />)}</ol> : <p class="empty">No requests waiting. Teams send transfers and event sign-ups from their team panel.</p>}
+  </section>
+
+  {
+    decided.length > 0 && (
+      <section class="admin-section" aria-labelledby="past-h">
+        <h2 id="past-h">Decided</h2>
+        <ol class="reqs">{decided.map((r) => <RequestRow request={r} as="admin" />)}</ol>
+      </section>
+    )
+  }
+</Admin>
+
+<style>
+  .reqs {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+</style>

@@ -48,6 +48,10 @@
     }
   }
 
+  .whoami {
+    font-size: var(--type-body-sm);
+    color: var(--header-fg-secondary);
+  }
   .admin-header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -56,6 +60,7 @@
   }
 
   .admin-shell {
+    flex: 1 0 auto;
     display: grid;
     /* body is a grid; without this the shell shrinks to fit its content. */
     inline-size: 100%;
@@ -186,6 +191,7 @@
 @layer components {
   .btn.small {
     min-block-size: 2rem;
+    align-items: center;
     padding: var(--sp-02) var(--sp-04);
     gap: var(--sp-03);
   }
@@ -201,9 +207,9 @@
   }
 
   .notice {
+    box-sizing: border-box;
     padding: var(--sp-04) var(--sp-05);
     border: var(--border-width) solid var(--border-strong);
-    max-inline-size: 60rem;
 
     &.error {
       border-color: var(--support-error);
@@ -359,6 +365,8 @@
   /* A card: one job per section, heading row with an optional action. */
   .admin-section {
     display: grid;
+    /* Content sits at the top when a card is stretched to match its neighbour. */
+    align-content: start;
     gap: var(--sp-05);
     padding: var(--sp-05);
     background: var(--surface);
@@ -399,19 +407,22 @@
       &::-webkit-details-marker {
         display: none;
       }
+      /* Drawn plus / minus (not a text glyph), centred in a Carbon-blue square. */
       &::before {
-        content: "+";
-        display: grid;
-        place-items: center;
+        content: "";
+        flex: none;
         inline-size: 1.5rem;
         block-size: 1.5rem;
-        background: var(--button-primary);
-        color: var(--white);
-        font-family: var(--font-mono);
+        background:
+          linear-gradient(var(--white), var(--white)) center / 0.75rem 2px no-repeat,
+          linear-gradient(var(--white), var(--white)) center / 2px 0.75rem no-repeat,
+          var(--button-primary);
       }
     }
     &[open] > summary::before {
-      content: "−";
+      background:
+        linear-gradient(var(--white), var(--white)) center / 0.75rem 2px no-repeat,
+        var(--button-primary);
     }
     &:not([open]) {
       gap: 0;

@@ -9,6 +9,7 @@ import TeamMark from "../../../components/TeamMark.astro";
 import TransferRow from "../../../components/TransferRow.astro";
 import { eloSettings, findTeam, getPlayers, getRanking, playerElo, rosterOf, team, teamElo, teamTransfers, type PlayerStatus } from "../../../data";
 import { handlePost } from "../../../server/handle";
+import { accountsForTeam, setAccountDisabled } from "../../../server/auth";
 import { PLAYER_STATUSES, deleteTeam, deleteTransfer, saveTeam, setPlayerStatus } from "../../../server/mutations";
 import { removeUpload, saveUpload } from "../../../server/uploads";
 
@@ -19,6 +20,8 @@ const result = await handlePost(Astro.request, async (form, intent) => {
   switch (intent) {
     case "delete":
       deleteTeam(slug);
+      // Its team accounts can't do anything any more: switch them off.
+      for (const a of accountsForTeam(slug)) setAccountDisabled(a.id, true, Astro.locals.user?.username ?? "admin");
       return { redirect: "/admin/teams/", message: "Team deleted; its players are now free agents" };
     case "status": {
       const status = String(form.get("status") ?? "") as PlayerStatus;
@@ -59,6 +62,7 @@ const LABEL = { active: "Active", benched: "Benched", free: "Free agent", retire
 <Admin title={t ? t.name : "New team"} error={result?.error}>
   <a slot="actions" class="btn ghost" href="/admin/teams/">All teams</a>
   {t && <a slot="actions" class="btn ghost" href={`/teams/${t.slug}/`} target="_blank" rel="noopener">View page</a>}
+  {t && <a slot="actions" class="btn ghost" href={`/admin/accounts/?new=1&team=${encodeURIComponent(t.slug)}#new`}>{accountsForTeam(t.slug).length ? `Team accounts (${accountsForTeam(t.slug).length})` : "Create a team account"}</a>}
 
   {
     t && (

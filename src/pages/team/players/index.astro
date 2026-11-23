@@ -1,0 +1,125 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import Flag from "../../../components/Flag.astro";
+import Photo from "../../../components/Photo.astro";
+import TransferRow from "../../../components/TransferRow.astro";
+import { playerElo, playerSummary, rosterOf, teamTransfers } from "../../../data";
+
+const me = Astro.locals.user!;
+const roster = me.team ? rosterOf(me.team) : [];
+const moves = me.team ? teamTransfers(me.team).slice(0, 10) : [];
+---
+
+<Admin title="Players" panel="team">
+  <a slot="actions" class="btn" href="/team/players/new/">Add a player</a>
+  <section class="admin-section" aria-labelledby="list-h">
+    <div class="section-head">
+      <h2 id="list-h">{roster.length} on your roster</h2>
+      <span class="muted">To release, retire or move a player to another team, <a href="/team/requests/">send a request</a>.</span>
+    </div>
+    <ul class="cards">
+      {
+        roster.map((p) => {
+          const s = playerSummary(p.slug);
+          return (
+            <li>
+              <a href={`/team/players/${p.slug}/`} class="card">
+                <Photo player={p} size="card" />
+                <span class="info">
+                  <strong>{p.nickname}</strong>
+                  <span class="muted"><Flag code={p.countryCode} label /> {p.firstName} {p.lastName}</span>
+                  <span class="muted">{p.role}{p.status === "benched" ? " · Benched" : ""}</span>
+                  <span class="nums"><span>Elo {playerElo(p.slug)?.elo ?? "—"}</span><span>{s?.maps ? `Rating ${s.rating.toFixed(2)}` : "No maps yet"}</span></span>
+                </span>
+              </a>
+            </li>
+          );
+        })
+      }
+      <li>
+        <a href="/team/players/new/" class="card add">
+          <span class="plus" aria-hidden="true"></span>
+          <strong>Add a player</strong>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  {
+    moves.length > 0 && (
+      <section class="admin-section" aria-labelledby="moves-h">
+        <h2 id="moves-h">Roster moves</h2>
+        <ol class="moves">{moves.map((m) => <TransferRow transfer={m} />)}</ol>
+      </section>
+    )
+  }
+</Admin>
+
+<style>
+  @layer components {
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+      gap: var(--sp-04);
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .card {
+      display: grid;
+      grid-template-columns: 5rem minmax(0, 1fr);
+      gap: var(--sp-04);
+      align-items: center;
+      block-size: 100%;
+      box-sizing: border-box;
+      padding: var(--sp-04);
+      background: var(--layer);
+      border: var(--border-width) solid transparent;
+      text-decoration: none;
+      color: inherit;
+      &:hover {
+        border-color: var(--border-strong);
+      }
+      & strong {
+        color: var(--link);
+      }
+    }
+    .info {
+      display: grid;
+      gap: var(--sp-01);
+      min-inline-size: 0;
+      & .muted {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+      }
+    }
+    .nums {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-01) var(--sp-03);
+      margin-block-start: var(--sp-02);
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+    }
+    .add {
+      grid-template-columns: auto 1fr;
+      border: var(--border-width) dashed var(--border-strong);
+      background: transparent;
+    }
+    .plus {
+      inline-size: 1.5rem;
+      block-size: 1.5rem;
+      background:
+        linear-gradient(var(--white), var(--white)) center / 0.75rem 2px no-repeat,
+        linear-gradient(var(--white), var(--white)) center / 2px 0.75rem no-repeat,
+        var(--button-primary);
+    }
+    .moves {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+</style>
