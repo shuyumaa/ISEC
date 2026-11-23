@@ -1,0 +1,87 @@
+---
+import TeamMark from "../TeamMark.astro";
+import { findEvent, findPlayer, findTeam, type RosterRequest } from "../../data";
+
+/** One team request, described in words, with the actions the viewer may take. */
+interface Props {
+  request: RosterRequest;
+  /** "admin": approve / reject. "team": withdraw while pending. */
+  as: "admin" | "team";
+}
+const { request: r, as } = Astro.props;
+const team = findTeam(r.team);
+const p = r.player ? findPlayer(r.player) : undefined;
+const to = r.toTeam ? findTeam(r.toTeam) : undefined;
+const ev = r.event ? findEvent(r.event) : undefined;
+const what =
+  r.kind === "event"
+    ? `Join ${ev?.name ?? "a deleted event"}`
+    : r.toTeam === r.team
+      ? `Sign ${p?.nickname ?? "a deleted player"}${p?.team ? ` from ${findTeam(p.team)?.name ?? "another team"}` : " (free agent)"}`
+      : to
+        ? `Move ${p?.nickname ?? "a deleted player"} to ${to.name}`
+        : `${r.toStatus === "retired" ? "Retire" : "Release"} ${p?.nickname ?? "a deleted player"}`;
+const STATUS = { pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Withdrawn" } as const;
+const when = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(r.createdAt));
+---
+
+<li class="req">
+  <span class="req-team">{team ? <TeamMark team={team} /> : null}</span>
+  <span class="req-what">
+    <strong>{what}</strong>
+    <span class="muted">
+      {as === "admin" && team ? `${team.name} · ` : ""}{when}{r.note ? ` · “${r.note}”` : ""}{r.reason ? ` · Reason: ${r.reason}` : ""}
+    </span>
+  </span>
+  <span class:list={["badge", { blue: r.status === "pending", green: r.status === "approved" }]}>{STATUS[r.status]}</span>
+  {
+    r.status === "pending" && as === "admin" && (
+      <form method="post" class="req-actions" data-enhance>
+        <input type="hidden" name="id" value={r.id} />
+        <label class="visually-hidden" for={`reason-${r.id}`}>Reason (optional)</label>
+        <input id={`reason-${r.id}`} name="reason" maxlength="200" placeholder="Reason (optional)" />
+        <button class="btn small" name="intent" value="approve">Approve</button>
+        <button class="btn ghost small" name="intent" value="reject">Reject</button>
+      </form>
+    )
+  }
+  {
+    r.status === "pending" && as === "team" && (
+      <form method="post" class="req-actions" data-enhance>
+        <input type="hidden" name="id" value={r.id} />
+        <button class="btn ghost small" name="intent" value="cancel">Withdraw</button>
+      </form>
+    )
+  }
+</li>
+
+<style>
+  @layer components {
+    .req {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-03) var(--sp-04);
+      padding: var(--sp-04) 0;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      &:has(.req-actions) {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+      }
+    }
+    .req-what {
+      display: grid;
+      gap: var(--sp-01);
+      min-inline-size: 0;
+    }
+    .req-actions {
+      grid-column: 2 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03);
+      & input {
+        inline-size: min(100%, 18rem);
+      }
+    }
+  }
+</style>

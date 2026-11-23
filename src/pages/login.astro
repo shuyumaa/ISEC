@@ -1,0 +1,68 @@
+---
+import Admin from "../layouts/Admin.astro";
+import { servedOverHttps } from "../server/origin";
+import { clearFailures, createSession, readSession, recordFailure, throttled, verifyLogin } from "../server/auth";
+
+/*
+ * One sign-in page for both panels: admins land in /admin/, team accounts in
+ * /team/. `next` is honoured only for a same-site path inside the user's panel.
+ */
+const nextRaw = Astro.url.searchParams.get("next") ?? "";
+const safeNext = (role: "admin" | "team") => {
+  const home = role === "admin" ? "/admin/" : "/team/";
+  return nextRaw.startsWith(home) && !nextRaw.startsWith("//") && !nextRaw.includes("\\") ? nextRaw : home;
+};
+
+const already = readSession(Astro.cookies);
+if (already) return Astro.redirect(safeNext(already.role), 303);
+
+let error: string | undefined;
+let username = "";
+if (Astro.request.method === "POST") {
+  const ip = Astro.clientAddress ?? "unknown";
+  const form = await Astro.request.formData();
+  username = String(form.get("username") ?? "").trim().slice(0, 64);
+  const password = String(form.get("password") ?? "").slice(0, 200);
+  if (throttled(ip, username)) {
+    error = "Too many attempts. Wait ten minutes and try again.";
+  } else {
+    const user = verifyLogin(username, password);
+    if (user) {
+      clearFailures(ip, username);
+      createSession(Astro.cookies, user, servedOverHttps(Astro.request, Astro.url));
+      return Astro.redirect(safeNext(user.role), 303);
+    }
+    recordFailure(ip, username);
+    error = "The username or password is incorrect.";
+  }
+}
+---
+
+<Admin title="Sign in" error={error} bare>
+  <form class="form signin" method="post" aria-labelledby="signin-title">
+    <p id="signin-title" class="muted">One sign-in for organisers and teams. Team accounts are created by an ISEC admin.</p>
+    <div class="field">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" value={username} autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false" required enterkeyhint="next" />
+    </div>
+    <div class="field">
+      <label for="current-password">Password</label>
+      <input id="current-password" name="password" type="password" autocomplete="current-password" required enterkeyhint="go" />
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn">Sign in</button>
+      <button type="button" class="btn ghost small" aria-pressed="false" data-toggle-password>Show password</button>
+    </div>
+  </form>
+</Admin>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>("[data-toggle-password]")!;
+  const input = document.getElementById("current-password") as HTMLInputElement;
+  toggle.addEventListener("click", () => {
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    toggle.setAttribute("aria-pressed", String(show));
+    toggle.textContent = show ? "Hide password" : "Show password";
+  });
+</script>

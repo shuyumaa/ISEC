@@ -10,6 +10,7 @@ import "../styles/base.css";
 import "../styles/tokens.css";
 import "../styles/components.css";
 import "../styles/protect.css";
+import "../styles/motion.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import Icon from "../components/Icon.astro";
@@ -51,6 +52,7 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
     <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>{fullTitle}</title>
+    <link rel="expect" href="#main" blocking="render" />
     {preloadImage && <link rel="preload" as="image" href={preloadImage} fetchpriority="high" />}
     {
       noscriptRefresh && (

@@ -11,6 +11,6 @@ declare namespace astroHTML.JSX {
 
 declare namespace App {
   interface Locals {
-    admin?: { sub: string };
+    user?: import("./server/auth").SessionUser;
   }
 }

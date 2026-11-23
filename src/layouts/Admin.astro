@@ -10,29 +10,36 @@ import "../styles/tokens.css";
 import "../styles/components.css";
 import "../styles/protect.css";
 import "../styles/admin.css";
+import "../styles/motion.css";
 import Icon from "../components/Icon.astro";
 import LogoMark from "../components/LogoMark.astro";
-import { liveMatches } from "../data";
+import { findTeam, getRequests, liveMatches } from "../data";
 
 interface Props {
   title: string;
   error?: string;
   /** Hide navigation (sign-in page). */
   bare?: boolean;
+  /** Which panel this page belongs to: the admin panel or a team's panel. */
+  panel?: "admin" | "team";
 }
 
-const { title, error, bare = false } = Astro.props;
+const { title, error, bare = false, panel = "admin" } = Astro.props;
+const user = Astro.locals.user;
+const myTeam = panel === "team" && user?.team ? findTeam(user.team) : undefined;
+const pending = !bare && panel === "admin" ? getRequests().filter((r) => r.status === "pending").length : 0;
 const saved = Astro.url.searchParams.get("saved");
 const path = Astro.url.pathname;
-const liveCount = bare ? 0 : liveMatches().length;
+const liveCount = bare || panel === "team" ? 0 : liveMatches().length;
 type NavItem = { href: string; label: string; exact?: boolean; count?: number };
-const groups: { label: string; items: NavItem[] }[] = [
+const adminGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Run",
     items: [
       { href: "/admin/", label: "Dashboard", exact: true },
       { href: "/admin/matches/", label: "Matches", count: liveCount },
       { href: "/admin/ranking/", label: "Ranking" },
+      { href: "/admin/requests/", label: "Team requests", count: pending },
     ],
   },
   {
@@ -45,9 +52,29 @@ const groups: { label: string; items: NavItem[] }[] = [
       { href: "/admin/seasons/", label: "Seasons & awards" },
     ],
   },
-  { label: "Site", items: [{ href: "/admin/settings/", label: "Site settings" }] },
+  {
+    label: "Site",
+    items: [
+      { href: "/admin/accounts/", label: "Accounts" },
+      { href: "/admin/settings/", label: "Site settings" },
+    ],
+  },
 ];
-const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" : path.startsWith(n.href));
+const teamGroups: { label: string; items: NavItem[] }[] = [
+  {
+    label: myTeam?.name ?? "My team",
+    items: [
+      { href: "/team/", label: "Overview", exact: true },
+      { href: "/team/profile/", label: "Team profile" },
+      { href: "/team/players/", label: "Players" },
+      { href: "/team/requests/", label: "Requests" },
+      { href: "/team/events/", label: "Events" },
+    ],
+  },
+];
+const groups = panel === "team" ? teamGroups : adminGroups;
+const home = panel === "team" ? "/team/" : "/admin/";
+const current = (n: NavItem) => (n.exact ? path === n.href || path === home.slice(0, -1) : path.startsWith(n.href));
 ---
 
 <!doctype html>
@@ -60,14 +87,15 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/favicon.png" type="image/png" />
-    <title>{title} · ISEC Admin</title>
+    <title>{title} · ISEC {panel === "team" ? "Team" : "Admin"}</title>
+    <link rel="expect" href="#main" blocking="render" />
   </head>
   <body class="admin">
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="admin-header">
-      <a href="/admin/" class="admin-brand" aria-label="ISEC admin home">
+      <a href={bare ? "/" : home} class="admin-brand" aria-label={bare ? "ISEC home" : panel === "team" ? "Team panel home" : "ISEC admin home"}>
         <LogoMark height="1.5rem" />
-        <span>Admin</span>
+        {!bare && <span>{panel === "team" ? "Team" : "Admin"}</span>}
       </a>
       {
         !bare && (
@@ -76,10 +104,11 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
               <span class="dot" aria-hidden="true" />
               <span class="label">Live</span>
             </span>
-            <a href="/" class="btn ghost small" target="_blank" rel="noopener">
-              View site <Icon name="arrow" size={14} />
+            {user && <span class="whoami">{user.username}</span>}
+            <a href={myTeam ? `/teams/${myTeam.slug}/` : "/"} class="btn ghost small" target="_blank" rel="noopener">
+              {myTeam ? "View team page" : "View site"} <Icon name="arrow" size={14} />
             </a>
-            <form method="post" action="/admin/logout/">
+            <form method="post" action="/logout/">
               <button type="submit" class="btn ghost small">Sign out</button>
             </form>
           </div>
@@ -90,7 +119,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
     <div class:list={["admin-shell", { bare }]}>
       {
         !bare && (
-          <nav class="admin-nav" aria-label="Admin">
+          <nav class="admin-nav" aria-label={panel === "team" ? "Team panel" : "Admin"}>
             {groups.map((g) => (
               <div class="nav-group">
                 <p class="nav-group-label" aria-hidden="true">{g.label}</p>
@@ -99,7 +128,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
                     <li>
                       <a href={n.href} aria-current={current(n) ? "page" : undefined}>
                         <span>{n.label}</span>
-                        {n.count ? <span class="nav-count" aria-label={`${n.count} live`}>{n.count} live</span> : null}
+                        {n.count ? <span class="nav-count">{n.count}{n.href.includes("matches") ? " live" : " new"}</span> : null}
                       </a>
                     </li>
                   ))}
@@ -129,6 +158,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
       import "../scripts/time";
       import "../scripts/live";
       import "../scripts/admin";
+      import "../scripts/dialogs";
     </script>
   </body>
 </html>

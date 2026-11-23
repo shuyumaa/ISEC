@@ -72,6 +72,30 @@ export interface Transfer {
   note?: string;
 }
 
+/**
+ * A team panel request that an admin approves or rejects:
+ *  - transfer: move one of the team's players (release, retire, or to another
+ *    team), or sign a player into the team (toTeam = the requesting team);
+ *  - event: join an event's list of attending teams.
+ */
+export interface RosterRequest {
+  id: string;
+  kind: "transfer" | "event";
+  /** Requesting team. */
+  team: string;
+  player?: string;
+  toTeam?: string;
+  toStatus?: PlayerStatus;
+  event?: string;
+  note?: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  createdAt: string;
+  createdBy: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  reason?: string;
+}
+
 export interface PrizeSlot {
   place: string;
   prize: number;

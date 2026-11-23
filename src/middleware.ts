@@ -1,9 +1,11 @@
 import { defineMiddleware } from "astro:middleware";
 import { readSession } from "./server/auth";
 import { CSP } from "./server/csp";
+import { runAs } from "./server/actor";
 import { servedOverHttps, trustedOrigin } from "./server/origin";
 
 const PUBLIC_ADMIN = new Set(["/admin/login", "/admin/login/", "/admin/logout", "/admin/logout/"]);
+const withSlash = (p: string) => (p.endsWith("/") ? p : `${p}/`);
 
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -18,24 +20,29 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     }
     // Body size caps before anything parses the body: admin forms may carry
     // image uploads; everything else (sign-in) is tiny.
-    const limit = pathname.startsWith("/admin/") && pathname !== "/admin/login" && pathname !== "/admin/login/" ? 26 * 1024 * 1024 : 64 * 1024;
+    const uploads = (pathname.startsWith("/admin/") || pathname.startsWith("/team/")) && !PUBLIC_ADMIN.has(pathname);
+    const limit = uploads ? 26 * 1024 * 1024 : 64 * 1024;
     const length = ctx.request.headers.get("content-length");
     if (length === null) return new Response("Length required", { status: 411 });
     if (Number(length) > limit) return new Response("Payload too large", { status: 413 });
   }
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isTeam = pathname === "/team" || pathname.startsWith("/team/");
   const isAdminApi = pathname.startsWith("/api/admin/");
+  const user = readSession(ctx.cookies);
+  ctx.locals.user = user ?? undefined;
 
-  if ((isAdmin && !PUBLIC_ADMIN.has(pathname)) || isAdminApi) {
-    const session = readSession(ctx.cookies);
-    if (!session) {
-      if (isAdminApi) return new Response("Unauthorized", { status: 401 });
-      return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname)}`, 303);
-    }
-    ctx.locals.admin = session;
+  // Each panel needs its own role; anyone else goes to the shared sign-in page.
+  const needs = isAdminApi || (isAdmin && !PUBLIC_ADMIN.has(pathname)) ? "admin" : isTeam ? "team" : undefined;
+  if (needs && user?.role !== needs) {
+    if (isAdminApi) return new Response("Unauthorized", { status: 401 });
+    if (user?.role && ctx.request.method !== "GET") return new Response("Forbidden", { status: 403 });
+    // Signed in to the other panel: send them home instead of to the login page.
+    if (user) return ctx.redirect(user.role === "admin" ? "/admin/" : "/team/", 303);
+    return ctx.redirect(`/login/?next=${encodeURIComponent(withSlash(pathname))}`, 303);
   }
 
-  const res = await next();
+  const res = await runAs(user ? (user.role === "team" ? `team:${user.username}` : user.username) : "visitor", () => next());
   const h = res.headers;
 
   // Security headers for every response.
@@ -49,7 +56,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (servedOverHttps(ctx.request, ctx.url)) {
     h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
-  if (isAdmin || isAdminApi) {
+  // Hover preloading for public pages (rules in src/pages/speculationrules.json.ts).
+  if (!isAdmin && !isAdminApi && !isTeam && (h.get("Content-Type") ?? "").includes("text/html")) {
+    h.set("Speculation-Rules", '"/speculationrules.json"');
+  }
+  if (isAdmin || isAdminApi || isTeam || pathname.startsWith("/login")) {
     h.set("Cache-Control", "no-store");
     h.set("X-Robots-Tag", "noindex, nofollow");
   } else if ((h.get("Content-Type") ?? "").includes("text/html") && !h.has("Cache-Control")) {

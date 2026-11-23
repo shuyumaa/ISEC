@@ -1,0 +1,108 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import EventMark from "../../components/EventMark.astro";
+import { formatRange, getEvents, getRequests, money } from "../../data";
+import { handlePost } from "../../server/handle";
+import { cancelRequest, requestEvent } from "../../server/team";
+
+const me = Astro.locals.user!;
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "cancel") {
+    cancelRequest(me.team, String(form.get("id") ?? ""));
+    return { message: "Sign-up withdrawn" };
+  }
+  requestEvent(me.team, form);
+  return { message: "Sign-up sent to ISEC" };
+});
+if (result instanceof Response) return result;
+
+const open = getEvents()
+  .filter((e) => e.status !== "completed")
+  .toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+const pendingFor = (slug: string) => getRequests().find((r) => r.team === me.team && r.kind === "event" && r.event === slug && r.status === "pending");
+const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed" } as const;
+---
+
+<Admin title="Events" panel="team" error={result?.error}>
+  <section class="admin-section" aria-labelledby="ev-h">
+    <div class="section-head">
+      <h2 id="ev-h">Upcoming and ongoing events</h2>
+      <span class="muted">Ask to join an event; ISEC confirms the teams attending.</span>
+    </div>
+    {
+      open.length ? (
+        <ul class="events">
+          {open.map((e) => {
+            const attending = !!me.team && e.teams.includes(me.team);
+            const pending = pendingFor(e.slug);
+            return (
+              <li class="event">
+                <EventMark event={e} size="md" />
+                <span class="ev-info">
+                  <a href={`/events/${e.slug}/`} target="_blank" rel="noopener"><strong>{e.name}</strong></a>
+                  <span class="muted">{formatRange(e.startDate, e.endDate)} · {e.location} · {money(e.prizePool)} · {e.teams.length} teams</span>
+                </span>
+                <span class:list={["badge", { green: e.status === "ongoing", blue: e.status === "upcoming" }]}>{STATUS[e.status]}</span>
+                <span class="ev-action">
+                  {attending ? (
+                    <span class="badge green">You're attending</span>
+                  ) : pending ? (
+                    <form method="post" data-enhance>
+                      <input type="hidden" name="id" value={pending.id} />
+                      <span class="muted">Waiting for ISEC</span> <button class="btn ghost small" name="intent" value="cancel">Withdraw</button>
+                    </form>
+                  ) : (
+                    <form method="post" class="join" data-enhance>
+                      <input type="hidden" name="intent" value="join" />
+                      <input type="hidden" name="event" value={e.slug} />
+                      <label class="visually-hidden" for={`note-${e.slug}`}>Note for ISEC</label>
+                      <input id={`note-${e.slug}`} name="note" maxlength="200" placeholder="Note (optional)" />
+                      <button class="btn small">Ask to join</button>
+                    </form>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p class="empty">No upcoming events yet.</p>
+      )
+    }
+  </section>
+</Admin>
+
+<style>
+  @layer components {
+    .events {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .event {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-03) var(--sp-05);
+      padding: var(--sp-04) 0;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+    }
+    .ev-info {
+      display: grid;
+      gap: var(--sp-01);
+      min-inline-size: 0;
+    }
+    .ev-action {
+      grid-column: 2 / -1;
+    }
+    .join {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-03);
+      & input {
+        inline-size: min(100%, 18rem);
+      }
+    }
+  }
+</style>

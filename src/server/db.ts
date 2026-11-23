@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, Season, Settings, Team, Transfer } from "../data/types";
+import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, RosterRequest, Season, Settings, Team, Transfer } from "../data/types";
 import { publish } from "./bus";
 import { events as seedEvents, ranking as seedRanking, rankingUpdated as seedRankingUpdated, seasons as seedSeasons } from "./seed/events";
 import { matches as seedMatches } from "./seed/matches";
@@ -20,7 +20,7 @@ import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
 // Loaded at runtime so bundlers don't try to resolve the prefix-only builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
-export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer";
+export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer" | "account" | "request";
 
 const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
 mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
@@ -69,6 +69,8 @@ export interface Snapshot {
   feeds: Feed[];
   seasons: Season[];
   transfers: Transfer[];
+  /** Team requests (transfers, event sign-ups) awaiting or past an admin decision. */
+  requests: RosterRequest[];
   settings: Settings;
   meta: { rankingUpdated: string };
 }
@@ -99,7 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   navHidden: [],
   footerLinks: [
     { label: "Teams", href: "/teams/" },
-    { label: "Admin", href: "/admin/" },
+    { label: "Sign in", href: "/login/" },
   ],
   rails: { left: true, right: true, awardTitle: "Award by ISEC", awardSubtitle: "Player of the week", rankingTitle: "Ranking by ISEC", activityTitle: "Recent activity" },
   intros: {
@@ -134,6 +136,7 @@ export function snapshot(): Snapshot {
     seasons: all<Season>("season").sort((a, b) => b.endDate.localeCompare(a.endDate)),
     // Newest first; same-day moves keep insertion order (ids are time-based).
     transfers: all<Transfer>("transfer").sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
+    requests: all<RosterRequest>("request").sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     settings: mergeSettings(all<Settings>("settings")[0]),
     meta: { rankingUpdated: meta.find((m) => m.key === "rankingUpdated")?.value ?? "" },
   };
@@ -151,7 +154,7 @@ export interface Change {
 }
 
 /** Kinds whose record ids are secrets (feed keys) and must never leave the server. */
-const SECRET_IDS = new Set<Kind>(["feed"]);
+const SECRET_IDS = new Set<Kind>(["feed", "account"]);
 const publicId = (c: Change) => (SECRET_IDS.has(c.kind) ? "*" : c.id);
 
 function invalidate(changes: Change[]) {

@@ -1,0 +1,108 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import RequestRow from "../../components/admin/RequestRow.astro";
+import { getPlayers, getRequests, getTeams, rosterOf, team } from "../../data";
+import { handlePost } from "../../server/handle";
+import { cancelRequest, requestTransfer } from "../../server/team";
+
+const me = Astro.locals.user!;
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "cancel") {
+    cancelRequest(me.team, String(form.get("id") ?? ""));
+    return { message: "Request withdrawn" };
+  }
+  requestTransfer(me.team, form);
+  return { message: "Request sent to ISEC" };
+});
+if (result instanceof Response) return result;
+
+const roster = me.team ? rosterOf(me.team) : [];
+const signable = getPlayers()
+  .filter((p) => p.team !== me.team && p.status !== "retired")
+  .toSorted((a, b) => Number(!!a.team) - Number(!!b.team) || a.nickname.localeCompare(b.nickname));
+const others = getTeams().filter((t) => t.slug !== me.team).toSorted((a, b) => a.name.localeCompare(b.name));
+const mine = getRequests().filter((r) => r.team === me.team);
+const pending = mine.filter((r) => r.status === "pending");
+const past = mine.filter((r) => r.status !== "pending").slice(0, 20);
+---
+
+<Admin title="Requests" panel="team" error={result?.error}>
+  <div class="two">
+    <section class="admin-section" aria-labelledby="in-h">
+      <h2 id="in-h">Sign a player</h2>
+      <form method="post" class="form">
+        <input type="hidden" name="intent" value="request" />
+        <input type="hidden" name="direction" value="in" />
+        <div class="field">
+          <label for="in-player">Player</label>
+          <select id="in-player" name="player" required>
+            <option value="">Choose a player…</option>
+            <optgroup label="Free agents">{signable.filter((p) => !p.team).map((p) => <option value={p.slug}>{p.nickname}</option>)}</optgroup>
+            <optgroup label="From another team">{signable.filter((p) => p.team).map((p) => <option value={p.slug}>{p.nickname} ({team(p.team).name})</option>)}</optgroup>
+          </select>
+        </div>
+        <div class="field"><label for="in-note">Note for ISEC (optional)</label><input id="in-note" name="note" maxlength="200" placeholder="e.g. Both schools agreed" /></div>
+        <div class="actions"><button type="submit" class="btn">Request signing</button></div>
+      </form>
+    </section>
+
+    <section class="admin-section" aria-labelledby="out-h">
+      <h2 id="out-h">Move one of your players</h2>
+      <form method="post" class="form">
+        <input type="hidden" name="intent" value="request" />
+        <input type="hidden" name="direction" value="out" />
+        <div class="field">
+          <label for="out-player">Player</label>
+          <select id="out-player" name="player" required>
+            <option value="">Choose a player…</option>
+            {roster.map((p) => <option value={p.slug}>{p.nickname}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="out-to">To</label>
+          <select id="out-to" name="to" required>
+            <option value="free">Release (free agent)</option>
+            <option value="retired">Retire</option>
+            <optgroup label="Another team">{others.map((t) => <option value={t.slug}>{t.name}</option>)}</optgroup>
+          </select>
+        </div>
+        <div class="field"><label for="out-note">Note for ISEC (optional)</label><input id="out-note" name="note" maxlength="200" /></div>
+        <div class="actions"><button type="submit" class="btn">Send request</button></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="admin-section" aria-labelledby="pend-h">
+    <div class="section-head"><h2 id="pend-h">Waiting for ISEC</h2><span class="muted">An admin approves or rejects each request. Approved moves appear in the transfer history.</span></div>
+    {pending.length ? <ol class="reqs">{pending.map((r) => <RequestRow request={r} as="team" />)}</ol> : <p class="empty">No pending requests.</p>}
+  </section>
+
+  {
+    past.length > 0 && (
+      <section class="admin-section" aria-labelledby="past-h">
+        <h2 id="past-h">Decided</h2>
+        <ol class="reqs">{past.map((r) => <RequestRow request={r} as="team" />)}</ol>
+      </section>
+    )
+  }
+</Admin>
+
+<style>
+  @layer components {
+    .two {
+      display: grid;
+      gap: var(--sp-06);
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      @container page (width >= 56rem) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .reqs {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+</style>

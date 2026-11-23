@@ -1,0 +1,30 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$SERVER_HOST" ] || [ -z "$SERVER_USER" ]; then
+            echo "::error::Add the SSH_KEY, SERVER_HOST and SERVER_USER repository secrets first."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/key
+          chmod 600 ~/.ssh/key
+          # The key on the server is restricted to running update.sh only.
+          ssh -i ~/.ssh/key -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_HOST"

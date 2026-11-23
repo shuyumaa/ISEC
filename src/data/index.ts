@@ -66,6 +66,7 @@ export const rosterOf = (teamSlug: string) =>
     .toSorted((a, b) => Number(a.status === "benched") - Number(b.status === "benched"));
 export const activeRoster = (teamSlug: string) => rosterOf(teamSlug).filter((p) => p.status !== "benched");
 export const getTransfers = () => snapshot().transfers;
+export const getRequests = () => snapshot().requests;
 
 const teamAtCache = new WeakMap<object, Map<string, { date: string; team: string }[]>>();
 /**
@@ -78,7 +79,7 @@ export function teamAt(playerSlug: string, date: string): string {
   let byPlayer = teamAtCache.get(s);
   if (!byPlayer) {
     byPlayer = new Map();
-    for (const t of [...s.transfers].reverse()) {
+    for (const t of s.transfers.toReversed()) {
       if (!byPlayer.has(t.player)) byPlayer.set(t.player, []);
       byPlayer.get(t.player)!.push({ date: t.date, team: t.to });
     }

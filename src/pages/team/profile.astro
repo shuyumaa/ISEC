@@ -1,0 +1,60 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import CountrySelect from "../../components/admin/CountrySelect.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { findTeam } from "../../data";
+import { handlePost } from "../../server/handle";
+import { teamSaveProfile } from "../../server/team";
+import { removeUpload, saveUpload } from "../../server/uploads";
+
+const me = Astro.locals.user!;
+const result = await handlePost(Astro.request, async (form) => {
+  const old = me.team ? findTeam(me.team)?.logo : undefined;
+  const uploaded = await saveUpload(form, "logo", "Logo");
+  const logo = form.get("removeLogo") ? null : uploaded;
+  teamSaveProfile(me.team, form, logo);
+  if (old && (logo === null || uploaded)) await removeUpload(old);
+  return { message: "Team profile saved" };
+});
+if (result instanceof Response) return result;
+const t = me.team ? findTeam(me.team) : undefined;
+---
+
+<Admin title="Team profile" panel="team" error={result?.error}>
+  {t && <a slot="actions" class="btn ghost" href={`/teams/${t.slug}/`} target="_blank" rel="noopener">View public page</a>}
+  {
+    t ? (
+      <form method="post" class="form" enctype="multipart/form-data">
+        <input type="hidden" name="intent" value="save" />
+        <div class="form-grid">
+          <div class="field"><label for="name">Team name</label><input id="name" name="name" required maxlength="60" value={t.name} /></div>
+          <div class="field"><label for="tag">Tag (2–4 letters)</label><input id="tag" name="tag" required minlength="2" maxlength="4" pattern="[\p{L}\p{N}]{2,4}" value={t.tag} /></div>
+          <div class="field"><label for="countryCode">Country</label><CountrySelect id="countryCode" value={t.countryCode} required /></div>
+          <div class="field"><label for="founded">Founded</label><input id="founded" name="founded" type="number" required min="1990" max="2100" value={t.founded} /></div>
+          <div class="field"><label for="coach">Coach</label><input id="coach" name="coach" maxlength="60" value={t.coach} autocomplete="off" /></div>
+          <div class="field">
+            <label for="logo">Logo (PNG, JPEG or WebP, up to 5 MB)</label>
+            <span class="logo-row"><TeamMark team={t} size="md" /><input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" /></span>
+          </div>
+        </div>
+        {t.logo && <label class="check"><input type="checkbox" name="removeLogo" /> Remove the current logo</label>}
+        <div class="actions"><button type="submit" class="btn">Save team profile</button></div>
+      </form>
+    ) : (
+      <p class="notice error">This account isn't linked to a team any more.</p>
+    )
+  }
+</Admin>
+
+<style>
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-03);
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-03);
+  }
+</style>

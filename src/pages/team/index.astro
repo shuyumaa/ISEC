@@ -1,0 +1,163 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import Flag from "../../components/Flag.astro";
+import MatchRow from "../../components/MatchRow.astro";
+import Photo from "../../components/Photo.astro";
+import RequestRow from "../../components/admin/RequestRow.astro";
+import TeamMark from "../../components/TeamMark.astro";
+import { eloSettings, findTeam, getEvents, getRanking, getRequests, matchesForTeam, playerElo, rosterOf, teamElo } from "../../data";
+import { handlePost } from "../../server/handle";
+import { cancelRequest, teamSetBench } from "../../server/team";
+
+const me = Astro.locals.user!;
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "cancel") {
+    cancelRequest(me.team, String(form.get("id") ?? ""));
+    return { message: "Request withdrawn" };
+  }
+  const p = teamSetBench(me.team, String(form.get("player") ?? ""), intent === "bench");
+  return { message: `${p.nickname} ${intent === "bench" ? "benched" : "back in the starting five"}` };
+});
+if (result instanceof Response) return result;
+
+const t = me.team ? findTeam(me.team) : undefined;
+const roster = t ? rosterOf(t.slug) : [];
+const starters = roster.filter((p) => p.status !== "benched");
+const elo = t ? teamElo(t.slug) : undefined;
+const rank = t ? getRanking().findIndex((r) => r.team === t.slug) + 1 : 0;
+const points = t ? (getRanking().find((r) => r.team === t.slug)?.points ?? eloSettings().start) : 0;
+const upcoming = t ? matchesForTeam(t.slug).filter((m) => m.status !== "completed").reverse().slice(0, 4) : [];
+const pending = t ? getRequests().filter((r) => r.team === t.slug && r.status === "pending") : [];
+const attending = t ? getEvents().filter((e) => e.teams.includes(t.slug) && e.status !== "completed") : [];
+---
+
+<Admin title={t ? t.name : "Team panel"} panel="team" error={result?.error}>
+  {t && <a slot="actions" class="btn" href="/team/players/new/">Add a player</a>}
+  {t && <a slot="actions" class="btn ghost" href="/team/requests/">Request a transfer</a>}
+  {
+    !t ? (
+      <p class="notice error">This account isn't linked to a team any more. Ask an ISEC admin to link it again.</p>
+    ) : (
+      <>
+        <div class="tiles">
+          <div><strong>{rank ? `#${rank}` : "–"}</strong><span>Ranking</span></div>
+          <div><strong>{points}</strong><span>Points</span></div>
+          <div><strong>{elo ? `${elo.wins}–${elo.losses}` : "0–0"}</strong><span>Series W–L</span></div>
+          <div><strong>{starters.length}/5</strong><span>Starting five</span></div>
+        </div>
+
+        {starters.length < 5 && <p class="notice">Your starting five has {starters.length} {starters.length === 1 ? "player" : "players"}. <a href="/team/players/new/">Add a player</a> or ask to sign one.</p>}
+
+        <section class="admin-section" aria-labelledby="roster-h">
+          <div class="section-head">
+            <h2 id="roster-h">Roster</h2>
+            <a href="/team/players/">Manage players</a>
+          </div>
+          <div class="table-wrap" role="region" aria-labelledby="roster-h" tabindex="0">
+            <table class="data-table">
+              <thead><tr><th scope="col">Player</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col" class="n">Elo</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+              <tbody>
+                {roster.map((p) => (
+                  <tr>
+                    <th scope="row">
+                      <a class="who" href={`/team/players/${p.slug}/`}>
+                        <Photo player={p} size="thumb" />
+                        <span><strong>{p.nickname}</strong><span class="muted"><Flag code={p.countryCode} label /> {p.firstName} {p.lastName}</span></span>
+                      </a>
+                    </th>
+                    <td>{p.role}</td>
+                    <td><span class:list={["badge", { green: p.status !== "benched", purple: p.status === "benched" }]}>{p.status === "benched" ? "Benched" : "Active"}</span></td>
+                    <td class="n mono">{playerElo(p.slug)?.elo ?? "—"}</td>
+                    <td>
+                      <form method="post" class="row-actions" data-enhance>
+                        <input type="hidden" name="player" value={p.slug} />
+                        {p.status === "benched" ? <button class="btn ghost small" name="intent" value="activate">Activate</button> : <button class="btn ghost small" name="intent" value="bench">Bench</button>}
+                        <a class="btn ghost small" href={`/team/players/${p.slug}/`}>Edit</a>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {roster.length === 0 && <p class="empty">No players yet. <a href="/team/players/new/">Add your first player</a>.</p>}
+          </div>
+        </section>
+
+        <div class="two">
+          <section class="admin-section" aria-labelledby="next-h">
+            <h2 id="next-h">Next matches</h2>
+            {upcoming.length ? <div class="rows">{upcoming.map((m) => <MatchRow match={m} showDate />)}</div> : <p class="empty">No matches scheduled. <a href="/team/events/">Sign up for an event</a>.</p>}
+          </section>
+          <section class="admin-section" aria-labelledby="req-h">
+            <div class="section-head"><h2 id="req-h">Pending requests</h2><a href="/team/requests/">All requests</a></div>
+            {pending.length ? <ol class="reqs">{pending.map((r) => <RequestRow request={r} as="team" />)}</ol> : <p class="empty">Nothing waiting for an admin.</p>}
+          </section>
+        </div>
+
+        <section class="admin-section" aria-labelledby="ev-h">
+          <div class="section-head"><h2 id="ev-h">Events you're in</h2><a href="/team/events/">Find events</a></div>
+          {attending.length ? (
+            <ul class="evs">{attending.map((e) => <li><a href={`/events/${e.slug}/`} target="_blank" rel="noopener">{e.name}</a> <span class="muted">{e.startDate} → {e.endDate}</span></li>)}</ul>
+          ) : (
+            <p class="empty">Not signed up for any upcoming event.</p>
+          )}
+        </section>
+
+        <p class="muted brand-line"><TeamMark team={t} /> Signed in as {me.username}. Changes to your team and players go live straight away.</p>
+      </>
+    )
+  }
+</Admin>
+
+<style>
+  @layer components {
+    .who {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+      text-decoration: none;
+      color: inherit;
+      & > span {
+        display: grid;
+      }
+      & strong {
+        color: var(--link);
+      }
+      & .muted {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+      }
+    }
+    .row-actions {
+      display: flex;
+      justify-content: end;
+      gap: var(--sp-02);
+    }
+    .two {
+      display: grid;
+      gap: var(--sp-06);
+      grid-template-columns: minmax(0, 1fr);
+      @container page (width >= 56rem) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .rows {
+      display: grid;
+      margin-inline: calc(var(--sp-05) * -1);
+    }
+    .reqs,
+    .evs {
+      display: grid;
+      gap: var(--sp-02);
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .brand-line {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+  }
+</style>

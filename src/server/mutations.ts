@@ -48,7 +48,7 @@ export const EVENT_STATUSES: EventStatus[] = ["upcoming", "ongoing", "completed"
 export const MATCH_STATUSES: MatchStatus[] = ["upcoming", "live", "completed"];
 export const CATEGORIES: Article["category"][] = ["Announcement", "Interview", "Recap", "Analysis", "Roster"];
 
-const ACTOR = "admin";
+import { actor } from "./actor";
 const clone = <T>(v: T): T => structuredClone(v);
 
 /* ================================ Matches ================================ */
@@ -112,7 +112,7 @@ function normalise(m: Match): Match {
 
 function saveMatch(m: Match, action: string) {
   normalise(m);
-  transaction((tx) => tx.put("match", m.id, m), ACTOR, action);
+  transaction((tx) => tx.put("match", m.id, m), actor(), action);
   return m;
 }
 
@@ -344,7 +344,7 @@ export function updateMatch(id: string, intent: string, form: FormData): Match {
 
 export function deleteMatch(id: string) {
   getMatch(id);
-  transaction((tx) => tx.remove("match", id), ACTOR, "delete match");
+  transaction((tx) => tx.remove("match", id), actor(), "delete match");
 }
 
 /* ================================= News ================================== */
@@ -375,12 +375,12 @@ export function saveArticle(slug: string | undefined, form: FormData): Article {
     },
   };
   if (!article.body.length) throw new FormError("Body is required.", "body");
-  transaction((tx) => tx.put("article", article.slug, article), ACTOR, existing ? "edit article" : "publish article");
+  transaction((tx) => tx.put("article", article.slug, article), actor(), existing ? "edit article" : "publish article");
   return article;
 }
 
 export function deleteArticle(slug: string) {
-  transaction((tx) => tx.remove("article", slug), ACTOR, "delete article");
+  transaction((tx) => tx.remove("article", slug), actor(), "delete article");
 }
 
 /* ============================ Teams & players ============================ */
@@ -413,7 +413,7 @@ export function saveTeam(slug: string | undefined, form: FormData, logo?: Upload
     coach: text(form, "coach", { max: 60 }),
     logo: pickUpload(existing?.logo, logo),
   };
-  transaction((tx) => tx.put("team", t.slug, t), ACTOR, existing ? "edit team" : "create team");
+  transaction((tx) => tx.put("team", t.slug, t), actor(), existing ? "edit team" : "create team");
   return t;
 }
 
@@ -429,7 +429,7 @@ export function deleteTeam(slug: string) {
       tx.put("player", p.slug, { ...p, team: "", status: "free" } satisfies Player);
       tx.put("transfer", transferId(today), { id: transferId(today), player: p.slug, date: today, from: slug, to: "", fromStatus: p.status ?? "active", toStatus: "free", note: "Team disbanded" } satisfies Transfer);
     }
-  }, ACTOR, "delete team");
+  }, actor(), "delete team");
 }
 
 export const PLAYER_STATUSES: PlayerStatus[] = ["active", "benched", "free", "retired"];
@@ -487,7 +487,7 @@ export function savePlayer(slug: string | undefined, form: FormData, photo?: Upl
       const id = transferId(moveDate);
       tx.put("transfer", id, { id, player: p.slug, date: moveDate, from: before.team, to: team, fromStatus: before.status, toStatus: status, note: optionalText(form, "moveNote", { max: 120 }) } satisfies Transfer);
     }
-  }, ACTOR, existing ? (moved ? "move player" : "edit player") : "add player");
+  }, actor(), existing ? (moved ? "move player" : "edit player") : "add player");
   return p;
 }
 
@@ -496,7 +496,11 @@ export function setPlayerStatus(slug: string, status: PlayerStatus, team?: strin
   const p = snapshot().players.find((x) => x.slug === slug);
   if (!p) throw new FormError("This player no longer exists.");
   const form = new FormData();
-  for (const [k, v] of Object.entries({ ...p, status, team: team ?? p.team, joined: "" })) if (typeof v === "string" || typeof v === "number") form.set(k, String(v));
+  // Re-submit the stored record; an unknown age (0) stays empty rather than failing validation.
+  for (const [k, v] of Object.entries({ ...p, status, team: team ?? p.team, joined: "" })) {
+    if (typeof v === "string") form.set(k, v);
+    else if (typeof v === "number" && v > 0) form.set(k, String(v));
+  }
   form.set("countryCode", p.countryCode ?? "");
   if (p.joined && (team ?? p.team) === p.team) form.set("joined", p.joined);
   return savePlayer(slug, form, undefined);
@@ -509,12 +513,12 @@ export function deletePlayer(slug: string) {
   transaction((tx) => {
     tx.remove("player", slug);
     for (const t of s.transfers.filter((x) => x.player === slug)) tx.remove("transfer", t.id);
-  }, ACTOR, "delete player");
+  }, actor(), "delete player");
 }
 
 export function deleteTransfer(id: string) {
   if (!snapshot().transfers.some((t) => t.id === id)) throw new FormError("That move was already removed.");
-  transaction((tx) => tx.remove("transfer", id), ACTOR, "delete transfer");
+  transaction((tx) => tx.remove("transfer", id), actor(), "delete transfer");
 }
 
 /* ================================ Events ================================= */
@@ -589,13 +593,13 @@ export function saveEvent(slug: string | undefined, form: FormData, trophyImage?
       const has = e.related?.includes(ev.slug) ?? false;
       if (linked !== has) tx.put("event", e.slug, { ...e, related: linked ? [...(e.related ?? []), ev.slug] : (e.related ?? []).filter((x) => x !== ev.slug) });
     }
-  }, ACTOR, existing ? "edit event" : "create event");
+  }, actor(), existing ? "edit event" : "create event");
   return ev;
 }
 
 export function deleteEvent(slug: string) {
   if (snapshot().matches.some((m) => m.event === slug)) throw new FormError("This event has matches. Delete them first.");
-  transaction((tx) => tx.remove("event", slug), ACTOR, "delete event");
+  transaction((tx) => tx.remove("event", slug), actor(), "delete event");
 }
 
 /* ================================ Ranking ================================ */
@@ -608,7 +612,7 @@ export function saveRankingAdjustments(form: FormData) {
       const adjust = int(form, `adjust_${t.slug}`, { min: -1000, max: 1000, label: `${t.name} adjustment` }) ?? 0;
       tx.put("ranking", t.slug, { team: t.slug, points: 0, change: 0, adjust } satisfies RankingEntry);
     }
-  }, ACTOR, "adjust ranking");
+  }, actor(), "adjust ranking");
 }
 
 /** Ranking maths constants (see src/data/elo.ts). */
@@ -625,7 +629,7 @@ export function saveRankingMath(form: FormData) {
     minMatches: int(form, "minMatches", { required: true, min: 0, max: 50, label: "Matches to be ranked" })!,
   };
   const settings = { ...snapshot().settings, elo };
-  transaction((tx) => tx.put("settings", "site", settings), ACTOR, "edit ranking maths");
+  transaction((tx) => tx.put("settings", "site", settings), actor(), "edit ranking maths");
 }
 
 /* ============================== Stats import ============================== */
@@ -697,12 +701,12 @@ export function saveSeason(slug: string | undefined, form: FormData): Season {
     teamOfSeason: tos && snapshot().teams.some((t) => t.slug === tos) ? tos : undefined,
     teamNote: optionalText(form, "teamNote", { max: 400 }),
   };
-  transaction((tx) => tx.put("season", season.slug, season), ACTOR, existing ? "edit season" : "create season");
+  transaction((tx) => tx.put("season", season.slug, season), actor(), existing ? "edit season" : "create season");
   return season;
 }
 
 export function deleteSeason(slug: string) {
-  transaction((tx) => tx.remove("season", slug), ACTOR, "delete season");
+  transaction((tx) => tx.remove("season", slug), actor(), "delete season");
 }
 
 /* ================================ Settings ================================ */
@@ -760,5 +764,5 @@ export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upl
     footerLogoDark: pickUpload(current.footerLogoDark, logos.dark),
     elo: current.elo,
   };
-  transaction((tx) => tx.put("settings", "site", settings), ACTOR, "edit settings");
+  transaction((tx) => tx.put("settings", "site", settings), actor(), "edit settings");
 }

@@ -10,6 +10,7 @@
   /* HLTV shell: left rail · content · right rail. The content column is the
      "page" container, so page grids respond to the space they really get. */
   .shell {
+    flex: 1 0 auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "main" "left";
@@ -143,6 +144,15 @@
     padding-block-end: var(--sp-03);
     container-type: inline-size;
 
+    /* A list that ends edge to edge closes the card itself: no empty strip
+       under the last row. */
+    &:has(> :is(.match-row, .table-wrap, .event-card):last-child) {
+      padding-block-end: 0;
+    }
+    & > .match-row:last-child {
+      border-block-end: 0;
+    }
+
     /* Rows, tables and cards run edge to edge inside the card. */
     & > :is(.match-row, .table-wrap, .event-card, .day-head) {
       margin-inline: calc(var(--sp-05) * -1);
@@ -170,6 +180,8 @@
 
   /* ---- Buttons --------------------------------------------------------- */
   .btn {
+    /* Carbon sizes are the whole box (48px default, 32px small). */
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
@@ -607,12 +619,23 @@
 @layer components {
   /* Site-wide announcement (Admin → Settings). Deliberately quieter than the
      blue top bar and visibly separate from it: card surface, hairline, icon. */
+  /* A slim strip under the top bar: one line, content kept to the page width. */
   .announcement {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--sp-03);
-    padding: var(--sp-03) var(--gutter);
+    block-size: 2.5rem;
+    max-block-size: 2.5rem;
+    overflow: hidden;
+    padding-inline: max(var(--gutter), (100% - var(--container)) / 2 + var(--gutter));
+    margin: 0;
+    white-space: nowrap;
+    & > a,
+    & > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     background: var(--surface);
     border-block: var(--border-width) solid var(--border-subtle);
     color: var(--text-primary);
