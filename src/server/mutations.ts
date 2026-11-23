@@ -784,6 +784,23 @@ export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upl
     footerLogoLight: pickUpload(current.footerLogoLight, logos.light),
     footerLogoDark: pickUpload(current.footerLogoDark, logos.dark),
     elo: current.elo,
+    comingSoon: current.comingSoon,
   };
   transaction((tx) => tx.put("settings", "site", settings), actor(), "edit settings");
+}
+
+/** Switch the pre-launch coming-soon page on or off for visitors. */
+export function setComingSoon(on: boolean) {
+  const current = snapshot().settings;
+  transaction((tx) => tx.put("settings", "site", { ...current, comingSoon: on }), actor(), on ? "turn on coming soon" : "turn off coming soon");
+}
+
+/** Wipe the whole transfer history (players keep their current team and status). */
+export function clearTransfers() {
+  const all = snapshot().transfers;
+  if (!all.length) throw new FormError("The transfer history is already empty.");
+  transaction((tx) => {
+    for (const t of all) tx.remove("transfer", t.id);
+  }, actor(), `clear transfer history (${all.length})`);
+  return all.length;
 }

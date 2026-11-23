@@ -1,0 +1,86 @@
+---
+import { getSettings } from "../../data";
+
+/**
+ * Pre-launch switch. While on, visitors only see the coming-soon page at "/"
+ * and every other public page redirects there; signed-in admins keep seeing
+ * the full site as a preview. Posts to the settings page, which sends the
+ * admin back to wherever the card was shown.
+ */
+interface Props {
+  back: string;
+}
+const { back } = Astro.props;
+const on = !!getSettings().comingSoon;
+---
+
+<section class:list={["admin-section", "cs-card", { on }]} aria-labelledby="cs-h">
+  <a class="cs-thumb" href="/coming-soon/" target="_blank" rel="noopener" aria-label="Preview the coming-soon page (opens in a new tab)">
+    <span class="cs-rays" aria-hidden="true"></span>
+    <span class="cs-logo" aria-hidden="true"></span>
+  </a>
+  <div class="cs-body">
+    <h2 id="cs-h">Coming soon page <span class:list={["badge", { green: on }]}>{on ? "On" : "Off"}</span></h2>
+    <p class="muted">
+      {on ? "Visitors only see the coming-soon page. You're signed in as an admin, so you still see the full site." : "The full site is public. Turn this on to show only the coming-soon page to visitors."}
+    </p>
+    <form method="post" action="/admin/settings/" class="cs-actions">
+      <input type="hidden" name="intent" value="coming-soon" />
+      <input type="hidden" name="back" value={back} />
+      <button class:list={["btn", "small", { ghost: on }]} name="comingSoon" value={on ? "off" : "on"}>{on ? "Open the site to visitors" : "Turn on coming soon"}</button>
+      <a class="btn ghost small" href="/coming-soon/" target="_blank" rel="noopener">Preview</a>
+    </form>
+  </div>
+</section>
+
+<style>
+  @layer components {
+    .cs-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: var(--sp-05);
+      & h2 {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-03);
+      }
+      & p {
+        margin: var(--sp-02) 0 var(--sp-04);
+        max-inline-size: 60ch;
+      }
+    }
+    .cs-thumb {
+      position: relative;
+      display: grid;
+      place-items: center;
+      inline-size: 9rem;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background: radial-gradient(ellipse 80% 40% at 50% 100%, rgb(36 64 120 / 0.6), transparent), #030509;
+      outline-offset: 2px;
+    }
+    .cs-rays {
+      position: absolute;
+      inset: 0;
+      background: conic-gradient(from 160deg at 50% 0%, transparent, rgb(214 228 255 / 0.16) 6deg, transparent 12deg 18deg, oklch(0.72 0.19 295 / 0.18) 22deg, transparent 28deg 32deg, rgb(214 228 255 / 0.12) 36deg, transparent 42deg);
+      mask-image: radial-gradient(ellipse 80% 100% at 50% 0%, #000, transparent);
+    }
+    .cs-logo {
+      position: relative;
+      inline-size: 60%;
+      aspect-ratio: 960 / 445;
+      background: var(--logo-dark) center / contain no-repeat;
+    }
+    .cs-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-03);
+    }
+    @container page (width < 36rem) {
+      .cs-card {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  }
+</style>

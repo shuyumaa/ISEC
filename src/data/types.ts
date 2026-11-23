@@ -274,6 +274,8 @@ export interface Season {
 
 /** Site-wide settings editable in the admin. */
 export interface Settings {
+  /** Pre-launch: visitors only see the coming-soon page; admins see the full site. */
+  comingSoon?: boolean;
   rankingName: string;
   seasonPageName: string;
   announcement?: { text: string; href?: string };

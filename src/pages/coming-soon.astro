@@ -1,0 +1,395 @@
+---
+import "@fontsource/ibm-plex-sans/latin-300.css";
+import "@fontsource/ibm-plex-sans/latin-500.css";
+import "../styles/base.css";
+import "../styles/tokens.css";
+import "../styles/protect.css";
+import Icon from "../components/Icon.astro";
+
+/*
+ * Pre-launch holding page. Visitors get it at "/" while coming-soon mode is on
+ * (see middleware.ts); admins can open /coming-soon/ to preview it any time.
+ *
+ * A dark stage: spotlight rays fall from above onto the ISEC mark, a
+ * holographic sheen travels across the letters, and the mark is reflected on
+ * a glossy floor. Pure CSS (no script), so it works under the strict CSP.
+ */
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style is:inline>@layer reset, tokens, base, layout, components, utilities;</style>
+    <meta name="color-scheme" content="dark" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="description" content="ISEC is coming soon." />
+    <meta name="theme-color" content="#030509" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>ISEC · Coming soon</title>
+  </head>
+  <body class="cs">
+    <input type="checkbox" id="still" class="still-toggle visually-hidden" />
+    <main class="stage">
+      <div class="rays" aria-hidden="true"></div>
+      <div class="rays rays-holo" aria-hidden="true"></div>
+      <div class="halo" aria-hidden="true"></div>
+      <div class="grain" aria-hidden="true"></div>
+
+      <h1 class="lockup">
+        <span class="mark-wrap">
+          <span class="mark" role="img" aria-label="ISEC"></span>
+          <span class="mark mark-reflect" aria-hidden="true"></span>
+          <span class="floor" aria-hidden="true"></span>
+        </span>
+        <span class="soon">Coming soon</span>
+      </h1>
+    </main>
+    <label for="still" class="still">
+      <span class="when-moving"><Icon name="pause" size={14} /><span class="visually-hidden">Pause animation</span></span>
+      <span class="when-still"><Icon name="play" size={14} /><span class="visually-hidden">Play animation</span></span>
+    </label>
+  </body>
+</html>
+
+<style is:global>
+  @property --ray {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+  @property --holo {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+  @property --sweep {
+    syntax: "<percentage>";
+    inherits: false;
+    initial-value: -60%;
+  }
+
+  @layer components {
+    body.cs {
+      --void: #030509;
+      --ink: #f4f6fb;
+      /* Holographic foil: cyan → violet → rose → gold → mint, the colours a
+         prism throws, interpolated in oklch so they stay saturated. */
+      --foil: oklch(0.86 0.13 210), oklch(0.72 0.19 295), oklch(0.78 0.16 350), oklch(0.9 0.13 85), oklch(0.88 0.14 160), oklch(0.86 0.13 210);
+      margin: 0;
+      min-block-size: 100dvh;
+      background: var(--void);
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      overflow: hidden;
+      ::selection {
+        background: oklch(0.72 0.19 295 / 0.45);
+        color: var(--ink);
+      }
+    }
+
+    .stage {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      min-block-size: 100dvh;
+      overflow: hidden;
+      padding-inline: 1rem;
+    }
+
+    /* Spotlight rays falling from a point above the top edge. Uneven stops so
+       they read as light, not as a pattern. */
+    .rays {
+      position: absolute;
+      inset: -20% -30% 0;
+      z-index: -3;
+      background: conic-gradient(
+        from calc(160deg + var(--ray)) at 50% 0%,
+        transparent 0deg,
+        rgb(214 228 255 / 0.13) 3deg,
+        transparent 6deg 9deg,
+        rgb(214 228 255 / 0.07) 11deg,
+        transparent 15deg 17deg,
+        rgb(214 228 255 / 0.16) 19.5deg,
+        transparent 22deg 25deg,
+        rgb(214 228 255 / 0.09) 26deg,
+        transparent 30deg 32deg,
+        rgb(214 228 255 / 0.18) 35deg,
+        transparent 38deg 40deg,
+        rgb(214 228 255 / 0.06) 43deg,
+        transparent 46deg
+      );
+      mask-image: radial-gradient(ellipse 60% 85% at 50% 0%, #000 25%, transparent 78%);
+      filter: blur(1.5px);
+    }
+    /* A second, prism-tinted set drifting the other way. */
+    .rays-holo {
+      background: conic-gradient(
+        from calc(168deg - var(--ray)) at 50% 0%,
+        transparent 0deg 4deg,
+        oklch(0.8 0.14 210 / 0.1) 6deg,
+        transparent 9deg 14deg,
+        oklch(0.72 0.19 295 / 0.11) 16deg,
+        transparent 19deg 24deg,
+        oklch(0.78 0.16 350 / 0.08) 27deg,
+        transparent 30deg
+      );
+      mix-blend-mode: screen;
+      filter: blur(3px);
+    }
+
+    /* Iridescent bloom behind the mark. */
+    .halo {
+      position: absolute;
+      z-index: -2;
+      inline-size: min(70rem, 120vw);
+      aspect-ratio: 2.4;
+      inset-block-start: 50%;
+      inset-inline-start: 50%;
+      translate: -50% -58%;
+      border-radius: 50%;
+      background: conic-gradient(from var(--holo) in oklch longer hue, var(--foil));
+      filter: blur(80px) saturate(1.2);
+      opacity: 0.3;
+      mask-image: radial-gradient(closest-side, #000 30%, transparent);
+    }
+
+    /* Glossy stage floor, its horizon at the mark's base, catching the light. */
+    .floor {
+      position: absolute;
+      z-index: -4;
+      inset-block-start: 100%;
+      inset-inline-start: 50%;
+      inline-size: 140vw;
+      translate: -50% 0;
+      block-size: 100vh;
+      background:
+        radial-gradient(ellipse 22% 18% at 50% 0%, rgb(168 196 255 / 0.2), transparent 70%),
+        radial-gradient(ellipse 45% 45% at 50% 0%, rgb(36 64 120 / 0.4), transparent 75%),
+        linear-gradient(to bottom, #070b14, var(--void));
+      /* Horizon: brightest under the light, fading towards the sides. */
+      border-block-start: 1px solid;
+      border-image: linear-gradient(to right, transparent, rgb(168 196 255 / 0.28), transparent) 1;
+    }
+
+    /* Film grain so the gradients don't band and the black feels physical. */
+    .grain {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.07;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .lockup {
+      display: grid;
+      justify-items: center;
+      gap: clamp(1.25rem, 3vw, 2.25rem);
+      margin: 0;
+      font: inherit;
+    }
+
+    .mark {
+      --w: clamp(15rem, 48vw, 36rem);
+      position: relative;
+      display: block;
+      inline-size: var(--w);
+      aspect-ratio: 960 / 445;
+      background: var(--logo-dark) center / contain no-repeat;
+      filter: drop-shadow(0 18px 40px rgb(120 160 255 / 0.22));
+      forced-color-adjust: none;
+    }
+    /* Holographic foil, on the letters only (the logo itself is the mask):
+       ::before is a steady pastel iridescence that slowly shifts hue
+       (multiply tints the white letters), ::after a brighter band of light
+       that sweeps across now and then. */
+    .mark:not(.mark-reflect)::before,
+    .mark:not(.mark-reflect)::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      mask: var(--logo-dark) center / contain no-repeat;
+    }
+    .mark:not(.mark-reflect)::before {
+      background: conic-gradient(from var(--holo) at 30% 60% in oklch longer hue, oklch(0.9 0.08 210), oklch(0.86 0.1 295), oklch(0.9 0.08 350), oklch(0.94 0.08 85), oklch(0.9 0.08 210));
+      mix-blend-mode: multiply;
+      opacity: 0.75;
+    }
+    .mark:not(.mark-reflect)::after {
+      opacity: 0.7;
+      background: linear-gradient(
+        105deg in oklch,
+        transparent calc(var(--sweep) - 10%),
+        oklch(0.86 0.13 210 / 0.9) calc(var(--sweep) + 4%),
+        oklch(0.72 0.19 295 / 0.9) calc(var(--sweep) + 12%),
+        oklch(0.78 0.16 350 / 0.9) calc(var(--sweep) + 20%),
+        oklch(0.9 0.13 85 / 0.9) calc(var(--sweep) + 28%),
+        transparent calc(var(--sweep) + 42%)
+      );
+    }
+
+    /* The mark stands on the floor; its mirror image fades into the gloss. */
+    .mark-wrap {
+      position: relative;
+      display: block;
+      margin-block-end: calc(clamp(15rem, 48vw, 36rem) * 0.2);
+    }
+    .mark-reflect {
+      position: absolute;
+      inset-block-start: calc(100% + 0.25rem);
+      inset-inline-start: 0;
+      scale: 1 -1;
+      opacity: 0.2;
+      filter: blur(1.5px);
+      mask-image: linear-gradient(to top, #000, transparent 50%);
+    }
+
+    .soon {
+      font-weight: 300;
+      font-size: clamp(0.8125rem, 1.4vw, 1.0625rem);
+      letter-spacing: 0.48em;
+      /* Optical centring: tracking adds space after the last letter. */
+      margin-inline-end: -0.48em;
+      text-transform: uppercase;
+      color: rgb(232 238 250 / 0.78);
+    }
+
+    /* Pause control (WCAG 2.2.2), CSS only: a hidden checkbox toggles it. */
+    .still {
+      position: fixed;
+      inset-block-end: 1rem;
+      inset-inline-end: 1rem;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      inline-size: 2.5rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      color: rgb(232 238 250 / 0.8);
+      background: rgb(255 255 255 / 0.06);
+      border: 1px solid rgb(255 255 255 / 0.14);
+      cursor: pointer;
+      transition: background-color 160ms ease-out;
+      &:hover {
+        background: rgb(255 255 255 / 0.12);
+      }
+    }
+    .still .when-still,
+    .still-toggle:checked ~ .still .when-moving {
+      display: none;
+    }
+    .still-toggle:checked ~ .still .when-still {
+      display: contents;
+    }
+    .still-toggle:focus-visible ~ .still {
+      outline: 2px solid oklch(0.86 0.13 210);
+      outline-offset: 3px;
+    }
+
+    /* ---- Motion: static by default, opted in only without reduced motion. */
+    @media (prefers-reduced-motion: no-preference) {
+      .rays {
+        animation:
+          ray-drift 16s ease-in-out infinite alternate,
+          lights-up 2.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .rays-holo {
+        animation:
+          ray-drift 22s ease-in-out -7s infinite alternate,
+          lights-up 3.2s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+      }
+      .halo,
+      .mark:not(.mark-reflect)::before {
+        animation: holo-spin 24s linear infinite;
+      }
+      .lockup .mark:not(.mark-reflect) {
+        animation: emerge 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+        &::after {
+          animation: sweep 7s cubic-bezier(0.45, 0, 0.2, 1) 1.6s infinite;
+        }
+      }
+      .mark-reflect {
+        animation: emerge-reflect 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+      }
+      .soon {
+        animation: rise 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1.1s both;
+      }
+      .still-toggle:checked ~ .stage :is(.rays, .halo, .mark, .soon),
+      .still-toggle:checked ~ .stage .mark::after,
+      .still-toggle:checked ~ .stage .mark::before {
+        animation-play-state: paused;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .still {
+        display: none;
+      }
+      .mark::after {
+        --sweep: 30%;
+      }
+    }
+
+    @keyframes ray-drift {
+      from {
+        --ray: -5deg;
+      }
+      to {
+        --ray: 5deg;
+      }
+    }
+    @keyframes lights-up {
+      from {
+        opacity: 0;
+      }
+    }
+    @keyframes holo-spin {
+      to {
+        --holo: 360deg;
+      }
+    }
+    @keyframes emerge {
+      from {
+        opacity: 0;
+        scale: 0.94;
+        filter: blur(14px) drop-shadow(0 18px 40px rgb(120 160 255 / 0));
+      }
+    }
+    @keyframes emerge-reflect {
+      from {
+        opacity: 0;
+      }
+    }
+    @keyframes rise {
+      from {
+        opacity: 0;
+        translate: 0 0.5rem;
+        letter-spacing: 0.7em;
+      }
+    }
+    @keyframes sweep {
+      0% {
+        --sweep: -60%;
+      }
+      55%,
+      100% {
+        --sweep: 120%;
+      }
+    }
+
+    @media (forced-colors: active) {
+      .rays,
+      .halo,
+      .floor,
+      .grain,
+      .mark-reflect {
+        display: none;
+      }
+    }
+  }
+</style>

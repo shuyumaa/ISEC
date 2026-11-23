@@ -3,11 +3,21 @@ import { readSession } from "./server/auth";
 import { CSP } from "./server/csp";
 import { runAs } from "./server/actor";
 import { servedOverHttps, trustedOrigin } from "./server/origin";
+import { getSettings } from "./data";
 
 const PUBLIC_ADMIN = new Set(["/admin/login", "/admin/login/", "/admin/logout", "/admin/logout/"]);
 const withSlash = (p: string) => (p.endsWith("/") ? p : `${p}/`);
 
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/*
+ * Pre-launch gate. While "coming soon" is on, visitors only see the holding
+ * page at "/", and every other public page redirects there. The panels, the
+ * sign-in page and the media/flag/asset routes those pages need stay open, and
+ * signed-in admins browse the full site as a preview.
+ */
+const OPEN = /^\/(admin|team|login|logout|api|media|flags|_astro|coming-soon)(\/|$)/;
+const isAsset = (p: string) => /\.[a-z0-9]+$/i.test(p);
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname } = ctx.url;
@@ -42,7 +52,14 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     return ctx.redirect(`/login/?next=${encodeURIComponent(withSlash(pathname))}`, 303);
   }
 
-  const res = await runAs(user ? (user.role === "team" ? `team:${user.username}` : user.username) : "visitor", () => next());
+  let rewrite: string | undefined;
+  const gated = getSettings().comingSoon && user?.role !== "admin" && SAFE.has(ctx.request.method) && !OPEN.test(pathname) && !isAsset(pathname);
+  if (gated) {
+    if (pathname !== "/") return new Response(null, { status: 302, headers: { Location: "/", "Cache-Control": "no-store" } });
+    rewrite = "/coming-soon/";
+  }
+
+  const res = await runAs(user ? (user.role === "team" ? `team:${user.username}` : user.username) : "visitor", () => (rewrite ? next(rewrite) : next()));
   const h = res.headers;
 
   // Security headers for every response.
@@ -57,10 +74,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
   // Hover preloading for public pages (rules in src/pages/speculationrules.json.ts).
-  if (!isAdmin && !isAdminApi && !isTeam && (h.get("Content-Type") ?? "").includes("text/html")) {
+  if (!rewrite && !isAdmin && !isAdminApi && !isTeam && (h.get("Content-Type") ?? "").includes("text/html")) {
     h.set("Speculation-Rules", '"/speculationrules.json"');
   }
-  if (isAdmin || isAdminApi || isTeam || pathname.startsWith("/login")) {
+  if (isAdmin || isAdminApi || isTeam || pathname.startsWith("/login") || rewrite || pathname.startsWith("/coming-soon")) {
     h.set("Cache-Control", "no-store");
     h.set("X-Robots-Tag", "noindex, nofollow");
   } else if ((h.get("Content-Type") ?? "").includes("text/html") && !h.has("Cache-Control")) {
