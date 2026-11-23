@@ -10,7 +10,7 @@ import TransferRow from "../../../components/TransferRow.astro";
 import { eloSettings, findTeam, getPlayers, getRanking, playerElo, rosterOf, team, teamElo, teamTransfers, type PlayerStatus } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { accountsForTeam, setAccountDisabled } from "../../../server/auth";
-import { PLAYER_STATUSES, deleteTeam, deleteTransfer, saveTeam, setPlayerStatus } from "../../../server/mutations";
+import { PLAYER_STATUSES, deleteTeam, deleteTransfer, movePlayerInLineup, saveTeam, setPlayerStatus } from "../../../server/mutations";
 import { removeUpload, saveUpload } from "../../../server/uploads";
 
 const slug = Astro.params.slug ?? "";
@@ -29,6 +29,9 @@ const result = await handlePost(Astro.request, async (form, intent) => {
       const p = setPlayerStatus(String(form.get("player") ?? ""), status);
       return { message: `${p.nickname} updated` };
     }
+    case "move":
+      movePlayerInLineup(slug, String(form.get("player") ?? ""), form.get("dir") === "up" ? "up" : "down");
+      return { message: "Lineup order saved" };
     case "sign": {
       const p = setPlayerStatus(String(form.get("player") ?? ""), "active", slug);
       return { message: `${p.nickname} signed` };
@@ -57,6 +60,13 @@ const rankRow = t ? getRanking().find((r) => r.team === t.slug) : undefined;
 const rankPos = t ? getRanking().findIndex((r) => r.team === t.slug) + 1 : 0;
 const moves = t ? teamTransfers(t.slug).slice(0, 8) : [];
 const LABEL = { active: "Active", benched: "Benched", free: "Free agent", retired: "Retired" } as const;
+// First/last of its group (starters or bench) can't move further.
+const edge = (p: (typeof roster)[number], dir: -1 | 1) => {
+  const group = roster.filter((x) => (x.status === "benched") === (p.status === "benched"));
+  return group[dir < 0 ? 0 : group.length - 1]?.slug === p.slug;
+};
+import RoleIcon from "../../../components/RoleIcon.astro";
+import Icon from "../../../components/Icon.astro";
 ---
 
 <Admin title={t ? t.name : "New team"} error={result?.error}>
@@ -116,7 +126,7 @@ const LABEL = { active: "Active", benched: "Benched", free: "Free agent", retire
                         <span><strong>{p.nickname}</strong><span class="muted"><Flag code={p.countryCode} label /> {p.firstName} {p.lastName}</span></span>
                       </a>
                     </th>
-                    <td>{p.role}</td>
+                    <td><span class="role-cell"><RoleIcon role={p.role} />{p.role}</span></td>
                     <td><span class:list={["badge", { green: st === "active", purple: st === "benched" }]}>{LABEL[st]}</span></td>
                     <td class="n mono">{playerElo(p.slug)?.elo ?? "—"}</td>
                     <td class="mono">{p.joined ?? "—"}</td>
@@ -127,6 +137,12 @@ const LABEL = { active: "Active", benched: "Benched", free: "Free agent", retire
                         {st === "active" ? <button class="btn ghost small" name="status" value="benched">Bench</button> : <button class="btn ghost small" name="status" value="active">Activate</button>}
                         <button class="btn ghost small" name="status" value="free">Release</button>
                         <a class="btn ghost small" href={`/admin/players/${p.slug}/`}>Edit</a>
+                      </form>
+                      <form method="post" class="order-btns" data-enhance>
+                        <input type="hidden" name="intent" value="move" />
+                        <input type="hidden" name="player" value={p.slug} />
+                        <button class="btn ghost small icon-only" name="dir" value="up" disabled={edge(p, -1)} aria-label={`Move ${p.nickname} up`} title="Move up"><Icon name="up" size={14} /></button>
+                        <button class="btn ghost small icon-only" name="dir" value="down" disabled={edge(p, 1)} aria-label={`Move ${p.nickname} down`} title="Move down"><Icon name="down" size={14} /></button>
                       </form>
                     </td>
                   </tr>

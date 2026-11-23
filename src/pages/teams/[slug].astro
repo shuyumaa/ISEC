@@ -34,6 +34,7 @@ const rank = rankOf(t.slug);
 const entry = getRanking().find((r) => r.team === t.slug);
 const roster = rosterOf(t.slug);
 const starters = roster.filter((p) => p.status !== "benched");
+const benched = roster.filter((p) => p.status === "benched");
 const moves = teamTransfers(t.slug).slice(0, 10);
 const all = matchesForTeam(t.slug);
 const upcoming = all.filter((m) => m.status !== "completed").reverse();
@@ -65,6 +66,7 @@ for (const m of results) {
 const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
 import Flag from "../../components/Flag.astro";
 import TransferRow from "../../components/TransferRow.astro";
+import RoleIcon from "../../components/RoleIcon.astro";
 ---
 
 <Base title={t.name} description={`${t.name} — roster, results, trophies, map pool and stats.`}>
@@ -77,13 +79,34 @@ import TransferRow from "../../components/TransferRow.astro";
           starters.map((p) => (
             <li>
               <a href={`/players/${p.slug}/`}>
-                <Photo player={p} size="card" />
+                <span class="lineup-photo">
+                  <Photo player={p} size="card" />
+                  <span class="lineup-role"><RoleIcon role={p.role} size="md" /></span>
+                </span>
                 <span class="lineup-name"><Flag code={p.countryCode} label /> {p.nickname}</span>
               </a>
             </li>
           ))
         }
       </ul>
+      {
+        benched.length > 0 && (
+          <div class="bench" aria-label="Bench">
+            <span class="bench-label">Bench</span>
+            <ul>
+              {benched.map((p) => (
+                <li>
+                  <a href={`/players/${p.slug}/`}>
+                    <Photo player={p} size="thumb" />
+                    <span>{p.nickname}</span>
+                    <RoleIcon role={p.role} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
       <div class="team-info">
         <div class="team-id">
           <TeamMark team={t} size="lg" />
@@ -134,7 +157,7 @@ import TransferRow from "../../components/TransferRow.astro";
                   return (
                     <tr>
                       <th scope="row"><a href={`/players/${p.slug}/`}>{p.nickname}</a> <span class="subtle">{p.firstName} {p.lastName}</span></th>
-                      <td>{p.role}</td>
+                      <td><span class="role-cell"><RoleIcon role={p.role} />{p.role}{p.status === "benched" ? " · Bench" : ""}</span></td>
                       <td>{since(p.joined)}</td>
                       <td class="n">{st?.maps ?? 0}</td>
                       <td class:list={["n", "rating", st && ratingTone(st.rating)]}>{st ? st.rating.toFixed(2) : "—"}</td>
@@ -314,6 +337,55 @@ import TransferRow from "../../components/TransferRow.astro";
           text-decoration: underline;
         }
       }
+    }
+    .role-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+    }
+    .lineup-photo {
+      position: relative;
+      display: block;
+    }
+    .lineup-role {
+      position: absolute;
+      inset-block-start: var(--sp-02);
+      inset-inline-start: var(--sp-02);
+    }
+    /* Benched players: a compact row under the starting five. */
+    .bench {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-02) var(--sp-04);
+      padding: var(--sp-03) var(--sp-04);
+      background: var(--layer);
+      border-block-start: var(--border-width) solid var(--border-subtle);
+      & ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-04);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      & a {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+        text-decoration: none;
+        font-weight: 600;
+        &:hover span {
+          text-decoration: underline;
+        }
+      }
+    }
+    .bench-label {
+      font-size: var(--type-label);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
     }
     .lineup-name {
       padding: var(--sp-02) var(--sp-02) var(--sp-03);

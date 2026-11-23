@@ -1,0 +1,54 @@
+---
+import Icon from "./Icon.astro";
+import type { Role } from "../data";
+
+/**
+ * HLTV-style role badge for the two roles fans look for in a lineup: the
+ * in-game leader (crown) and the AWPer (crosshair). Other roles show nothing,
+ * so the badges stay meaningful. The role name is the accessible label.
+ */
+interface Props {
+  role: Role;
+  size?: "sm" | "md";
+}
+const { role, size = "sm" } = Astro.props;
+const icon = role === "IGL" ? "crown" : role === "AWP" ? "crosshair" : undefined;
+const label = role === "IGL" ? "In-game leader" : "AWPer";
+---
+
+{
+  icon && (
+    <span class:list={["role-icon", size, role === "IGL" ? "igl" : "awp"]} role="img" aria-label={label} title={label}>
+      <Icon name={icon} size={size === "md" ? 18 : 12} />
+    </span>
+  )
+}
+
+<style>
+  @layer components {
+    .role-icon {
+      display: inline-grid;
+      place-items: center;
+      flex: none;
+      inline-size: 1.25rem;
+      aspect-ratio: 1;
+      border-radius: 4px;
+      color: var(--white);
+      &.md {
+        inline-size: 2rem;
+        border-radius: 6px;
+      }
+      &.igl {
+        background: var(--blue-70, #0043ce);
+      }
+      &.awp {
+        background: var(--green-60, #198038);
+      }
+    }
+    @media (forced-colors: active) {
+      .role-icon {
+        border: 1px solid CanvasText;
+      }
+    }
+  }
+</style>

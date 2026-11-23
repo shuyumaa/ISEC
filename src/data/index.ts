@@ -67,7 +67,12 @@ export const findArticle = (slug: string) => snapshot().articles.find((a) => a.s
 export const rosterOf = (teamSlug: string) =>
   getPlayers()
     .filter((p) => p.team === teamSlug && p.status !== "free" && p.status !== "retired")
-    .toSorted((a, b) => Number(a.status === "benched") - Number(b.status === "benched"));
+    .toSorted(
+      (a, b) =>
+        Number(a.status === "benched") - Number(b.status === "benched") ||
+        (a.order ?? 999) - (b.order ?? 999) ||
+        a.nickname.localeCompare(b.nickname),
+    );
 export const activeRoster = (teamSlug: string) => rosterOf(teamSlug).filter((p) => p.status !== "benched");
 export const getTransfers = () => snapshot().transfers;
 export const getRequests = () => snapshot().requests;

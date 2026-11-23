@@ -13,7 +13,25 @@ export const UPLOAD_DIR = resolve(process.env.DATA_DIR ?? "./data", "uploads");
 mkdirSync(UPLOAD_DIR, { recursive: true, mode: 0o700 });
 
 const MAX = 5 * 1024 * 1024;
-export const UPLOAD_NAME = /^[0-9a-f-]{36}\.(png|jpg|webp)$/;
+/** `<uuid>.png`, or `<uuid>-a.png` when the image has transparency (a cut-out). */
+export const UPLOAD_NAME = /^[0-9a-f-]{36}(-a)?\.(png|jpg|webp)$/;
+export const isCutout = (name?: string) => !!name && /-a\.(png|webp)$/.test(name);
+
+/** Does the (already stripped) image use transparency? PNG alpha/tRNS, WebP alpha. */
+function hasAlpha(b: Uint8Array, ext: "png" | "jpg" | "webp"): boolean {
+  if (ext === "png") {
+    const colorType = b[25];
+    if (colorType === 4 || colorType === 6) return true;
+    return Buffer.from(b).includes("tRNS");
+  }
+  if (ext === "webp") {
+    const tag = String.fromCharCode(...b.subarray(12, 16));
+    if (tag === "VP8X") return (b[20]! & 0x10) !== 0;
+    // Lossless: bit 28 of the 32-bit header after the 0x2f signature is "alpha used".
+    if (tag === "VP8L") return ((b[24]! >> 4) & 1) === 1;
+  }
+  return false;
+}
 
 function sniff(b: Uint8Array): "png" | "jpg" | "webp" | undefined {
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "png";
@@ -104,7 +122,7 @@ export async function saveUpload(form: FormData, field: string, label: string): 
   } catch {
     throw new FormError(`${label} looks damaged; re-export it and try again.`, field);
   }
-  const name = `${randomUUID()}.${ext}`;
+  const name = `${randomUUID()}${hasAlpha(clean, ext) ? "-a" : ""}.${ext}`;
   await writeFile(join(UPLOAD_DIR, name), clean, { mode: 0o600 });
   return name;
 }
