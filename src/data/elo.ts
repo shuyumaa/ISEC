@@ -76,7 +76,7 @@ function formatWeight(cfg: EloSettings, bo: Match["bestOf"]) {
 /** Elo for every team and player from completed matches that started before `until`. */
 function compute(cfg: EloSettings, until?: Temporal.Instant): Run {
   const matches = snapshot()
-    .matches.filter((m) => m.status === "completed" && m.seriesA !== m.seriesB)
+    .matches.filter((m) => m.status === "completed" && m.seriesA !== m.seriesB && m.teamA && m.teamB)
     .map((m) => ({ m, at: matchStart(m) }))
     .filter((x) => !until || Temporal.Instant.compare(x.at.toInstant(), until) < 0)
     .sort((a, b) => Temporal.ZonedDateTime.compare(a.at, b.at));

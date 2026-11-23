@@ -131,9 +131,13 @@ function readMeta(form: FormData, m: Partial<Match>) {
   m.stage = text(form, "stage", { required: true, max: 80, label: "Stage" });
   m.bestOf = Number(oneOf(form, "bestOf", ["1", "3", "5"] as const, "Format")) as 1 | 3 | 5;
   m.start = localDateTime(form, "start", "Start time");
-  m.teamA = requireTeam(text(form, "teamA", { required: true }), "Team A");
-  m.teamB = requireTeam(text(form, "teamB", { required: true }), "Team B");
-  if (m.teamA === m.teamB) throw new FormError("Team A and Team B must be different.", "teamB");
+  // Either team may be left as TBD (e.g. a final whose teams aren't decided yet).
+  const a = text(form, "teamA");
+  const b = text(form, "teamB");
+  m.teamA = a ? requireTeam(a, "Team A") : "";
+  m.teamB = b ? requireTeam(b, "Team B") : "";
+  if (m.teamA && m.teamA === m.teamB) throw new FormError("Team A and Team B must be different.", "teamB");
+  if (m.status && m.status !== "upcoming" && (!m.teamA || !m.teamB)) throw new FormError("A match that has started needs both teams.", "teamA");
   m.stars = int(form, "stars", { min: 0, max: 3, label: "Stars" }) as 0 | 1 | 2 | 3 ?? 0;
 }
 
@@ -207,6 +211,7 @@ export function updateMatch(id: string, intent: string, form: FormData): Match {
 
     case "status": {
       const status = oneOf(form, "status", MATCH_STATUSES, "Status");
+      if (status !== "upcoming" && (!m.teamA || !m.teamB)) throw new FormError("Set both teams before this match goes live.");
       m.status = status;
       if (status === "live" && !m.maps.some((x) => x.live)) {
         const next = m.maps.find((x) => !mapDecided(x));

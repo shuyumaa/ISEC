@@ -1,0 +1,114 @@
+---
+/**
+ * Pick one of 2–5 options (Carbon content switcher look). Real radio inputs,
+ * visually hidden but focusable, so arrow keys, forms without JS and screen
+ * readers behave natively; the label is the visible segment.
+ */
+interface Option {
+  value: string;
+  label: string;
+}
+interface Props {
+  name: string;
+  legend: string;
+  options: Option[];
+  value?: string;
+  /** Hint under the legend. */
+  hint?: string;
+  hideLegend?: boolean;
+  /** Take two form-grid columns (for 3+ longer labels), so the switcher stays on one line. */
+  wide?: boolean;
+}
+const { name, legend, options, value, hint, hideLegend = false, wide = false } = Astro.props;
+const id = `cg-${name}`;
+const current = value ?? options[0]?.value;
+---
+
+<fieldset class:list={["choice", { wide }]} aria-describedby={hint ? `${id}-hint` : undefined}>
+  <legend class:list={{ "visually-hidden": hideLegend }}>{legend}</legend>
+  <div class="choice-row">
+    {
+      options.map((o) => (
+        <label class="choice-opt">
+          <input type="radio" name={name} value={o.value} checked={o.value === current} />
+          <span>{o.label}</span>
+        </label>
+      ))
+    }
+  </div>
+  {hint && <span id={`${id}-hint`} class="hint">{hint}</span>}
+</fieldset>
+
+<style>
+  @layer components {
+    .choice {
+      display: grid;
+      gap: var(--sp-02);
+      margin: 0;
+      padding: 0;
+      border: 0;
+      min-inline-size: 0;
+      & legend {
+        padding: 0 0 var(--sp-02);
+        font-size: var(--type-label);
+        letter-spacing: 0.032em;
+        color: var(--text-secondary);
+      }
+    }
+    @container page (width >= 40rem) {
+      .choice.wide {
+        grid-column: span 2;
+      }
+    }
+    .choice-row {
+      display: flex;
+      flex-wrap: wrap;
+      inline-size: fit-content;
+      max-inline-size: 100%;
+      border: var(--border-width) solid var(--border-strong);
+    }
+    .choice-opt {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      min-block-size: 2.25rem;
+      padding: 0 var(--sp-04);
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: var(--type-body-sm);
+      white-space: nowrap;
+      transition: background-color var(--duration-fast) var(--ease-productive), color var(--duration-fast) var(--ease-productive);
+      & + & {
+        border-inline-start: var(--border-width) solid var(--border-strong);
+      }
+      &:hover {
+        background: var(--layer-hover);
+        color: var(--text-primary);
+      }
+      /* Visually hidden but still the focusable, checkable control. */
+      & input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      &:has(input:checked) {
+        background: var(--inverse);
+        color: var(--on-inverse);
+        font-weight: 600;
+      }
+      &:has(input:focus-visible) {
+        outline: var(--focus-width) solid var(--focus);
+        outline-offset: -2px;
+        z-index: 1;
+      }
+    }
+    @media (forced-colors: active) {
+      .choice-opt:has(input:checked) {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+      }
+    }
+  }
+</style>

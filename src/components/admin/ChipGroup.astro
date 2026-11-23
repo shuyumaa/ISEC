@@ -1,0 +1,112 @@
+---
+/**
+ * Pick any number of options as Carbon "selectable tags". Real checkboxes
+ * (visually hidden, focusable) so the form posts the same values as before.
+ */
+interface Option {
+  value: string;
+  label: string;
+}
+interface Props {
+  name: string;
+  legend: string;
+  options: Option[];
+  selected?: string[];
+  hint?: string;
+}
+const { name, legend, options, selected = [], hint } = Astro.props;
+const count = options.filter((o) => selected.includes(o.value)).length;
+---
+
+<fieldset class="chips">
+  <legend>{legend} <span class="count">{count} of {options.length}</span></legend>
+  <div class="chip-row">
+    {
+      options.map((o) => (
+        <label class="chip">
+          <input type="checkbox" name={name} value={o.value} checked={selected.includes(o.value)} />
+          <svg class="tick" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+          <span>{o.label}</span>
+        </label>
+      ))
+    }
+  </div>
+  {hint && <span class="hint">{hint}</span>}
+</fieldset>
+
+<style>
+  @layer components {
+    .chips {
+      display: grid;
+      gap: var(--sp-02);
+      margin: 0;
+      padding: 0;
+      border: 0;
+      min-inline-size: 0;
+      & legend {
+        padding: 0 0 var(--sp-02);
+        font-size: var(--type-label);
+        letter-spacing: 0.032em;
+        color: var(--text-secondary);
+      }
+    }
+    .count {
+      margin-inline-start: var(--sp-02);
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-02);
+    }
+    .chip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+      min-block-size: 2rem;
+      padding: 0 var(--sp-04) 0 var(--sp-03);
+      border: var(--border-width) solid var(--border-strong);
+      border-radius: 1rem;
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: var(--type-body-sm);
+      cursor: pointer;
+      transition: background-color var(--duration-fast) var(--ease-productive);
+      &:hover {
+        background: var(--layer-hover);
+      }
+      & input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      & .tick {
+        inline-size: 0;
+        opacity: 0;
+        transition: inline-size var(--duration-fast) var(--ease-productive), opacity var(--duration-fast);
+      }
+      &:has(input:checked) {
+        background: var(--inverse);
+        border-color: var(--inverse);
+        color: var(--on-inverse);
+        & .tick {
+          inline-size: 12px;
+          opacity: 1;
+        }
+      }
+      &:has(input:focus-visible) {
+        outline: var(--focus-width) solid var(--focus);
+        outline-offset: 2px;
+      }
+    }
+    @media (forced-colors: active) {
+      .chip:has(input:checked) {
+        outline: 2px solid Highlight;
+      }
+    }
+  }
+</style>
