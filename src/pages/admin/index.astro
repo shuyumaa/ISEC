@@ -1,4 +1,5 @@
 ---
+import ComingSoonCard from "../../components/admin/ComingSoonCard.astro";
 import Admin from "../../layouts/Admin.astro";
 import LiveRegion from "../../components/LiveRegion.astro";
 import LocalTime from "../../components/LocalTime.astro";
@@ -57,6 +58,8 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
       </section>
     )
   }
+
+  <ComingSoonCard back="/admin/" />
 
   <LiveRegion key="tiles" deps={["*"]}>
     <div class="tiles">

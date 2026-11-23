@@ -1,11 +1,23 @@
 ---
 import Admin from "../../layouts/Admin.astro";
-import { event, getMatches, getSettings, team } from "../../data";
+import { event, getMatches, getSettings, getTransfers, team } from "../../data";
 import { handlePost } from "../../server/handle";
-import { saveSettings } from "../../server/mutations";
+import { clearTransfers, saveSettings, setComingSoon } from "../../server/mutations";
+import ComingSoonCard from "../../components/admin/ComingSoonCard.astro";
+import ConfirmDelete from "../../components/admin/ConfirmDelete.astro";
 import { removeUpload, saveUpload } from "../../server/uploads";
 
-const result = await handlePost(Astro.request, async (form) => {
+const result = await handlePost(Astro.request, async (form, intent) => {
+  if (intent === "coming-soon") {
+    const on = form.get("comingSoon") === "on";
+    setComingSoon(on);
+    const back = String(form.get("back") ?? "");
+    return { redirect: /^\/admin\/[\w\-/]*$/.test(back) ? back : undefined, message: on ? "Coming soon is on: visitors only see the holding page" : "The site is open to visitors" };
+  }
+  if (intent === "delete") {
+    const n = clearTransfers();
+    return { message: `Transfer history cleared (${n} ${n === 1 ? "move" : "moves"})` };
+  }
   const before = getSettings();
   const light = await saveUpload(form, "footerLogoLight", "Light logo");
   const dark = await saveUpload(form, "footerLogoDark", "Dark logo");
@@ -17,6 +29,7 @@ const result = await handlePost(Astro.request, async (form) => {
 });
 if (result instanceof Response) return result;
 const s = getSettings();
+const transferCount = getTransfers().length;
 const candidates = getMatches().filter((m) => m.status !== "completed");
 const navKeys = [
   ["matches", "Matches page"],
@@ -30,6 +43,7 @@ const navKeys = [
 ---
 
 <Admin title="Site settings" error={result?.error}>
+  <ComingSoonCard back="/admin/settings/" />
   <form method="post" class="form" enctype="multipart/form-data">
     <fieldset>
       <legend>Names</legend>
@@ -152,4 +166,10 @@ const navKeys = [
 
     <div class="actions"><button type="submit" class="btn">Save settings</button></div>
   </form>
+
+  <section class="admin-section" aria-labelledby="data-h">
+    <h2 id="data-h">Transfer history</h2>
+    <p class="muted">{transferCount ? `${transferCount} recorded ${transferCount === 1 ? "move" : "moves"}. Clearing removes every move from the history, the home page and player pages. Players keep their current team and status; new moves are recorded from now on.` : "No moves recorded."}</p>
+    {transferCount > 0 && <div class="actions"><ConfirmDelete id="clear-transfers" what="the whole transfer history" action="/admin/settings/" label="Clear transfer history" /></div>}
+  </section>
 </Admin>
