@@ -40,6 +40,8 @@ export interface Player {
   team: string;
   /** Missing means "active" (older records). */
   status?: PlayerStatus;
+  /** Position in the team's lineup (lower first); unset players follow, by name. */
+  order?: number;
   role: Role;
   countryCode: string;
   age: number;

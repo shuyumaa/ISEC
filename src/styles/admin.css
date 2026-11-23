@@ -607,3 +607,43 @@
     block-size: 2.25rem;
   }
 }
+
+@layer components {
+  /* Row actions and the lineup arrows share one line in a table cell. */
+  td:has(> .order-btns) {
+    white-space: nowrap;
+    text-align: end;
+    & > .row-actions {
+      display: inline-flex;
+      vertical-align: middle;
+    }
+  }
+  .order-btns {
+    display: inline-flex;
+    gap: var(--sp-02);
+    margin-inline-start: var(--sp-02);
+    vertical-align: middle;
+  }
+  :is(.order-btns, .row-actions) .btn.icon-only {
+    box-sizing: border-box;
+    inline-size: 2.25rem;
+    min-block-size: 2.25rem;
+    padding: 0;
+    justify-content: center;
+  }
+  .role-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-02);
+  }
+}
+
+@layer components {
+  .btn:disabled {
+    cursor: not-allowed;
+    color: var(--text-disabled, var(--text-secondary));
+    border-color: var(--border-subtle);
+    background: transparent;
+    opacity: 0.5;
+  }
+}

@@ -3,7 +3,7 @@ import type { PlayerStatus, RosterRequest } from "../data/types";
 import { actor } from "./actor";
 import { snapshot, transaction } from "./db";
 import { FormError, optionalText, text } from "./forms";
-import { PLAYER_STATUSES, savePlayer, saveTeam, setPlayerStatus } from "./mutations";
+import { PLAYER_STATUSES, movePlayerInLineup, savePlayer, saveTeam, setPlayerStatus } from "./mutations";
 
 /*
  * Team panel actions. Every function takes the signed-in account's team slug
@@ -49,6 +49,13 @@ export function teamSetBench(team: string | undefined, slug: string, benched: bo
   const t = ownTeam(team);
   ownPlayer(t, slug);
   return setPlayerStatus(slug, benched ? "benched" : "active");
+}
+
+/** Reorder the team's own lineup. */
+export function teamMovePlayer(team: string | undefined, slug: string, dir: "up" | "down") {
+  const t = ownTeam(team);
+  ownPlayer(t, slug);
+  movePlayerInLineup(t, slug, dir);
 }
 
 /* -------------------------------- Requests ------------------------------- */

@@ -1,4 +1,4 @@
-import { mapDecided, matchRoster, seriesScore } from "../data";
+import { mapDecided, matchRoster, rosterOf, seriesScore } from "../data";
 import type {
   EloSettings,
   PlayerStatus,
@@ -479,6 +479,8 @@ export function savePlayer(slug: string | undefined, form: FormData, photo?: Upl
     ign: optionalText(form, "ign", { max: 64 }),
     steamId: optionalText(form, "steamId", { max: 32 }),
     photo: pickUpload(existing?.photo, photo),
+    // A move to another team starts at the end of that lineup.
+    order: moved && before.team !== team ? undefined : existing?.order,
     // "On team since" follows the latest move unless set explicitly.
     joined: optionalText(form, "joined", { max: 10 }) ?? (moved && team ? moveDate : existing?.joined),
   };
@@ -509,6 +511,19 @@ export function setPlayerStatus(slug: string, status: PlayerStatus, team?: strin
   form.set("countryCode", p.countryCode ?? "");
   if (p.joined && (team ?? p.team) === p.team) form.set("joined", p.joined);
   return savePlayer(slug, form, undefined);
+}
+
+/** Move a player one place up or down in their team's lineup (starters and bench are ordered separately). */
+export function movePlayerInLineup(team: string, slug: string, dir: "up" | "down") {
+  const p = snapshot().players.find((x) => x.slug === slug);
+  if (!p || p.team !== team) throw new FormError("That player isn't on this team.");
+  const benched = p.status === "benched";
+  const group = rosterOf(team).filter((x) => (x.status === "benched") === benched);
+  const i = group.findIndex((x) => x.slug === slug);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (j < 0 || j >= group.length) return;
+  [group[i], group[j]] = [group[j]!, group[i]!];
+  transaction((tx) => group.forEach((x, n) => tx.put("player", x.slug, { ...x, order: n + 1 })), actor(), "reorder lineup");
 }
 
 export function deletePlayer(slug: string) {
