@@ -20,14 +20,16 @@ const instant = matchInstant(m);
 const liveMap = m.maps.find((x) => x.live);
 const H = `h${headingLevel}` as "h1" | "h2";
 const state = (slug: string) => (winner ? (winner === slug ? "won" : "lost") : undefined);
-const Wrap = link ? "a" : "div";
+// One primary link (stretched over the board) plus team links, never a link
+// inside a link: see Modern Web Guidance "card".
+const Center = link ? "a" : "div";
 const seriesA = m.bestOf === 1 ? (m.maps[0]?.scoreA ?? 0) : m.seriesA;
 const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
 const flagA = flagUrl(a.countryCode);
 const flagB = flagUrl(b.countryCode);
 ---
 
-<Wrap class:list={["scoreboard", m.status, { link }]} href={link ? `/matches/${m.id}/` : undefined}>
+<div class:list={["scoreboard", m.status, { link }]}>
   {flagA && <span class="sb-flag a" style={`--flag: url("${flagA}")`} aria-hidden="true" />}
   {flagB && <span class="sb-flag b" style={`--flag: url("${flagB}")`} aria-hidden="true" />}
   <div class="sb-meta">
@@ -44,13 +46,13 @@ const flagB = flagUrl(b.countryCode);
   </span>
 
   <div class="sb-main">
-    <div class:list={["sb-team", state(a.slug)]}>
+    <a class:list={["sb-team", state(a.slug)]} href={`/teams/${a.slug}/`}>
       <TeamMark team={a} size="xl" />
       <span class="sb-name">{a.name}</span>
       {rankOf(a.slug) && <span class="subtle">Rank #{rankOf(a.slug)}</span>}
-    </div>
+    </a>
 
-    <div class="sb-center">
+    <Center class:list={["sb-center", { "card-link": link }]} href={link ? `/matches/${m.id}/` : undefined} aria-label={link ? `Match page: ${a.name} vs ${b.name}` : undefined}>
       {
         m.status === "upcoming" ? (
           <>
@@ -75,15 +77,15 @@ const flagB = flagUrl(b.countryCode);
           </>
         )
       }
-    </div>
+    </Center>
 
-    <div class:list={["sb-team", state(b.slug)]}>
+    <a class:list={["sb-team", state(b.slug)]} href={`/teams/${b.slug}/`}>
       <TeamMark team={b} size="xl" />
       <span class="sb-name">{b.name}</span>
       {rankOf(b.slug) && <span class="subtle">Rank #{rankOf(b.slug)}</span>}
-    </div>
+    </a>
   </div>
-</Wrap>
+</div>
 
 <style>
   @layer components {
@@ -98,11 +100,25 @@ const flagB = flagUrl(b.countryCode);
       background: var(--surface);
       text-decoration: none;
 
-      &.link:hover {
+      /* The board reacts as a whole to its match link (hover and focus ring). */
+      &:has(.card-link:hover) {
         background: var(--layer);
       }
-      &.link:focus-visible {
+      &:has(.card-link:focus-visible) {
+        outline: var(--focus-width) solid var(--focus);
         outline-offset: calc(var(--focus-width) * -1);
+      }
+      & .card-link {
+        color: inherit;
+        text-decoration: none;
+        &::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+        }
+        &:focus-visible {
+          outline: none;
+        }
       }
       &.live {
         border-block-start: 4px solid var(--live);
@@ -158,6 +174,15 @@ const flagB = flagUrl(b.countryCode);
     }
 
     .sb-team {
+      /* Above the stretched match link, so each team opens its own page. */
+      position: relative;
+      z-index: 1;
+      color: inherit;
+      text-decoration: none;
+      &:hover .sb-name {
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
       display: grid;
       justify-items: center;
       gap: var(--sp-03);

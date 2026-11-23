@@ -4,6 +4,7 @@ import LocalTime from "../LocalTime.astro";
 import Photo from "../Photo.astro";
 import TeamMark from "../TeamMark.astro";
 import EventMark from "../EventMark.astro";
+import Icon from "../Icon.astro";
 import { event, getEvents, matchInstant, getRanking, getRankingUpdated, getSettings, playerOfWeek, ratingTone, team, upcomingMatches } from "../../data";
 import { Temporal } from "temporal-polyfill";
 
@@ -67,22 +68,31 @@ const when = (e: (typeof railEvents)[number]) => {
     {r.ranking !== false && (
     <section class="rail-box" aria-labelledby="rail-rank">
       <h2 id="rail-rank" class="rail-title">{settings.rails.rankingTitle}</h2>
-      <ol class="rail-rank">
-        {
-          top5.map((r, i) => (
-            <li>
-              <a href={`/teams/${r.team}/`}>
-                <span class="pos">{i + 1}.</span>
-                <TeamMark team={team(r.team)} />
-                <span>{team(r.team).name}</span>
-              </a>
-            </li>
-          ))
-        }
-      </ol>
+      {
+        top5.length ? (
+          <ol class="rail-rank">
+            {top5.map((row, i) => (
+              <li>
+                <a href={`/teams/${row.team}/`}>
+                  <span class="pos">{i + 1}</span>
+                  <TeamMark team={team(row.team)} />
+                  <span class="rank-name">{team(row.team).name}</span>
+                  <span class="rank-pts">{row.points}</span>
+                  <span class:list={["rank-move", row.change > 0 ? "up" : row.change < 0 ? "down" : "same"]}>
+                    {row.change !== 0 && <Icon name={row.change > 0 ? "up" : "down"} size={10} />}
+                    <span class="visually-hidden">{row.change > 0 ? `up ${row.change}` : row.change < 0 ? `down ${-row.change}` : "no change"}</span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p class="rail-empty">No ranked teams yet. Teams enter the {settings.rankingName} after their first finished series.</p>
+        )
+      }
       <a class="rail-button" href="/ranking/">
-        Complete {settings.rankingName.toLowerCase()}
-        {updatedText && <span>Last updated: {updatedText}</span>}
+        Full ranking
+        {updatedText && <span>Updated {updatedText}</span>}
       </a>
     </section>
     )}

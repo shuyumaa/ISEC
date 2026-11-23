@@ -91,7 +91,7 @@
       align-self: start;
       block-size: calc(100dvh - var(--header-height));
       overflow-y: auto;
-      padding-block: var(--sp-05);
+      padding-block: var(--sp-04);
       border-block-end: 0;
       border-inline-end: var(--border-width) solid var(--border-subtle);
     }
@@ -101,7 +101,7 @@
       @media (width >= 56rem) {
         display: block;
         & + .nav-group {
-          margin-block-start: var(--sp-05);
+          margin-block-start: var(--sp-04);
         }
       }
     }
@@ -131,8 +131,8 @@
       align-items: center;
       justify-content: space-between;
       gap: var(--sp-03);
-      min-block-size: 2.5rem;
-      padding: var(--sp-02) var(--sp-05);
+      min-block-size: 2.25rem;
+      padding: var(--sp-01) var(--sp-05);
       white-space: nowrap;
       text-decoration: none;
       color: var(--text-secondary);
@@ -159,10 +159,10 @@
   .admin-main {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--sp-06);
+    gap: var(--sp-05);
     align-content: start;
     max-inline-size: 80rem;
-    padding: var(--sp-06) var(--gutter) var(--sp-10);
+    padding: var(--sp-05) var(--gutter) var(--sp-09);
     min-inline-size: 0;
   }
 
@@ -195,11 +195,16 @@
     padding: var(--sp-02) var(--sp-04);
     gap: var(--sp-03);
   }
+  /* Carbon "danger tertiary": outlined red, same shape and size as its neighbours. */
   .btn.danger {
     background: transparent;
-    color: var(--text-primary);
-    border: 2px solid var(--text-primary);
-    font-weight: 600;
+    color: var(--loss);
+    border: var(--border-width) solid var(--loss);
+    &:hover:not(:disabled) {
+      background: var(--support-error-bg);
+      border-color: var(--loss);
+      color: var(--loss);
+    }
   }
   .btn[disabled] {
     opacity: 0.5;
@@ -244,15 +249,15 @@
   /* ---- Forms ------------------------------------------------------------- */
   .form {
     display: grid;
-    gap: var(--sp-05);
+    gap: var(--sp-04);
     max-inline-size: 64rem;
   }
 
   .form-grid {
     display: grid;
-    gap: var(--sp-05);
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
     align-items: start;
+    gap: var(--sp-04);
   }
 
   .field {
@@ -325,9 +330,9 @@
 
   .admin fieldset {
     display: grid;
-    gap: var(--sp-04);
+    gap: var(--sp-03);
     margin: 0;
-    padding: var(--sp-05);
+    padding: var(--sp-04);
     border: var(--border-width) solid var(--border-subtle);
     min-inline-size: 0;
 
@@ -367,8 +372,8 @@
     display: grid;
     /* Content sits at the top when a card is stretched to match its neighbour. */
     align-content: start;
-    gap: var(--sp-05);
-    padding: var(--sp-05);
+    gap: var(--sp-04);
+    padding: var(--sp-04);
     background: var(--surface);
     border: var(--border-width) solid var(--border-subtle);
     min-inline-size: 0;
@@ -378,7 +383,7 @@
       font-size: var(--type-heading-sm);
     }
     & > .table-wrap {
-      margin-inline: calc(var(--sp-05) * -1);
+      margin-inline: calc(var(--sp-04) * -1);
       max-inline-size: none;
     }
   }
@@ -472,7 +477,7 @@
     & div {
       display: grid;
       gap: var(--sp-01);
-      padding: var(--sp-04) var(--sp-05);
+      padding: var(--sp-03) var(--sp-04);
       background: var(--surface);
       border: var(--border-width) solid var(--border-subtle);
       text-decoration: none;
@@ -568,19 +573,12 @@
     max-inline-size: none;
   }
   .admin-main > form.form {
-    padding: var(--sp-05);
+    padding: var(--sp-04);
     background: var(--surface);
     border: var(--border-width) solid var(--border-subtle);
   }
 }
 
-@layer components {
-  .admin-title-actions .btn {
-    min-block-size: 2.5rem;
-    padding-block: var(--sp-03);
-    white-space: nowrap;
-  }
-}
 
 @layer components {
   /* Padded cards size to their track, never past it. */
@@ -590,5 +588,22 @@
   }
   .editor-side > .btn {
     justify-self: start;
+  }
+}
+
+@layer components {
+  /* Every button in one row of actions has the same box, whatever its kind
+     (primary, ghost, danger, small) or element (a, button, summary). */
+  :is(.actions, .row-actions, .req-actions, .join, .admin-title-actions, .control-status, .sign-row, .filter-bar, .reset-form, .admin-header-actions, .section-head) :is(.btn, .btn.small) {
+    box-sizing: border-box;
+    min-block-size: 2.25rem;
+    padding: 0 var(--sp-04);
+    font-size: var(--type-body-sm);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  /* Inputs sitting in a button row match the buttons' height. */
+  :is(.req-actions, .join, .reset-form) input {
+    block-size: 2.25rem;
   }
 }
