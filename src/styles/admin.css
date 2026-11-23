@@ -493,13 +493,28 @@
     background: var(--surface);
     color: var(--text-primary);
 
+    /* Closed / exit state. display and overlay must transition so the
+       dialog stays in the top layer while it fades out. */
+    opacity: 0;
+    transition-property: opacity, translate, display, overlay;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-exit);
+    transition-behavior: allow-discrete;
+    @media (prefers-reduced-motion: no-preference) {
+      translate: 0 var(--sp-03);
+    }
+
     &:modal {
       overscroll-behavior: contain;
     }
     &::backdrop {
-      background: rgb(0 0 0 / 0.6);
+      background: rgb(0 0 0 / 0);
       overflow: hidden;
       overscroll-behavior: contain;
+      transition-property: background-color, display, overlay;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-exit);
+      transition-behavior: allow-discrete;
     }
     & h2 {
       font-size: var(--type-heading-sm);
@@ -508,6 +523,28 @@
     & p {
       color: var(--text-secondary);
       margin-block-end: var(--sp-05);
+    }
+  }
+  /* Open state; [data-closing] runs the exit where display/overlay can't transition. */
+  dialog.confirm:is([open]):where(:not([data-closing])) {
+    opacity: 1;
+    transition-duration: var(--duration-moderate);
+    transition-timing-function: var(--ease-entrance);
+    @starting-style {
+      opacity: 0;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      translate: 0 0;
+      @starting-style {
+        translate: 0 var(--sp-03);
+      }
+    }
+    &::backdrop {
+      background: rgb(0 0 0 / 0.6);
+      transition-duration: var(--duration-moderate);
+      @starting-style {
+        background: rgb(0 0 0 / 0);
+      }
     }
   }
 }

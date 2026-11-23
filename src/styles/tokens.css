@@ -93,6 +93,10 @@
     --duration-fast: 110ms;
     --duration-moderate: 240ms;
     --ease-productive: cubic-bezier(0.2, 0, 0.38, 0.9);
+    /* Carbon productive entrance / exit curves and the slow-01 step. */
+    --ease-entrance: cubic-bezier(0, 0, 0.38, 0.9);
+    --ease-exit: cubic-bezier(0.2, 0, 1, 0.9);
+    --duration-slow: 400ms;
 
     /* UI shell header: light blue in the light theme, deep navy in the dark
        theme. Text flips with it (white on light blue would fail contrast),

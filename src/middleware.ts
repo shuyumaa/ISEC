@@ -49,6 +49,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (servedOverHttps(ctx.request, ctx.url)) {
     h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
+  // Hover preloading for public pages (rules in src/pages/speculationrules.json.ts).
+  if (!isAdmin && !isAdminApi && (h.get("Content-Type") ?? "").includes("text/html")) {
+    h.set("Speculation-Rules", '"/speculationrules.json"');
+  }
   if (isAdmin || isAdminApi) {
     h.set("Cache-Control", "no-store");
     h.set("X-Robots-Tag", "noindex, nofollow");

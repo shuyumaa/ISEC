@@ -78,7 +78,7 @@ export function teamAt(playerSlug: string, date: string): string {
   let byPlayer = teamAtCache.get(s);
   if (!byPlayer) {
     byPlayer = new Map();
-    for (const t of [...s.transfers].reverse()) {
+    for (const t of s.transfers.toReversed()) {
       if (!byPlayer.has(t.player)) byPlayer.set(t.player, []);
       byPlayer.get(t.player)!.push({ date: t.date, team: t.to });
     }

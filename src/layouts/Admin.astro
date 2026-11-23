@@ -10,6 +10,7 @@ import "../styles/tokens.css";
 import "../styles/components.css";
 import "../styles/protect.css";
 import "../styles/admin.css";
+import "../styles/motion.css";
 import Icon from "../components/Icon.astro";
 import LogoMark from "../components/LogoMark.astro";
 import { liveMatches } from "../data";
@@ -61,6 +62,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <title>{title} · ISEC Admin</title>
+    <link rel="expect" href="#main" blocking="render" />
   </head>
   <body class="admin">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -129,6 +131,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === "/admin" 
       import "../scripts/time";
       import "../scripts/live";
       import "../scripts/admin";
+      import "../scripts/dialogs";
     </script>
   </body>
 </html>

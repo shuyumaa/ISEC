@@ -157,4 +157,20 @@ function connect() {
   }
 }
 
-if (document.querySelector("[data-live]")) connect();
+if (document.querySelector("[data-live]")) {
+  // A page prerendered on hover connects only once it is actually shown,
+  // then catches up on anything that changed since it was rendered.
+  const doc = document as Document & { prerendering?: boolean };
+  if (doc.prerendering) {
+    document.addEventListener(
+      "prerenderingchange",
+      () => {
+        connect();
+        refreshAll();
+      },
+      { once: true },
+    );
+  } else {
+    connect();
+  }
+}

@@ -607,12 +607,23 @@
 @layer components {
   /* Site-wide announcement (Admin → Settings). Deliberately quieter than the
      blue top bar and visibly separate from it: card surface, hairline, icon. */
+  /* A slim strip under the top bar: one line, content kept to the page width. */
   .announcement {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--sp-03);
-    padding: var(--sp-03) var(--gutter);
+    block-size: 2.5rem;
+    max-block-size: 2.5rem;
+    overflow: hidden;
+    padding-inline: max(var(--gutter), (100% - var(--container)) / 2 + var(--gutter));
+    margin: 0;
+    white-space: nowrap;
+    & > a,
+    & > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     background: var(--surface);
     border-block: var(--border-width) solid var(--border-subtle);
     color: var(--text-primary);

@@ -1,0 +1,64 @@
+/*
+ * Motion (Carbon productive timing; Modern Web Guidance: cross-document-transitions,
+ * consistent-cross-document-transitions, scrollytelling, motion).
+ * Everything here is decoration: without support, or with reduced motion,
+ * pages switch instantly and content is simply visible.
+ */
+
+/* 1. Page switches: same-origin navigations cross-fade, the new content rises in.
+      Kept top level (not in a layer). */
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
+/* The top bars persist across pages, so they don't fade with the content. */
+.site-header,
+.admin-header {
+  view-transition-name: top-bar;
+}
+
+::view-transition-old(root) {
+  animation: var(--duration-fast) var(--ease-exit) both vt-fade-out;
+}
+::view-transition-new(root) {
+  animation: var(--duration-moderate) var(--ease-entrance) both vt-rise-in;
+}
+::view-transition-group(top-bar) {
+  animation-duration: 0s;
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-rise-in {
+  from {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+
+/* 2. Scrolling: cards ease in as they enter the viewport. Cards already on
+      screen are past their entry range, so they render fully visible. */
+@supports ((animation-timeline: view()) and (animation-range: 0% 100%)) {
+  @media (prefers-reduced-motion: no-preference) {
+    :is(.panel, .admin-section, .rail-box, .block, .scoreboard) {
+      animation: scroll-reveal linear both;
+      /* Declared after the shorthand so it doesn't reset them. */
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+@keyframes scroll-reveal {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+}
