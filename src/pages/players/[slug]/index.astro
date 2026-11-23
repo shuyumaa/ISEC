@@ -57,6 +57,7 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
 >
   <LiveRegion key="player" deps={[`player:${p.slug}`, `team:${t.slug}`, "match:*", "event:*", "season:*"]}>
     <section class="profile-card" aria-labelledby="player-name">
+      <div class="portrait-col">
       <div class="portrait">
         <span class="tag">Player</span>
         <span class="side-icons">
@@ -64,7 +65,8 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
           {hasTeam && <TeamMark team={t} />}
         </span>
         <Photo player={p} size="hero" />
-        <a class="stats-btn" href={`/players/${p.slug}/stats/`}>Player stats</a>
+      </div>
+      <a class="stats-btn" href={`/players/${p.slug}/stats/`}>Player stats</a>
       </div>
 
       <div class="identity">
@@ -238,6 +240,12 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
         grid-template-columns: 15rem minmax(0, 1fr);
       }
     }
+    /* Photo (on its tinted backdrop) with the stats button underneath, on the card. */
+    .portrait-col {
+      display: grid;
+      align-content: start;
+      max-inline-size: 22rem;
+    }
     .portrait {
       position: relative;
       align-self: start;
@@ -273,7 +281,7 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
       justify-content: center;
       inline-size: fit-content;
       min-block-size: 2.5rem;
-      margin: var(--sp-04) auto var(--sp-05);
+      margin: var(--sp-04) auto;
       padding: 0 var(--sp-06);
       background: var(--button-primary);
       color: var(--white);
