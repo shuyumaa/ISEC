@@ -48,6 +48,7 @@ const ratingPos = playerRank("rating").findIndex((r) => r.stats.player.slug === 
 const elo = playerElo(p.slug);
 const opponent = (m: (typeof all)[number]) => team(m.teamA === t.slug ? m.teamB : m.teamA);
 const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA}:${m.seriesB}` : `${m.seriesB}:${m.seriesA}`);
+import { rolesOf } from "../../../data";
 import RoleIcon from "../../../components/RoleIcon.astro";
 ---
 
@@ -64,7 +65,7 @@ import RoleIcon from "../../../components/RoleIcon.astro";
         <span class="side-icons">
           <Flag code={p.countryCode} label />
           {hasTeam && <TeamMark team={t} />}
-          <RoleIcon role={p.role} size="md" />
+          <RoleIcon player={p} size="md" stack />
         </span>
         <Photo player={p} size="hero" />
       </div>
@@ -78,7 +79,7 @@ import RoleIcon from "../../../components/RoleIcon.astro";
           <div><dt>Age</dt><dd>{p.age ? `${p.age} years` : "—"}</dd></div>
           <div><dt>Nationality</dt><dd class="nat"><Flag code={p.countryCode} /> {countryName(p.countryCode) || "—"}</dd></div>
           <div><dt>Current team</dt><dd>{hasTeam && p.status !== "benched" ? <a href={`/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a> : statusText}</dd></div>
-          <div><dt>Role</dt><dd class="nat"><RoleIcon role={p.role} /> {p.role}</dd></div>
+          <div><dt>Role</dt><dd class="nat"><RoleIcon player={p} /> {rolesOf(p).join(" / ")}</dd></div>
           <div><dt>Prize money</dt><dd>{money(prize)}</dd></div>
           <div><dt>Trophies</dt><dd>{titles}</dd></div>
           <div><dt>Player rank</dt><dd>{overallPos ? <a href="/players/">#{overallPos} overall · #{ratingPos} by rating</a> : "Not ranked yet"}</dd></div>

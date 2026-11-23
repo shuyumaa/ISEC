@@ -4,7 +4,7 @@ import { isCutout } from "../server/uploads";
 
 /**
  * Player portrait. Uploaded photos are protected CSS backgrounds (no <img> to
- * save or drag); without a photo a neutral silhouette stands in.
+ * save or drag); without a photo a dark HLTV-style silhouette stands in.
  */
 interface Props {
   player: Player;
@@ -19,8 +19,7 @@ const { player: p, size = "card" } = Astro.props;
   ) : (
     <span class:list={["photo", size, "empty-photo"]} aria-hidden="true">
       <svg viewBox="0 0 120 150" preserveAspectRatio="xMidYMax meet">
-        <circle cx="60" cy="52" r="26" />
-        <path d="M14 150c0-34 20-58 46-58s46 24 46 58z" />
+        <path d="M60 16c-14 0-23 12-23 28 0 13 5 23 12 28v9c-23 4-41 15-45 35l-2 34h116l-2-34c-4-20-22-31-45-35v-9c7-5 12-15 12-28 0-16-9-28-23-28z" />
       </svg>
     </span>
   )
@@ -47,15 +46,28 @@ const { player: p, size = "card" } = Astro.props;
         inline-size: 100%;
       }
     }
+    /* Dark head-and-shoulders silhouette on a mid-grey backdrop, readable in
+       both themes (the figure stays dark, the backdrop shifts). */
     .empty-photo {
+      --sil-bg: var(--gray-30);
+      --sil-fg: var(--gray-100);
       display: grid;
       align-items: end;
-      background: var(--layer);
+      background: var(--sil-bg);
       & svg {
         inline-size: 100%;
-        block-size: 85%;
-        fill: var(--layer-hover);
+        block-size: 90%;
+        fill: var(--sil-fg);
+        opacity: 0.88;
       }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not(:has(> head > meta[name="color-scheme"][content="light"])) .empty-photo {
+        --sil-bg: var(--gray-70);
+      }
+    }
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) .empty-photo {
+      --sil-bg: var(--gray-70);
     }
   }
 </style>

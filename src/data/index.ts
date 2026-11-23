@@ -1,7 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { snapshot } from "../server/db";
 import { eloSettings, playerElo, rankingAsOf, teamTable } from "./elo";
-import type { EsportsEvent, MapResult, Match, Player, PlayerMapStats, Team } from "./types";
+import type { EsportsEvent, MapResult, Match, Player, PlayerMapStats, Role, Team } from "./types";
 
 export type * from "./types";
 export * from "./elo";
@@ -496,7 +496,7 @@ export function playerRank(board: RankBoard, f: RankFilters = {}): RankRow[] {
 
   const minMaps = f.minMaps ?? getSettings().playerRankMinMaps;
   let rows = playerLeaderboard(minMaps, include)
-    .filter((s) => (!f.team || s.player.team === f.team) && (!f.role || s.player.role === f.role))
+    .filter((s) => (!f.team || s.player.team === f.team) && (!f.role || rolesOf(s.player).includes(f.role as Role)))
     .map((stats) => {
       const slug = stats.player.slug;
       const mvps = events.filter((e) => e.mvp === slug).length;
@@ -576,3 +576,6 @@ export function prizeMoney(slug: string) {
     return sum + (slot ? slot.prize / Math.max(1, slot.players!.length) : 0);
   }, 0);
 }
+
+/** A player's roles, primary first, without duplicates. */
+export const rolesOf = (p: Pick<Player, "role" | "role2">): Role[] => (p.role2 && p.role2 !== p.role ? [p.role, p.role2] : [p.role]);

@@ -65,6 +65,7 @@ const edge = (p: (typeof roster)[number], dir: -1 | 1) => {
   const group = roster.filter((x) => (x.status === "benched") === (p.status === "benched"));
   return group[dir < 0 ? 0 : group.length - 1]?.slug === p.slug;
 };
+import { rolesOf } from "../../../data";
 import RoleIcon from "../../../components/RoleIcon.astro";
 import Icon from "../../../components/Icon.astro";
 ---
@@ -126,7 +127,7 @@ import Icon from "../../../components/Icon.astro";
                         <span><strong>{p.nickname}</strong><span class="muted"><Flag code={p.countryCode} label /> {p.firstName} {p.lastName}</span></span>
                       </a>
                     </th>
-                    <td><span class="role-cell"><RoleIcon role={p.role} />{p.role}</span></td>
+                    <td><span class="role-cell"><RoleIcon player={p} />{rolesOf(p).join(" / ")}</span></td>
                     <td><span class:list={["badge", { green: st === "active", purple: st === "benched" }]}>{LABEL[st]}</span></td>
                     <td class="n mono">{playerElo(p.slug)?.elo ?? "—"}</td>
                     <td class="mono">{p.joined ?? "—"}</td>

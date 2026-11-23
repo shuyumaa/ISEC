@@ -474,6 +474,7 @@ export function savePlayer(slug: string | undefined, form: FormData, photo?: Upl
     team,
     status,
     role: oneOf(form, "role", ROLES, "Role"),
+    role2: form.get("role2") ? oneOf(form, "role2", ROLES, "Second role") : undefined,
     countryCode: readCountry(form, "countryCode", false) || (s.teams.find((t) => t.slug === team)?.countryCode ?? ""),
     age: int(form, "age", { min: 10, max: 60, label: "Age" }) ?? 0,
     ign: optionalText(form, "ign", { max: 64 }),
