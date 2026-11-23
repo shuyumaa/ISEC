@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { APIRoute } from "astro";
+import { trustedOrigin } from "../../server/origin";
 
 /*
  * Protected brand media. The logo files live outside /public and are only
@@ -22,7 +23,7 @@ export const GET: APIRoute = async ({ params, request, url }) => {
   const referer = request.headers.get("referer");
   let sameOriginReferer = false;
   try {
-    sameOriginReferer = !!referer && new URL(referer).origin === url.origin;
+    sameOriginReferer = !!referer && trustedOrigin(new URL(referer).origin, url);
   } catch {
     /* malformed referer */
   }

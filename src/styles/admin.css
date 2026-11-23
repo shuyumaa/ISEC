@@ -131,7 +131,6 @@
       white-space: nowrap;
       text-decoration: none;
       color: var(--text-secondary);
-      border-inline-start: 3px solid transparent;
 
       &:hover {
         background: var(--layer-hover);
@@ -141,7 +140,6 @@
         color: var(--text-primary);
         font-weight: 600;
         background: var(--layer-selected);
-        border-inline-start-color: var(--header-accent);
       }
     }
     & .nav-count {
@@ -533,5 +531,16 @@
     min-block-size: 2.5rem;
     padding-block: var(--sp-03);
     white-space: nowrap;
+  }
+}
+
+@layer components {
+  /* Padded cards size to their track, never past it. */
+  .admin-main :is(.admin-section, .side-card, .editor-main, .tiles > *, form.form) {
+    box-sizing: border-box;
+    min-inline-size: 0;
+  }
+  .editor-side > .btn {
+    justify-self: start;
   }
 }

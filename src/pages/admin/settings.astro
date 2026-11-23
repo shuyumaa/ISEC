@@ -93,13 +93,26 @@ const navKeys = [
       <legend>Side rails</legend>
       <div class="checks">
         <label><input type="checkbox" name="railLeft" checked={s.rails.left} /> Show the left rail (match, award, ranking, events)</label>
-        <label><input type="checkbox" name="railRight" checked={s.rails.right} /> Show the right rail (recent activity)</label>
+        <label><input type="checkbox" name="railRight" checked={s.rails.right} /> Show the right rail (activity, transfers)</label>
+      </div>
+      <p class="label">Boxes in the rails</p>
+      <div class="checks">
+        <label><input type="checkbox" name="boxNextMatch" checked={s.rails.nextMatch !== false} /> Next match</label>
+        <label><input type="checkbox" name="boxAward" checked={s.rails.award !== false} /> Player of the week</label>
+        <label><input type="checkbox" name="boxRanking" checked={s.rails.ranking !== false} /> Ranking</label>
+        <label><input type="checkbox" name="boxEvents" checked={s.rails.events !== false} /> Events</label>
+        <label><input type="checkbox" name="boxActivity" checked={s.rails.activity !== false} /> Recent activity</label>
+        <label><input type="checkbox" name="boxTransfers" checked={s.rails.transfers !== false} /> Recent transfers</label>
       </div>
       <div class="form-grid">
         <div class="field"><label for="awardTitle">Award heading</label><input id="awardTitle" name="awardTitle" required maxlength="40" value={s.rails.awardTitle} /></div>
         <div class="field"><label for="awardSubtitle">Award name</label><input id="awardSubtitle" name="awardSubtitle" required maxlength="40" value={s.rails.awardSubtitle} /></div>
         <div class="field"><label for="rankingTitle">Ranking heading</label><input id="rankingTitle" name="rankingTitle" required maxlength="40" value={s.rails.rankingTitle} /></div>
         <div class="field"><label for="activityTitle">Activity heading</label><input id="activityTitle" name="activityTitle" required maxlength="40" value={s.rails.activityTitle} /></div>
+        <div class="field"><label for="eventsTitle">Events heading</label><input id="eventsTitle" name="eventsTitle" maxlength="40" value={s.rails.eventsTitle ?? "Events"} /></div>
+        <div class="field"><label for="transfersTitle">Transfers heading</label><input id="transfersTitle" name="transfersTitle" maxlength="40" value={s.rails.transfersTitle ?? "Recent transfers"} /></div>
+        <div class="field"><label for="rankingCount">Teams in the ranking box</label><input id="rankingCount" name="rankingCount" type="number" min="1" max="30" value={s.rails.rankingCount ?? 5} /></div>
+        <div class="field"><label for="transfersCount">Moves in the transfers box</label><input id="transfersCount" name="transfersCount" type="number" min="1" max="20" value={s.rails.transfersCount ?? 5} /></div>
       </div>
       <p class="hint">The award goes to the best rating over the 7 days up to the latest result (minimum 2 maps), calculated automatically.</p>
     </fieldset>

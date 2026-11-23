@@ -1,29 +1,55 @@
 ---
 import Admin from "../../../layouts/Admin.astro";
+import Flag from "../../../components/Flag.astro";
 import TeamMark from "../../../components/TeamMark.astro";
-import { getTeams, rankOf, rosterOf } from "../../../data";
+import { getRanking, getTeams, rosterOf, teamElo } from "../../../data";
 
-const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
+const ranking = getRanking();
+const pos = new Map(ranking.map((r, i) => [r.team, { rank: i + 1, points: r.points }]));
+const teams = getTeams().toSorted((a, b) => (pos.get(a.slug)?.rank ?? 999) - (pos.get(b.slug)?.rank ?? 999) || a.name.localeCompare(b.name));
 ---
 
-<Admin title="Teams & players">
+<Admin title="Teams">
   <a slot="actions" class="btn" href="/admin/teams/new/">Add a team</a>
   <div class="table-wrap" role="region" aria-label="Teams" tabindex="0">
     <table class="data-table">
-      <thead><tr><th scope="col">Team</th><th scope="col">Country</th><th scope="col" class="n">Rank</th><th scope="col">Roster</th></tr></thead>
+      <thead>
+        <tr>
+          <th scope="col" class="n">Rank</th>
+          <th scope="col">Team</th>
+          <th scope="col">Country</th>
+          <th scope="col" class="n">Points</th>
+          <th scope="col" class="n">W–L</th>
+          <th scope="col">Starting five</th>
+          <th scope="col"><span class="visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
       <tbody>
         {
-          teams.map((t) => (
-            <tr>
-              <th scope="row"><a href={`/admin/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a></th>
-              <td>{t.country}</td>
-              <td class="n mono">{rankOf(t.slug) ?? "–"}</td>
-              <td class="muted">{rosterOf(t.slug).map((p) => p.nickname).join(", ") || "—"}</td>
-            </tr>
-          ))
+          teams.map((t) => {
+            const roster = rosterOf(t.slug);
+            const starters = roster.filter((p) => p.status !== "benched");
+            const elo = teamElo(t.slug);
+            const rp = pos.get(t.slug);
+            return (
+              <tr>
+                <td class="n mono">{rp?.rank ?? "–"}</td>
+                <th scope="row"><a href={`/admin/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a></th>
+                <td><span class="team-link"><Flag code={t.countryCode} /> {t.country}</span></td>
+                <td class="n mono">{rp?.points ?? "–"}</td>
+                <td class="n mono">{elo ? `${elo.wins}–${elo.losses}` : "0–0"}</td>
+                <td>
+                  <span class:list={["badge", { green: starters.length >= 5 }]}>{starters.length}/5</span>{" "}
+                  <span class="muted">{starters.map((p) => p.nickname).join(", ") || "No players yet"}</span>
+                </td>
+                <td><a class="btn ghost small" href={`/admin/teams/${t.slug}/`}>Manage</a></td>
+              </tr>
+            );
+          })
         }
       </tbody>
     </table>
+    {teams.length === 0 && <p class="empty">No teams yet. <a href="/admin/teams/new/">Add the first team</a>.</p>}
   </div>
 </Admin>
 

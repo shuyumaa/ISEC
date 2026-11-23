@@ -1,0 +1,19 @@
+---
+import { COUNTRIES } from "../../data/countries";
+
+interface Props {
+  id: string;
+  name?: string;
+  value?: string;
+  required?: boolean;
+  /** Label of the empty option (only when not required). */
+  emptyLabel?: string;
+}
+const { id, name = "countryCode", value = "", required = false, emptyLabel = "Same as team" } = Astro.props;
+const current = value.toUpperCase();
+---
+
+<select id={id} name={name} required={required} autocomplete="country">
+  {required ? <option value="" disabled selected={!current}>Choose a country…</option> : <option value="">{emptyLabel}</option>}
+  {COUNTRIES.map((c) => <option value={c.code} selected={c.code === current}>{c.name} ({c.code})</option>)}
+</select>

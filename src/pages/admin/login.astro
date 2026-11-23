@@ -1,5 +1,6 @@
 ---
 import Admin from "../../layouts/Admin.astro";
+import { servedOverHttps } from "../../server/origin";
 import { checkPassword, clearFailures, createSession, readSession, recordFailure, throttled } from "../../server/auth";
 
 const ADMIN_USER = process.env.ADMIN_USER ?? "admin";
@@ -7,7 +8,7 @@ const nextRaw = Astro.url.searchParams.get("next") ?? "/admin/";
 // Only allow same-site relative redirects into the admin area.
 const next = nextRaw.startsWith("/admin") && !nextRaw.startsWith("//") ? nextRaw : "/admin/";
 
-if (readSession(Astro.cookies, Astro.url)) return Astro.redirect(next, 303);
+if (readSession(Astro.cookies)) return Astro.redirect(next, 303);
 
 let error: string | undefined;
 if (Astro.request.method === "POST") {
@@ -19,7 +20,7 @@ if (Astro.request.method === "POST") {
     error = "Too many attempts. Wait ten minutes and try again.";
   } else if (username === ADMIN_USER && checkPassword(password)) {
     clearFailures(ip);
-    createSession(Astro.cookies, Astro.url);
+    createSession(Astro.cookies, servedOverHttps(Astro.request, Astro.url));
     return Astro.redirect(next, 303);
   } else {
     recordFailure(ip);

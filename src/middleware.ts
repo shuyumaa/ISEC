@@ -1,6 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { readSession } from "./server/auth";
 import { CSP } from "./server/csp";
+import { servedOverHttps, trustedOrigin } from "./server/origin";
 
 const PUBLIC_ADMIN = new Set(["/admin/login", "/admin/login/", "/admin/logout", "/admin/logout/"]);
 
@@ -12,7 +13,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   // CSRF: every state-changing request must come from our own origin, except
   // the game-server ingest endpoints, which authenticate with a secret key.
   if (!SAFE.has(ctx.request.method) && !pathname.startsWith("/api/ingest/")) {
-    if (ctx.request.headers.get("origin") !== ctx.url.origin) {
+    if (!trustedOrigin(ctx.request.headers.get("origin"), ctx.url)) {
       return new Response("Cross-site requests are forbidden", { status: 403 });
     }
     // Body size caps before anything parses the body: admin forms may carry
@@ -26,7 +27,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const isAdminApi = pathname.startsWith("/api/admin/");
 
   if ((isAdmin && !PUBLIC_ADMIN.has(pathname)) || isAdminApi) {
-    const session = readSession(ctx.cookies, ctx.url);
+    const session = readSession(ctx.cookies);
     if (!session) {
       if (isAdminApi) return new Response("Unauthorized", { status: 401 });
       return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname)}`, 303);
@@ -45,7 +46,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   if (!h.has("Content-Security-Policy")) h.set("Content-Security-Policy", CSP);
   if (!h.has("Cross-Origin-Resource-Policy")) h.set("Cross-Origin-Resource-Policy", "same-origin");
-  if (ctx.url.protocol === "https:") {
+  if (servedOverHttps(ctx.request, ctx.url)) {
     h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
   if (isAdmin || isAdminApi) {

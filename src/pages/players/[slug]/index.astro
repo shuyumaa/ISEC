@@ -3,6 +3,8 @@ import Base from "../../../layouts/Base.astro";
 import LiveRegion from "../../../components/LiveRegion.astro";
 import Photo from "../../../components/Photo.astro";
 import TeamMark from "../../../components/TeamMark.astro";
+import Flag from "../../../components/Flag.astro";
+import TransferRow from "../../../components/TransferRow.astro";
 import Trophy from "../../../components/Trophy.astro";
 import TrophyStrip from "../../../components/TrophyStrip.astro";
 import {
@@ -19,13 +21,18 @@ import {
   playerRank,
   prizeMoney,
   ratingTone,
+  countryName,
   team,
+  transfersFor,
   winnerOf,
 } from "../../../data";
 
 const p = findPlayer(Astro.params.slug ?? "");
 if (!p) return Astro.rewrite("/404");
 const t = team(p.team);
+const hasTeam = Boolean(p.team);
+const history = transfersFor(p.slug);
+const statusText = p.status === "retired" ? "Retired" : p.status === "free" || !hasTeam ? "Free agent" : p.status === "benched" ? `${t.name} (benched)` : "";
 const s = playerSummary(p.slug);
 const attrs = playerAttributes(p.slug) ?? [];
 const achievements = playerAchievements(p.slug);
@@ -52,9 +59,9 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
     <section class="profile-card" aria-labelledby="player-name">
       <div class="portrait">
         <span class="tag">Player</span>
-        <span class="side-icons" aria-hidden="true">
-          <span class="cc">{p.countryCode}</span>
-          <TeamMark team={t} />
+        <span class="side-icons">
+          <Flag code={p.countryCode} label />
+          {hasTeam && <TeamMark team={t} />}
         </span>
         <Photo player={p} size="hero" />
         <a class="stats-btn" href={`/players/${p.slug}/stats/`}>Player stats</a>
@@ -65,7 +72,8 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
         <p class="realname">{p.firstName} {p.lastName}</p>
         <dl class="rows">
           <div><dt>Age</dt><dd>{p.age ? `${p.age} years` : "—"}</dd></div>
-          <div><dt>Current team</dt><dd><a href={`/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a></dd></div>
+          <div><dt>Nationality</dt><dd class="nat"><Flag code={p.countryCode} /> {countryName(p.countryCode) || "—"}</dd></div>
+          <div><dt>Current team</dt><dd>{hasTeam && p.status !== "benched" ? <a href={`/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a> : statusText}</dd></div>
           <div><dt>Role</dt><dd>{p.role}</dd></div>
           <div><dt>Prize money</dt><dd>{money(prize)}</dd></div>
           <div><dt>Trophies</dt><dd>{titles}</dd></div>
@@ -82,7 +90,7 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
 
     <nav class="page-tabs" aria-label="Player sections">
       <a href="#info" aria-current="location">Info</a>
-      <a href={`/teams/${t.slug}/`}>Teams</a>
+      <a href="#history">Teams</a>
       <a href="#matches">Matches</a>
       <a href="#achievements">Achievements</a>
       <a href="#trophies">Trophies</a>
@@ -148,6 +156,13 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
         </div>
       </section>
     </div>
+
+    <section id="history" class="panel section" aria-labelledby="hist-h">
+      <div class="panel-head"><h2 id="hist-h">Team history</h2></div>
+      <div class="panel-body">
+        {history.length ? <ol class="moves">{history.map((m) => <TransferRow transfer={m} />)}</ol> : <p class="empty">No moves recorded.</p>}
+      </div>
+    </section>
 
     <section id="achievements" class="panel section" aria-labelledby="ach-h">
       <div class="panel-head"><h2 id="ach-h">Achievements</h2></div>
@@ -247,27 +262,34 @@ const ourScore = (m: (typeof all)[number]) => (m.teamA === t.slug ? `${m.seriesA
       display: grid;
       gap: var(--sp-03);
       justify-items: center;
-      & .cc {
-        padding: 0 var(--sp-02);
-        background: var(--surface);
-        font-family: var(--font-mono);
-        font-size: var(--type-label);
+      & .flag {
+        inline-size: 1.5rem;
       }
     }
+    /* Directly under the photo, full width of it. */
     .stats-btn {
-      position: absolute;
-      /* Sits on the lower part of the photo, as on HLTV, not under it. */
-      inset-block-end: var(--sp-05);
-      inset-inline-start: 50%;
-      translate: -50% 0;
+      display: block;
       padding: var(--sp-03) var(--sp-05);
-      background: var(--layer-selected);
-      color: var(--text-primary);
+      background: var(--button-primary);
+      color: var(--white);
+      text-align: center;
       text-decoration: none;
       white-space: nowrap;
       &:hover {
-        background: var(--layer-hover);
+        background: var(--button-primary-hover);
       }
+    }
+
+    .nat {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+    }
+    .moves {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
     }
     .identity {
       display: grid;

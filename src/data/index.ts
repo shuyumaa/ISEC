@@ -5,6 +5,8 @@ import type { EsportsEvent, MapResult, Match, Player, PlayerMapStats, Team } fro
 
 export type * from "./types";
 export * from "./elo";
+export * from "./brackets";
+export { COUNTRIES, countryName, flagUrl, isCountry } from "./countries";
 
 /*
  * Read API for pages. Everything resolves against the current database
@@ -57,7 +59,77 @@ export const findEvent = (slug: string) => idx().events.get(slug);
 export const findMatch = (id: string) => getMatches().find((m) => m.id === id);
 export const findArticle = (slug: string) => snapshot().articles.find((a) => a.slug === slug);
 
-export const rosterOf = (teamSlug: string) => getPlayers().filter((p) => p.team === teamSlug);
+/** Players on a team's books: the starting five first, then benched players. */
+export const rosterOf = (teamSlug: string) =>
+  getPlayers()
+    .filter((p) => p.team === teamSlug && p.status !== "free" && p.status !== "retired")
+    .toSorted((a, b) => Number(a.status === "benched") - Number(b.status === "benched"));
+export const activeRoster = (teamSlug: string) => rosterOf(teamSlug).filter((p) => p.status !== "benched");
+export const getTransfers = () => snapshot().transfers;
+
+const teamAtCache = new WeakMap<object, Map<string, { date: string; team: string }[]>>();
+/**
+ * The team a player was on at a date (YYYY-MM-DD), from the transfer history;
+ * falls back to the current team when no move is recorded. Keeps old results
+ * on the right side after a transfer.
+ */
+export function teamAt(playerSlug: string, date: string): string {
+  const s = snapshot();
+  let byPlayer = teamAtCache.get(s);
+  if (!byPlayer) {
+    byPlayer = new Map();
+    for (const t of [...s.transfers].reverse()) {
+      if (!byPlayer.has(t.player)) byPlayer.set(t.player, []);
+      byPlayer.get(t.player)!.push({ date: t.date, team: t.to });
+    }
+    teamAtCache.set(s, byPlayer);
+  }
+  const moves = byPlayer.get(playerSlug);
+  if (!moves?.length) return player(playerSlug).team;
+  let current: string | undefined;
+  for (const m of moves) if (m.date <= date) current = m.team;
+  // Before the first recorded move: the team they moved away from, if any.
+  return current ?? s.transfers.findLast((t) => t.player === playerSlug)?.from ?? player(playerSlug).team;
+}
+
+/**
+ * Players who can have stats in a match: anyone already in a map's stats,
+ * anyone on either team on the match day, and both current rosters. Team A
+ * players first. Keeps transferred players' old stats editable.
+ */
+export function matchRoster(m: Match): Player[] {
+  const date = m.start.slice(0, 10);
+  const inStats = new Set(m.maps.flatMap((x) => x.stats?.map((st) => st.player) ?? []));
+  const sideOf = (p: Player) => {
+    const then = teamAt(p.slug, date);
+    if (then === m.teamA || then === m.teamB) return then;
+    if (p.team === m.teamA || p.team === m.teamB) return p.team;
+    return inStats.has(p.slug) ? "?" : undefined;
+  };
+  return getPlayers()
+    .map((p) => ({ p, side: sideOf(p) }))
+    .filter((x) => x.side && (x.p.status !== "retired" || inStats.has(x.p.slug)))
+    .sort((x, y) => Number(x.side !== m.teamA) - Number(y.side !== m.teamA) || x.p.nickname.localeCompare(y.p.nickname))
+    .map((x) => x.p);
+}
+
+/** Split a map's stats into the two lineups, by who each player played for on that day. */
+export function lineups<T extends { player: string }>(m: Match, stats: T[]) {
+  const date = m.start.slice(0, 10);
+  const side = (st: T) => {
+    const t = teamAt(st.player, date);
+    return t === m.teamA ? "A" : t === m.teamB ? "B" : undefined;
+  };
+  return { a: stats.filter((st) => side(st) === "A"), b: stats.filter((st) => side(st) === "B") };
+}
+export const transfersFor = (playerSlug: string) => getTransfers().filter((t) => t.player === playerSlug);
+export const teamTransfers = (teamSlug: string) => getTransfers().filter((t) => t.from === teamSlug || t.to === teamSlug);
+/** Human label for one end of a move ("Bench", "No team", "Retired" or the team). */
+export function moveLabel(teamSlug: string, status: import("./types").PlayerStatus) {
+  if (status === "retired") return "Retired";
+  if (!teamSlug) return "No team";
+  return status === "benched" ? "Bench" : "";
+}
 export const rankOf = (teamSlug: string) => getRanking().findIndex((r) => r.team === teamSlug) + 1 || undefined;
 
 /* ------------------------------ Match rules ------------------------------ */

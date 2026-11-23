@@ -3,8 +3,10 @@ import { getEvents, getTeams, type Match } from "../../data";
 
 interface Props {
   match?: Match;
+  /** Event to preselect for a new match (e.g. from an event's "Schedule a match here"). */
+  presetEvent?: string;
 }
-const { match: m } = Astro.props;
+const { match: m, presetEvent } = Astro.props;
 const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 const events = getEvents();
 ---
@@ -13,7 +15,7 @@ const events = getEvents();
   <div class="field">
     <label for="event">Event</label>
     <select id="event" name="event" required>
-      {events.map((e) => <option value={e.slug} selected={m?.event === e.slug}>{e.name}</option>)}
+      {events.map((e) => <option value={e.slug} selected={(m?.event ?? presetEvent) === e.slug}>{e.name}</option>)}
     </select>
   </div>
   <div class="field">

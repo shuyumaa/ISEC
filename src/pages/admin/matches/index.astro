@@ -3,7 +3,7 @@ import Admin from "../../../layouts/Admin.astro";
 import LiveRegion from "../../../components/LiveRegion.astro";
 import LocalTime from "../../../components/LocalTime.astro";
 import MatchMetaFields from "../../../components/admin/MatchMetaFields.astro";
-import { event, getMatches, matchInstant, matchStart, team } from "../../../data";
+import { event, getEvents, getMatches, getTeams, matchInstant, matchStart, team } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { createMatch } from "../../../server/mutations";
 
@@ -22,6 +22,7 @@ const list = all
   .filter((m) => filter === "all" || m.status === filter)
   .toSorted((a, b) => order[a.status] - order[b.status] || matchStart(b).epochMilliseconds - matchStart(a).epochMilliseconds);
 const openNew = Astro.url.searchParams.has("new") || Boolean(result?.error);
+const canSchedule = getEvents().length > 0 && getTeams().length >= 2;
 const filters = [["all", "All"], ["live", "Live"], ["upcoming", "Upcoming"], ["completed", "Completed"]] as const;
 ---
 
@@ -30,8 +31,9 @@ const filters = [["all", "All"], ["live", "Live"], ["upcoming", "Upcoming"], ["c
 
   <details class="admin-section" id="new" open={openNew}>
     <summary>Schedule a match</summary>
-    <form method="post" class="form">
-      <MatchMetaFields />
+    {!canSchedule && <p class="notice">Before scheduling, <a href="/admin/events/new/">create an event</a> and <a href="/admin/teams/new/">add at least two teams</a>.</p>}
+    <form method="post" class="form" hidden={!canSchedule}>
+      <MatchMetaFields presetEvent={Astro.url.searchParams.get("event") ?? undefined} />
       <div class="actions"><button type="submit" class="btn">Create match</button></div>
     </form>
   </details>

@@ -1,0 +1,52 @@
+---
+import type { EsportsEvent } from "../data";
+
+/** Event logo (uploaded) or a monogram from the event's initials. */
+interface Props {
+  event: EsportsEvent;
+  size?: "sm" | "md" | "lg";
+}
+const { event: ev, size = "sm" } = Astro.props;
+const initials = ev.name
+  .split(/\s+/)
+  .filter((w) => /^\p{L}/u.test(w))
+  .slice(0, 3)
+  .map((w) => w[0]!.toUpperCase())
+  .join("");
+---
+
+{
+  ev.logo ? (
+    <span class:list={["event-mark", "logo", size, "protected"]} aria-hidden="true" style={`--img: url(/media/u/${ev.logo})`} />
+  ) : (
+    <span class:list={["event-mark", size]} aria-hidden="true">{initials}</span>
+  )
+}
+
+<style>
+  @layer components {
+    .event-mark {
+      --mark: 2rem;
+      display: inline-grid;
+      place-items: center;
+      flex: none;
+      inline-size: var(--mark);
+      aspect-ratio: 1;
+      background: var(--inverse);
+      color: var(--on-inverse);
+      font-family: var(--font-mono);
+      font-size: calc(var(--mark) * 0.32);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      &.logo {
+        background: var(--img) center / contain no-repeat;
+      }
+      &.md {
+        --mark: 3rem;
+      }
+      &.lg {
+        --mark: 5.5rem;
+      }
+    }
+  }
+</style>

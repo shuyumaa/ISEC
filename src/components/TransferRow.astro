@@ -1,0 +1,118 @@
+---
+import Photo from "./Photo.astro";
+import TeamMark from "./TeamMark.astro";
+import { moveLabel, player, team, type Transfer } from "../data";
+
+interface Props {
+  transfer: Transfer;
+  /** Show a remove button (admin). */
+  deletable?: boolean;
+  /** Narrow rail layout: photo and the move only, name in the tooltip. */
+  compact?: boolean;
+}
+const { transfer: t, deletable = false, compact = false } = Astro.props;
+const p = player(t.player);
+const end = (slug: string, status: Transfer["toStatus"]) => ({ team: slug ? team(slug) : undefined, label: moveLabel(slug, status) });
+const from = end(t.from, t.fromStatus);
+const to = end(t.to, t.toStatus);
+const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).join(" ") || "No team";
+---
+
+<li class:list={["move", { compact }]}>
+  <a class="move-who" href={deletable ? `/admin/players/${p.slug}/` : `/players/${p.slug}/`} title={compact ? `${p.nickname}, ${t.date}` : undefined}>
+    <Photo player={p} size="thumb" />
+    <span class:list={{ "visually-hidden": compact }}>
+      <strong>{p.nickname}</strong>
+      <time class="muted" datetime={t.date}>{t.date}</time>
+    </span>
+  </a>
+  <span class="move-path" aria-label={`From ${describe(from)} to ${describe(to)}`}>
+    <span class="end">{from.team ? <TeamMark team={from.team} /> : <span class="none" aria-hidden="true" />}<span class="lbl">{from.label || from.team?.tag}</span></span>
+    <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 8h10M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <span class="end">{to.team ? <TeamMark team={to.team} /> : <span class="none" aria-hidden="true" />}<span class="lbl">{to.label || to.team?.tag}</span></span>
+  </span>
+  {t.note && <span class="note muted">{t.note}</span>}
+  {
+    deletable && (
+      <form method="post" data-enhance class="move-del">
+        <input type="hidden" name="intent" value="delete-transfer" />
+        <input type="hidden" name="id" value={t.id} />
+        <button class="btn ghost small" aria-label={`Remove this move of ${p.nickname} from the history`}>Remove</button>
+      </form>
+    )
+  }
+</li>
+
+<style>
+  @layer components {
+    .move {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-03) var(--sp-05);
+      padding: var(--sp-03) 0;
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      &:has(.move-del) {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+      }
+    }
+    .move.compact {
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--sp-03);
+      padding: var(--sp-02) var(--sp-03);
+      & .move-path {
+        justify-content: center;
+      }
+      & .note {
+        display: none;
+      }
+    }
+    .move-who {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+      text-decoration: none;
+      color: inherit;
+      min-inline-size: 0;
+      & > span {
+        display: grid;
+        min-inline-size: 0;
+      }
+      & strong {
+        color: var(--link);
+      }
+      & time {
+        font-family: var(--font-mono);
+        font-size: var(--type-label);
+      }
+    }
+    .move-path {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+      color: var(--text-secondary);
+    }
+    .end {
+      display: inline-grid;
+      justify-items: center;
+      gap: var(--sp-01);
+      min-inline-size: 2.75rem;
+    }
+    .lbl {
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    .none {
+      inline-size: 1.5rem;
+      block-size: 1.5rem;
+      border: var(--border-width) dashed var(--border-strong);
+    }
+    .note {
+      grid-column: 1 / -1;
+      font-size: var(--type-label);
+    }
+  }
+</style>

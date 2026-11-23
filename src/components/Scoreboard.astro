@@ -1,5 +1,5 @@
 ---
-import { event, matchInstant, rankOf, team, winnerOf, type Match } from "../data";
+import { event, flagUrl, matchInstant, rankOf, team, winnerOf, type Match } from "../data";
 import Countdown from "./Countdown.astro";
 import LocalTime from "./LocalTime.astro";
 import TeamMark from "./TeamMark.astro";
@@ -23,9 +23,13 @@ const state = (slug: string) => (winner ? (winner === slug ? "won" : "lost") : u
 const Wrap = link ? "a" : "div";
 const seriesA = m.bestOf === 1 ? (m.maps[0]?.scoreA ?? 0) : m.seriesA;
 const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
+const flagA = flagUrl(a.countryCode);
+const flagB = flagUrl(b.countryCode);
 ---
 
 <Wrap class:list={["scoreboard", m.status, { link }]} href={link ? `/matches/${m.id}/` : undefined}>
+  {flagA && <span class="sb-flag a" style={`--flag: url("${flagA}")`} aria-hidden="true" />}
+  {flagB && <span class="sb-flag b" style={`--flag: url("${flagB}")`} aria-hidden="true" />}
   <div class="sb-meta">
     {m.status === "live" && <span class="badge live">Live</span>}
     {m.status === "completed" && <span class="badge">Final</span>}
@@ -84,6 +88,9 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
 <style>
   @layer components {
     .scoreboard {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
       display: grid;
       gap: var(--sp-06);
       padding: var(--sp-06) var(--sp-05);
@@ -99,6 +106,38 @@ const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
       }
       &.live {
         border-block-start: 4px solid var(--live);
+      }
+    }
+
+    /* HLTV-style: each team's flag, faded from its side towards the middle. */
+    .sb-flag {
+      position: absolute;
+      inset-block: 0;
+      inline-size: 50%;
+      z-index: -1;
+      background: var(--flag) center / cover no-repeat;
+      opacity: 0.2;
+      filter: saturate(0.85) blur(1px);
+      pointer-events: none;
+      &.a {
+        inset-inline-start: 0;
+        -webkit-mask-image: linear-gradient(to right, rgb(0 0 0 / 0.9), transparent 92%);
+        mask-image: linear-gradient(to right, rgb(0 0 0 / 0.9), transparent 92%);
+      }
+      &.b {
+        inset-inline-end: 0;
+        -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / 0.9), transparent 92%);
+        mask-image: linear-gradient(to left, rgb(0 0 0 / 0.9), transparent 92%);
+      }
+    }
+    @supports not ((mask-image: linear-gradient(black, transparent)) or (-webkit-mask-image: linear-gradient(black, transparent))) {
+      .sb-flag {
+        opacity: 0.12;
+      }
+    }
+    @media (forced-colors: active) {
+      .sb-flag {
+        display: none;
       }
     }
 

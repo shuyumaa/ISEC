@@ -3,6 +3,7 @@ import { event, matchInstant, team, winnerOf, type Match } from "../data";
 import LocalTime from "./LocalTime.astro";
 import Stars from "./Stars.astro";
 import TeamMark from "./TeamMark.astro";
+import Flag from "./Flag.astro";
 
 interface Props {
   match: Match;
@@ -54,12 +55,12 @@ const label =
   <span class="teams">
     <span class:list={["team", state(a.slug)]}>
       <TeamMark team={a} />
-      <span class="name">{a.name}</span>
+      <span class="name"><Flag code={a.countryCode} /> {a.name}</span>
       <span class="score">{score("A")}</span>
     </span>
     <span class:list={["team", state(b.slug)]}>
       <TeamMark team={b} />
-      <span class="name">{b.name}</span>
+      <span class="name"><Flag code={b.countryCode} /> {b.name}</span>
       <span class="score">{score("B")}</span>
     </span>
   </span>

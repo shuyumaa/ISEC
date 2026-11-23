@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { APIRoute } from "astro";
+import { trustedOrigin } from "../../../server/origin";
 import { UPLOAD_DIR, UPLOAD_NAME } from "../../../server/uploads";
 
 /* Uploaded images, protected like the logo: only served to our own pages as images. */
@@ -14,7 +15,7 @@ export const GET: APIRoute = async ({ params, request, url }) => {
   let sameOriginReferer = false;
   try {
     const ref = request.headers.get("referer");
-    sameOriginReferer = !!ref && new URL(ref).origin === url.origin;
+    sameOriginReferer = !!ref && trustedOrigin(new URL(ref).origin, url);
   } catch {
     /* malformed referer */
   }

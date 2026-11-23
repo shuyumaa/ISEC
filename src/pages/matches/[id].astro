@@ -9,7 +9,7 @@ import Panel from "../../components/Panel.astro";
 import Scoreboard from "../../components/Scoreboard.astro";
 import StatsTable from "../../components/StatsTable.astro";
 import TeamMark from "../../components/TeamMark.astro";
-import { event, findMatch, headToHead, matchesForEvent, matchStats, team } from "../../data";
+import { event, findMatch, headToHead, matchesForEvent, matchStats, team, teamAt } from "../../data";
 
 const m = findMatch(Astro.params.id ?? "");
 if (!m) return Astro.rewrite("/404");
@@ -28,7 +28,7 @@ const tabs = [
 ];
 const statsFor = (index: number | undefined, slug: string) =>
   matchStats(m, index)
-    .filter((s) => s.player.team === slug)
+    .filter((s) => teamAt(s.player.slug, m.start.slice(0, 10)) === slug)
     .sort((x, y) => y.rating - x.rating);
 const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
 ---

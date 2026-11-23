@@ -1,0 +1,207 @@
+---
+import TeamMark from "./TeamMark.astro";
+import { team, winnerOf, type Swiss } from "../data";
+
+/**
+ * Swiss stage diagram (HLTV "Group play"): one column per round, matches
+ * grouped by the record going in, then the advanced / eliminated boxes.
+ * Unknown pairings show as "?" slots so the shape is final from day one.
+ */
+interface Props {
+  swiss: Swiss;
+}
+const { swiss } = Astro.props;
+const label = (w: number, l: number) => `${w}:${l}`;
+---
+
+<div class="swiss-wrap" role="region" aria-label={`Swiss stage, ${swiss.size} teams, ${swiss.rules.wins} wins to advance, ${swiss.rules.losses} losses to go out`} tabindex="0">
+  <ol class="swiss">
+    {
+      swiss.columns.map((col) => (
+        <li class="col">
+          <h3 class="visually-hidden">Round {col.round + 1}</h3>
+          {col.buckets.map((b) => (
+            <section class="bucket" aria-label={`Teams on ${label(b.wins, b.losses)}`}>
+              <p class="rec" aria-hidden="true">{label(b.wins, b.losses)}</p>
+              <ul class="slots">
+                {b.slots.map(({ match: m }) => {
+                  if (!m) return <li class="slot tbd"><span class="q">?</span><span class="vs">vs</span><span class="q">?</span><span class="visually-hidden">Not drawn yet</span></li>;
+                  const w = winnerOf(m);
+                  const side = (slug: string) => (w ? (w === slug ? "won" : "lost") : "");
+                  return (
+                    <li class:list={["slot", m.status]}>
+                      <a href={`/matches/${m.id}/`} title={`${team(m.teamA).name} vs ${team(m.teamB).name}${w ? `: ${team(w).name} won` : ""}`}>
+                        <span class={side(m.teamA)}><TeamMark team={team(m.teamA)} /></span>
+                        <span class="vs">{m.status === "completed" ? `${m.seriesA}:${m.seriesB}` : m.status === "live" ? "live" : "vs"}</span>
+                        <span class={side(m.teamB)}><TeamMark team={team(m.teamB)} /></span>
+                        <span class="visually-hidden">{team(m.teamA).name} versus {team(m.teamB).name}{w ? `, ${team(w).name} won` : ""}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </li>
+      ))
+    }
+    <li class="col outcomes">
+      <section class="out adv" aria-label="Advanced">
+        <h3 class="out-h">Advanced</h3>
+        <div class="out-grid">
+          {swiss.advanced.map((o) => (
+            <div class="out-group">
+              <p class="rec">{label(o.wins, o.losses)}</p>
+              <ul>{o.teams.map((t) => <li>{t ? <a href={`/teams/${t}/`} title={team(t).name}><TeamMark team={team(t)} /></a> : <span class="q">?</span>}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section class="out elim" aria-label="Eliminated">
+        <h3 class="out-h">Eliminated</h3>
+        <div class="out-grid">
+          {swiss.eliminated.map((o) => (
+            <div class="out-group">
+              <p class="rec">{label(o.wins, o.losses)}</p>
+              <ul>{o.teams.map((t) => <li>{t ? <a href={`/teams/${t}/`} title={team(t).name}><TeamMark team={team(t)} /></a> : <span class="q">?</span>}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+      </section>
+    </li>
+  </ol>
+</div>
+
+<style>
+  @layer components {
+    .swiss-wrap {
+      /* Contains the visually-hidden labels, which are absolutely positioned. */
+      position: relative;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding: var(--sp-05);
+      background: var(--surface);
+    }
+    .swiss {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-05);
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      inline-size: max-content;
+    }
+    .col {
+      display: grid;
+      gap: var(--sp-05);
+      align-content: center;
+    }
+    .bucket {
+      display: grid;
+      gap: var(--sp-02);
+    }
+    .rec {
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .slots {
+      display: grid;
+      gap: var(--sp-02);
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .slot,
+    .slot a {
+      display: grid;
+      grid-template-columns: auto 2.25rem auto;
+      align-items: center;
+      justify-items: center;
+      gap: var(--sp-02);
+    }
+    .slot {
+      padding: var(--sp-02) var(--sp-03);
+      background: var(--layer);
+      &.live {
+        box-shadow: inset 0 0 0 2px var(--live);
+      }
+      & a {
+        text-decoration: none;
+        color: inherit;
+      }
+      & a:hover {
+        color: var(--link);
+      }
+    }
+    .vs {
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+    }
+    .lost {
+      opacity: 0.4;
+    }
+    .q {
+      display: inline-grid;
+      place-items: center;
+      inline-size: 1.75rem;
+      aspect-ratio: 1;
+      border: var(--border-width) dashed var(--border-strong);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: var(--type-label);
+    }
+    .tbd .vs {
+      color: var(--text-muted);
+    }
+    .outcomes {
+      align-self: stretch;
+      align-content: space-between;
+    }
+    .out {
+      display: grid;
+      gap: var(--sp-03);
+      padding: var(--sp-04);
+      &.adv {
+        background: var(--tag-green-bg);
+        color: var(--tag-green-fg);
+      }
+      &.elim {
+        background: var(--support-error-bg);
+        color: var(--loss);
+      }
+      & .rec {
+        color: inherit;
+      }
+      & .q {
+        border-color: currentColor;
+        color: inherit;
+        opacity: 0.6;
+      }
+    }
+    .out-h {
+      font-size: var(--type-label);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .out-grid {
+      display: flex;
+      gap: var(--sp-05);
+    }
+    .out-group {
+      display: grid;
+      gap: var(--sp-02);
+      align-content: start;
+      & ul {
+        display: grid;
+        gap: var(--sp-02);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+    }
+  }
+</style>

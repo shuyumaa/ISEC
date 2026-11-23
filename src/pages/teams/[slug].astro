@@ -23,6 +23,7 @@ import {
   ratingTone,
   rosterOf,
   teamAchievements,
+  teamTransfers,
   winnerOf,
 } from "../../data";
 
@@ -32,6 +33,8 @@ const settings = getSettings();
 const rank = rankOf(t.slug);
 const entry = getRanking().find((r) => r.team === t.slug);
 const roster = rosterOf(t.slug);
+const starters = roster.filter((p) => p.status !== "benched");
+const moves = teamTransfers(t.slug).slice(0, 10);
 const all = matchesForTeam(t.slug);
 const upcoming = all.filter((m) => m.status !== "completed").reverse();
 const results = all.filter((m) => m.status === "completed");
@@ -60,6 +63,8 @@ for (const m of results) {
   }
 }
 const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
+import Flag from "../../components/Flag.astro";
+import TransferRow from "../../components/TransferRow.astro";
 ---
 
 <Base title={t.name} description={`${t.name} — roster, results, trophies, map pool and stats.`}>
@@ -69,11 +74,11 @@ const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
     <section class="team-card" aria-labelledby="team-name">
       <ul class="lineup" aria-label="Lineup">
         {
-          roster.map((p) => (
+          starters.map((p) => (
             <li>
               <a href={`/players/${p.slug}/`}>
                 <Photo player={p} size="card" />
-                <span class="lineup-name"><span class="cc">{p.countryCode}</span> {p.nickname}</span>
+                <span class="lineup-name"><Flag code={p.countryCode} label /> {p.nickname}</span>
               </a>
             </li>
           ))
@@ -83,7 +88,7 @@ const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
         <div class="team-id">
           <TeamMark team={t} size="lg" />
           <div>
-            <p class="country">{t.country}</p>
+            <p class="country"><Flag code={t.countryCode} /> {t.country}</p>
             <h1 id="team-name">{t.name}</h1>
           </div>
         </div>
@@ -109,6 +114,7 @@ const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
     <a href="#roster">Roster</a>
     <a href="#matches">Matches</a>
     <a href="#achievements">Achievements</a>
+    <a href="#transfers">Transfers</a>
     <a href="#map-pool">Map pool</a>
     <a href="#team-stats">Stats</a>
   </nav>
@@ -149,6 +155,9 @@ const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
           </Panel>
         </section>
 
+        <Panel title="Transfers" id="transfers">
+          {moves.length ? <ol class="moves">{moves.map((m) => <TransferRow transfer={m} />)}</ol> : <p class="empty">No roster moves recorded.</p>}
+        </Panel>
         <Panel title="Achievements" id="achievements">
           {titles.length > 0 && (
             <ul class="trophies">
@@ -282,6 +291,12 @@ const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
       &.w {
         background: var(--green-60);
       }
+    }
+    .moves {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
     }
     /* HLTV's lineup band: five full-body portraits with name plates. */
     .lineup {

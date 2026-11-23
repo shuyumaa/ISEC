@@ -5,6 +5,7 @@ import TeamMark from "../../components/TeamMark.astro";
 import { getTeams, rankOf } from "../../data";
 
 const sorted = getTeams().toSorted((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.slug) ?? 99));
+import Flag from "../../components/Flag.astro";
 ---
 
 <Base title="Teams" description="Every team competing in ISEC.">
@@ -21,7 +22,7 @@ const sorted = getTeams().toSorted((a, b) => (rankOf(a.slug) ?? 99) - (rankOf(b.
             <strong>{t.name}</strong>
             <span class="subtle">
               {rankOf(t.slug) ? `Rank #${rankOf(t.slug)} · ` : ""}
-              {t.country}
+              <Flag code={t.countryCode} /> {t.country}
             </span>
           </a>
         </li>

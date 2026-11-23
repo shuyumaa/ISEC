@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { snapshot } from "../server/db";
-import { event, getSettings, mapDecided, matchStart, player } from "./index";
+import { event, getSettings, lineups, mapDecided, matchStart } from "./index";
 import type { EloSettings, Match } from "./types";
 
 /*
@@ -119,8 +119,7 @@ function compute(cfg: EloSettings, until?: Temporal.Instant): Run {
     // Player update: each decided map that has stats.
     for (const map of m.maps) {
       if (!map.stats?.length || !mapDecided(map)) continue;
-      const lineA = map.stats.filter((s) => player(s.player).team === m.teamA);
-      const lineB = map.stats.filter((s) => player(s.player).team === m.teamB);
+      const { a: lineA, b: lineB } = lineups(m, map.stats);
       if (!lineA.length || !lineB.length) continue;
       const avg = (line: typeof lineA) => line.reduce((n, s) => n + p(s.player).elo, 0) / line.length;
       const eloA = avg(lineA);

@@ -28,11 +28,11 @@ docker build -t isec .
 docker run -p 4321:4321 -v isec-data:/data --env-file .env isec
 ```
 
-Requires Node 22.23.4 or newer (Astro 7). Serve it behind HTTPS (Caddy, nginx, or your host's proxy) and list the public URL in `ISEC_HOSTS`.
+Requires Node 22.23.4 or newer (Astro 7). Serve it behind HTTPS (Caddy, nginx, or your host's proxy) and list the public URL in `ISEC_HOSTS`. The sign-in and form origin check reads `ISEC_HOSTS` when the server starts, so setting it at run time is enough; passing it at build time as well (the Dockerfile accepts it as a build argument) also lets Astro rewrite its own request URLs.
 
 ## Pages
 
-The layout follows HLTV: a top bar with search, a left rail (live or next match, "Award by ISEC" player of the week, "Ranking by ISEC" top 5, ongoing events) and a right "Recent activity" rail, around slate content cards.
+The layout follows HLTV: a top bar with search, a left rail (next match, "Award by ISEC" player of the week, "Ranking by ISEC", events with logos and "in N days") and a right rail (recent activity, recent transfers), around slate content cards. Every rail box can be switched off or renamed in Site settings. Teams and players carry country flags; match headers show each team's flag faded towards the middle.
 
 | Route | What it shows |
 | --- | --- |
@@ -43,7 +43,9 @@ The layout follows HLTV: a top bar with search, a left rail (live or next match,
 | `/teams/<slug>/` | Lineup band, rank, points, average age, coach, form, trophy strip, roster, matches, achievements, map pool, stats |
 | `/best-of-season/` | Latest published season: #1 player, top 10, team of the season, archive |
 | `/search/?q=` | Players and teams; an exact single match opens it directly |
-| `/ranking/` | School Teams Rank (the name is editable in settings) |
+| `/ranking/` | School Teams Rank (the name is editable in settings), with a "How points work" box |
+| `/events/<slug>/` | HLTV-style event page: section menu, overview facts, related events, Swiss "Group play" diagram, playoff bracket, matches, prize distribution, teams attending, formats, map pool, top players |
+| `/transfers/` | Every roster move by month, filterable by team |
 
 ## Player stats and attributes
 
@@ -84,9 +86,10 @@ Defaults: start 1000, k 40, playerK 24, perf 30, marginStep 0.25; tiers Major 1.
 | --- | --- |
 | Dashboard | Score live matches, start upcoming ones ("Go live"), see connected viewers and recent activity |
 | Matches | Schedule matches; edit details, maps, half-time sides, veto and per-map player stats; delete |
-| Events | Create and edit events: dates, time zone, prize pool, attending teams, format, prize distribution, winner |
-| Teams & players | Add and edit teams; add, edit and remove players |
-| Ranking | Edit points and publish. Order and ↑/↓ movement are worked out for you |
+| Events | Dates, time zone, prize pool, attending teams, format lines, Swiss rules, map pool, related events, prize rows with a team picker, winner, MVP/EVPs, logo and trophy photo |
+| Teams | Team details (country picker), roster table with Bench / Activate / Release, sign a free agent or a player from another team, ranking-points chart, roster moves |
+| Players | Search and filter by status and team; one-click Bench / Activate / Release / Retire; full player editor (profile, team and status, game-server IDs, photo, move history) |
+| Ranking | Computed from results (see Ranking maths); per-team adjustments and editable constants |
 | News | Write, edit and delete articles |
 | Seasons & awards | Create seasons, set the top 10 (or fill it from the season's ratings) and the team of the season, publish |
 | Site settings | Ranking and season page names, announcement bar, pinned home match, home list sizes, minimum maps for the player rank, footer text |
@@ -107,6 +110,14 @@ Live scoring works like this:
 Every change is saved, written to the activity log and pushed to visitors immediately.
 
 All admin forms work as normal form posts without JavaScript. With JavaScript on, the score buttons save in place without reloading the page.
+
+## Transfers
+
+Changing a player's team or status (active, benched, free agent, retired) records a move with its date and an optional note. Moves feed the home page's transfer box, `/transfers/`, team pages and player profiles. Results stay on the right team after a move: lineups and Elo use the team a player was on *on the match day*. Deleting a team turns its players into free agents instead of deleting them, and a player with stats can only be retired, not deleted.
+
+## Swiss and playoff brackets
+
+Give an event a Swiss stage prefix (e.g. `Swiss`) and its wins/losses limits. Matches whose stage starts with that prefix (`Swiss: Round 1`) are placed by the record their teams had going in, and unplayed slots show as `?` with the final shape worked out from the field size. Matches named Quarter-final, Semi-final and Final build the playoff bracket.
 
 ## Auto-sync from the game server
 

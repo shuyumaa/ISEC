@@ -4,6 +4,7 @@ import LiveRegion from "../components/LiveRegion.astro";
 import Base from "../layouts/Base.astro";
 import Icon from "../components/Icon.astro";
 import TeamMark from "../components/TeamMark.astro";
+import Flag from "../components/Flag.astro";
 import { eloSettings, getRanking, getRankingUpdated, getSettings, rosterOf, team } from "../data";
 const cfg = eloSettings();
 
@@ -58,7 +59,7 @@ const updated = rankingUpdated
                     <TeamMark team={t} size="md" />
                     <span>
                       <strong>{t.name}</strong>
-                      <span class="subtle">{t.country}</span>
+                      <span class="subtle"><Flag code={t.countryCode} /> {t.country}</span>
                     </span>
                   </a>
                 </th>

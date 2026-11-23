@@ -3,6 +3,7 @@ import LiveRegion from "../LiveRegion.astro";
 import LocalTime from "../LocalTime.astro";
 import Photo from "../Photo.astro";
 import TeamMark from "../TeamMark.astro";
+import EventMark from "../EventMark.astro";
 import { event, getEvents, matchInstant, getRanking, getRankingUpdated, getSettings, playerOfWeek, ratingTone, team, upcomingMatches } from "../../data";
 import { Temporal } from "temporal-polyfill";
 
@@ -10,16 +11,27 @@ const settings = getSettings();
 const spotlight = upcomingMatches()[0];
 // Live matches already lead the page and the header; the rail looks ahead.
 const potw = playerOfWeek();
-const top5 = getRanking().slice(0, 5);
+const r = settings.rails;
+const top5 = getRanking().slice(0, r.rankingCount ?? 5);
 const updated = getRankingUpdated();
 const updatedText = updated ? Temporal.PlainDate.from(updated).toLocaleString("en-GB", { day: "numeric", month: "short" }) : "";
-const ongoing = getEvents().filter((e) => e.status === "ongoing");
+const today = Temporal.Now.plainDateISO();
+// HLTV's events box: ongoing first, then upcoming by start date.
+const railEvents = getEvents()
+  .filter((e) => e.status !== "completed")
+  .toSorted((a, b) => Number(b.status === "ongoing") - Number(a.status === "ongoing") || a.startDate.localeCompare(b.startDate))
+  .slice(0, 6);
+const when = (e: (typeof railEvents)[number]) => {
+  if (e.status === "ongoing") return "Ongoing";
+  const days = today.until(Temporal.PlainDate.from(e.startDate)).days;
+  return days <= 0 ? "Starting" : days === 1 ? "Tomorrow" : `In ${days} days`;
+};
 ---
 
 <LiveRegion key="rail-left" deps={["match:*", "ranking:*", "team:*", "event:*", "player:*", "meta:*", "settings:*"]}>
   <div class="rail-stack">
     {
-      spotlight && (
+      r.nextMatch !== false && spotlight && (
         <section class="rail-box spotlight" aria-labelledby="rail-match">
           <h2 id="rail-match" class="rail-title">Next match</h2>
           <a href={`/matches/${spotlight.id}/`} class="spot">
@@ -36,7 +48,7 @@ const ongoing = getEvents().filter((e) => e.status === "ongoing");
     }
 
     {
-      potw && (
+      r.award !== false && potw && (
         <section class="rail-box" aria-labelledby="rail-award">
           <h2 id="rail-award" class="rail-title">{settings.rails.awardTitle}</h2>
           <a href={`/players/${potw.stats.player.slug}/`} class="award">
@@ -52,6 +64,7 @@ const ongoing = getEvents().filter((e) => e.status === "ongoing");
       )
     }
 
+    {r.ranking !== false && (
     <section class="rail-box" aria-labelledby="rail-rank">
       <h2 id="rail-rank" class="rail-title">{settings.rails.rankingTitle}</h2>
       <ol class="rail-rank">
@@ -72,18 +85,26 @@ const ongoing = getEvents().filter((e) => e.status === "ongoing");
         {updatedText && <span>Last updated: {updatedText}</span>}
       </a>
     </section>
+    )}
 
     {
-      ongoing.length > 0 && (
+      r.events !== false && railEvents.length > 0 && (
         <section class="rail-box" aria-labelledby="rail-events">
-          <h2 id="rail-events" class="rail-title">Ongoing events</h2>
-          <ul class="rail-list">
-            {ongoing.map((e) => (
+          <h2 id="rail-events" class="rail-title">{r.eventsTitle ?? "Events"}</h2>
+          <ul class="rail-list rail-events">
+            {railEvents.map((e) => (
               <li>
-                <a href={`/events/${e.slug}/`}>{e.name}</a>
+                <a href={`/events/${e.slug}/`}>
+                  <EventMark event={e} />
+                  <span>
+                    <span class="ev-name">{e.name}</span>
+                    <span class:list={["subtle", { live: e.status === "ongoing" }]}>{when(e)}</span>
+                  </span>
+                </a>
               </li>
             ))}
           </ul>
+          <a class="rail-button" href="/events/">Event calendar</a>
         </section>
       )
     }

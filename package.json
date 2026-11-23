@@ -18,6 +18,7 @@
     "@microsoft/focusgroup-polyfill": "1.6.0",
     "@oddbird/popover-polyfill": "0.7.3",
     "astro": "7.4.13",
+    "flag-icons": "7.6.0",
     "invokers-polyfill": "^1.0.4",
     "temporal-polyfill": "1.0.8"
   },

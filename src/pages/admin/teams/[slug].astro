@@ -1,11 +1,16 @@
 ---
 import Admin from "../../../layouts/Admin.astro";
 import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
-import { findTeam, rosterOf } from "../../../data";
+import CountrySelect from "../../../components/admin/CountrySelect.astro";
+import EloChart from "../../../components/EloChart.astro";
+import Flag from "../../../components/Flag.astro";
+import Photo from "../../../components/Photo.astro";
+import TeamMark from "../../../components/TeamMark.astro";
+import TransferRow from "../../../components/TransferRow.astro";
+import { eloSettings, findTeam, getPlayers, getRanking, playerElo, rosterOf, team, teamElo, teamTransfers, type PlayerStatus } from "../../../data";
 import { handlePost } from "../../../server/handle";
-import { ROLES, deletePlayer, deleteTeam, savePlayer, saveTeam } from "../../../server/mutations";
+import { PLAYER_STATUSES, deleteTeam, deleteTransfer, saveTeam, setPlayerStatus } from "../../../server/mutations";
 import { removeUpload, saveUpload } from "../../../server/uploads";
-import { findPlayer } from "../../../data";
 
 const slug = Astro.params.slug ?? "";
 const isNew = slug === "new";
@@ -14,19 +19,20 @@ const result = await handlePost(Astro.request, async (form, intent) => {
   switch (intent) {
     case "delete":
       deleteTeam(slug);
-      return { redirect: "/admin/teams/", message: "Team deleted" };
-    case "player": {
-      const playerSlug = String(form.get("player") ?? "") || undefined;
-      const old = playerSlug ? findPlayer(playerSlug)?.photo : undefined;
-      const uploaded = await saveUpload(form, "photo", "Photo");
-      const photo = form.get("removePhoto") ? null : uploaded;
-      savePlayer(slug, playerSlug, form, photo);
-      if (old && (photo === null || uploaded)) await removeUpload(old);
-      return { message: playerSlug ? "Player saved" : "Player added" };
+      return { redirect: "/admin/teams/", message: "Team deleted; its players are now free agents" };
+    case "status": {
+      const status = String(form.get("status") ?? "") as PlayerStatus;
+      if (!PLAYER_STATUSES.includes(status)) return { message: "Nothing changed" };
+      const p = setPlayerStatus(String(form.get("player") ?? ""), status);
+      return { message: `${p.nickname} updated` };
     }
-    case "remove-player":
-      deletePlayer(String(form.get("player") ?? ""));
-      return { message: "Player removed" };
+    case "sign": {
+      const p = setPlayerStatus(String(form.get("player") ?? ""), "active", slug);
+      return { message: `${p.nickname} signed` };
+    }
+    case "delete-transfer":
+      deleteTransfer(String(form.get("id") ?? ""));
+      return { message: "Move removed from the history" };
     default: {
       const old = isNew ? undefined : findTeam(slug)?.logo;
       const uploaded = await saveUpload(form, "logo", "Logo");
@@ -42,9 +48,29 @@ if (result instanceof Response) return result;
 const t = isNew ? undefined : findTeam(slug);
 if (!isNew && !t) return Astro.rewrite("/404");
 const roster = t ? rosterOf(t.slug) : [];
+const signable = t ? getPlayers().filter((p) => p.team !== t.slug && p.status !== "retired").toSorted((a, b) => Number(!!a.team) - Number(!!b.team) || a.nickname.localeCompare(b.nickname)) : [];
+const elo = t ? teamElo(t.slug) : undefined;
+const rankRow = t ? getRanking().find((r) => r.team === t.slug) : undefined;
+const rankPos = t ? getRanking().findIndex((r) => r.team === t.slug) + 1 : 0;
+const moves = t ? teamTransfers(t.slug).slice(0, 8) : [];
+const LABEL = { active: "Active", benched: "Benched", free: "Free agent", retired: "Retired" } as const;
 ---
 
 <Admin title={t ? t.name : "New team"} error={result?.error}>
+  <a slot="actions" class="btn ghost" href="/admin/teams/">All teams</a>
+  {t && <a slot="actions" class="btn ghost" href={`/teams/${t.slug}/`} target="_blank" rel="noopener">View page</a>}
+
+  {
+    t && (
+      <div class="tiles">
+        <div><strong>{rankPos ? `#${rankPos}` : "–"}</strong><span>Ranking</span></div>
+        <div><strong>{rankRow?.points ?? eloSettings().start}</strong><span>Points</span></div>
+        <div><strong>{elo ? `${elo.wins}–${elo.losses}` : "0–0"}</strong><span>Series W–L</span></div>
+        <div><strong>{roster.filter((p) => p.status !== "benched").length}/5</strong><span>Starting five</span></div>
+      </div>
+    )
+  }
+
   <section class="admin-section" aria-labelledby="team-h">
     <h2 id="team-h">Team details</h2>
     <form method="post" class="form" aria-labelledby="team-h" enctype="multipart/form-data">
@@ -52,56 +78,155 @@ const roster = t ? rosterOf(t.slug) : [];
       <div class="form-grid">
         <div class="field"><label for="name">Name</label><input id="name" name="name" required maxlength="60" value={t?.name ?? ""} /></div>
         <div class="field"><label for="tag">Tag (2–4 letters)</label><input id="tag" name="tag" required minlength="2" maxlength="4" pattern="[\p{L}\p{N}]{2,4}" value={t?.tag ?? ""} /></div>
-        <div class="field"><label for="country">Country</label><input id="country" name="country" required maxlength="60" autocomplete="country-name" value={t?.country ?? ""} /></div>
-        <div class="field"><label for="countryCode">Country code</label><input id="countryCode" name="countryCode" required minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocapitalize="characters" value={t?.countryCode ?? ""} /></div>
+        <div class="field"><label for="countryCode">Country</label><CountrySelect id="countryCode" value={t?.countryCode} required /></div>
         <div class="field"><label for="founded">Founded</label><input id="founded" name="founded" type="number" required min="1990" max="2100" value={t?.founded ?? 2026} /></div>
         <div class="field"><label for="coach">Coach</label><input id="coach" name="coach" maxlength="60" value={t?.coach ?? ""} /></div>
-        <div class="field"><label for="logo">Logo (PNG, JPEG or WebP, up to 5 MB)</label><input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" /></div>
+        <div class="field">
+          <label for="logo">Logo (PNG, JPEG or WebP, up to 5 MB)</label>
+          <span class="logo-row">{t && <TeamMark team={t} size="md" />}<input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" /></span>
+        </div>
       </div>
       {t?.logo && <div class="checks"><label><input type="checkbox" name="removeLogo" /> Remove the current logo</label></div>}
-      <div class="actions">
-        <button type="submit" class="btn">{isNew ? "Create team" : "Save team"}</button>
-        {t && <a class="btn ghost small" href={`/teams/${t.slug}/`} target="_blank" rel="noopener">View</a>}
-      </div>
+      <div class="actions"><button type="submit" class="btn">{isNew ? "Create team" : "Save team"}</button></div>
     </form>
   </section>
 
   {
     t && (
       <section class="admin-section" aria-labelledby="roster-h">
-        <h2 id="roster-h">Roster</h2>
-        {[...roster, undefined].map((p) => (
-          <form method="post" class="form" aria-label={p ? `Player ${p.nickname}` : "Add a player"} enctype="multipart/form-data">
-            <input type="hidden" name="intent" value="player" />
-            {p && <input type="hidden" name="player" value={p.slug} />}
-            <fieldset>
-              <legend>{p ? p.nickname : "Add a player"}</legend>
-              <div class="form-grid">
-                <div class="field"><label for={`nick-${p?.slug ?? "new"}`}>Nickname</label><input id={`nick-${p?.slug ?? "new"}`} name="nickname" required maxlength="32" autocomplete="off" value={p?.nickname ?? ""} /></div>
-                <div class="field"><label for={`first-${p?.slug ?? "new"}`}>First name</label><input id={`first-${p?.slug ?? "new"}`} name="firstName" maxlength="40" autocomplete="off" value={p?.firstName ?? ""} /></div>
-                <div class="field"><label for={`last-${p?.slug ?? "new"}`}>Last name</label><input id={`last-${p?.slug ?? "new"}`} name="lastName" maxlength="40" autocomplete="off" value={p?.lastName ?? ""} /></div>
-                <div class="field">
-                  <label for={`role-${p?.slug ?? "new"}`}>Role</label>
-                  <select id={`role-${p?.slug ?? "new"}`} name="role">{ROLES.map((r) => <option selected={p?.role === r}>{r}</option>)}</select>
-                </div>
-                <div class="field"><label for={`age-${p?.slug ?? "new"}`}>Age</label><input id={`age-${p?.slug ?? "new"}`} name="age" type="number" min="12" max="60" value={p?.age || ""} /></div>
-                <div class="field"><label for={`ign-${p?.slug ?? "new"}`}>In-game name (if different)</label><input id={`ign-${p?.slug ?? "new"}`} name="ign" maxlength="64" autocomplete="off" spellcheck="false" value={p?.ign ?? ""} /></div>
-                <div class="field"><label for={`steam-${p?.slug ?? "new"}`}>Steam ID</label><input id={`steam-${p?.slug ?? "new"}`} name="steamId" maxlength="32" autocomplete="off" spellcheck="false" inputmode="numeric" placeholder="7656… or [U:1:…]" value={p?.steamId ?? ""} /></div>
-                <div class="field"><label for={`joined-${p?.slug ?? "new"}`}>On team since</label><input id={`joined-${p?.slug ?? "new"}`} name="joined" type="date" value={p?.joined ?? ""} /></div>
-                <div class="field"><label for={`photo-${p?.slug ?? "new"}`}>Photo (portrait, 4:5)</label><input id={`photo-${p?.slug ?? "new"}`} name="photo" type="file" accept="image/png,image/jpeg,image/webp" /></div>
-                <div class="field"><label for={`cc-${p?.slug ?? "new"}`}>Country code</label><input id={`cc-${p?.slug ?? "new"}`} name="countryCode" maxlength="2" pattern="[A-Za-z]{2}" value={p?.countryCode ?? t.countryCode} /></div>
-              </div>
-              {p?.photo && <div class="checks"><label><input type="checkbox" name="removePhoto" /> Remove the current photo</label></div>}
-              <div class="actions">
-                <button type="submit" class="btn small">{p ? "Save player" : "Add player"}</button>
-                {p && <button type="submit" class="btn ghost small" name="intent" value="remove-player" formnovalidate>Remove from team</button>}
-              </div>
-            </fieldset>
+        <div class="section-head">
+          <h2 id="roster-h">Roster</h2>
+          <a class="btn small" href={`/admin/players/new/?team=${t.slug}`}>Add a new player</a>
+        </div>
+        <div class="table-wrap" role="region" aria-labelledby="roster-h" tabindex="0">
+          <table class="data-table">
+            <thead><tr><th scope="col">Player</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col" class="n">Elo</th><th scope="col">Since</th><th scope="col"><span class="visually-hidden">Quick actions</span></th></tr></thead>
+            <tbody>
+              {roster.map((p) => {
+                const st = p.status ?? "active";
+                return (
+                  <tr>
+                    <th scope="row">
+                      <a class="who" href={`/admin/players/${p.slug}/`}>
+                        <Photo player={p} size="thumb" />
+                        <span><strong>{p.nickname}</strong><span class="muted"><Flag code={p.countryCode} label /> {p.firstName} {p.lastName}</span></span>
+                      </a>
+                    </th>
+                    <td>{p.role}</td>
+                    <td><span class:list={["badge", { green: st === "active", purple: st === "benched" }]}>{LABEL[st]}</span></td>
+                    <td class="n mono">{playerElo(p.slug)?.elo ?? "—"}</td>
+                    <td class="mono">{p.joined ?? "—"}</td>
+                    <td>
+                      <form method="post" class="row-actions" data-enhance>
+                        <input type="hidden" name="intent" value="status" />
+                        <input type="hidden" name="player" value={p.slug} />
+                        {st === "active" ? <button class="btn ghost small" name="status" value="benched">Bench</button> : <button class="btn ghost small" name="status" value="active">Activate</button>}
+                        <button class="btn ghost small" name="status" value="free">Release</button>
+                        <a class="btn ghost small" href={`/admin/players/${p.slug}/`}>Edit</a>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {roster.length === 0 && <p class="empty">No players yet. Add a new player, or sign one below.</p>}
+        </div>
+        {signable.length > 0 && (
+          <form method="post" class="sign-row" data-enhance>
+            <input type="hidden" name="intent" value="sign" />
+            <div class="field">
+              <label for="sign-player">Sign a player</label>
+              <select id="sign-player" name="player" required>
+                <option value="">Choose a player…</option>
+                <optgroup label="Free agents">
+                  {signable.filter((p) => !p.team).map((p) => <option value={p.slug}>{p.nickname}</option>)}
+                </optgroup>
+                <optgroup label="From another team (records a transfer)">
+                  {signable.filter((p) => p.team).map((p) => <option value={p.slug}>{p.nickname} ({team(p.team).tag})</option>)}
+                </optgroup>
+              </select>
+            </div>
+            <button type="submit" class="btn ghost">Sign to {t.tag}</button>
           </form>
-        ))}
+        )}
+      </section>
+    )
+  }
+
+  {
+    t && (
+      <section class="admin-section" aria-labelledby="elo-h">
+        <div class="section-head">
+          <h2 id="elo-h">Ranking points over time</h2>
+          <a href="/admin/ranking/">How points work</a>
+        </div>
+        <EloChart
+          label={`${t.name} Elo`}
+          start={eloSettings().start}
+          points={(elo?.history ?? []).map((h) => ({ label: h.date.slice(5), value: h.after, title: `${h.date}: ${h.won ? "beat" : "lost to"} ${team(h.opponent).name}, ${h.delta > 0 ? "+" : ""}${h.delta} → ${h.after}` }))}
+        />
+      </section>
+    )
+  }
+
+  {
+    t && moves.length > 0 && (
+      <section class="admin-section" aria-labelledby="moves-h">
+        <h2 id="moves-h">Roster moves</h2>
+        <ol class="moves">{moves.map((m) => <TransferRow transfer={m} deletable />)}</ol>
       </section>
     )
   }
 
   {t && <div class="actions"><ConfirmDelete id="delete-team" what={t.name} action={`/admin/teams/${t.slug}/`} label="Delete team" /></div>}
 </Admin>
+
+<style>
+  @layer components {
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .who {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+      text-decoration: none;
+      color: inherit;
+      & > span {
+        display: grid;
+      }
+      & strong {
+        color: var(--link);
+      }
+      & .muted {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+      }
+    }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: var(--sp-02);
+    }
+    .sign-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: var(--sp-04);
+      & .field {
+        min-inline-size: 16rem;
+      }
+    }
+    .moves {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+</style>

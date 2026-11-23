@@ -26,9 +26,11 @@ interface Props {
   preloadImage?: string;
   /** HLTV-style left and right rails (on by default). */
   rails?: boolean;
+  /** Hide only the left rail (pages with their own section navigation). */
+  leftRail?: boolean;
 }
 
-const { title, noscriptRefresh, preloadImage, rails = true, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
+const { title, noscriptRefresh, preloadImage, rails = true, leftRail = true, description = "ISEC — live CS2 matches, results, events, team rankings and player stats." } =
   Astro.props;
 const siteSettings = getSettings();
 const announcement = siteSettings.announcement;
@@ -69,12 +71,12 @@ const fullTitle = title ? `${title} · ISEC` : "ISEC — CS2 esports competition
         </p>
       )
     }
-    <div class="shell">
+    <div class:list={["shell", { "no-left": !(rails && leftRail && siteSettings.rails.left) }]}>
       <main id="main" class="page">
         <slot />
       </main>
       {
-        rails && siteSettings.rails.left && (
+        rails && leftRail && siteSettings.rails.left && (
           <aside class="rail rail-left" aria-label="Spotlight and ranking">
             <LeftRail />
           </aside>

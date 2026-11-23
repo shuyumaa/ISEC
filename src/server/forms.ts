@@ -97,14 +97,22 @@ export const paragraphs = (form: FormData, name: string) =>
 
 const RESERVED = new Set(["new", "admin", "api", "media"]);
 
+/** URL name from any script: Latin accents are folded, Chinese and other letters are kept. */
 export const slugify = (s: string) => {
   const slug = s
-    .normalize("NFD")
+    .normalize("NFKD")
     .replace(/\p{Diacritic}/gu, "")
+    .normalize("NFC")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80);
   // Never collide with routes such as /admin/news/new/.
   return RESERVED.has(slug) || !slug ? `${slug || "item"}-1` : slug;
 };
+
+/** `base`, or `base-2`, `base-3`… if that URL name is already taken. */
+export function uniqueSlug(base: string, taken: (slug: string) => boolean) {
+  if (!taken(base)) return base;
+  for (let i = 2; ; i++) if (!taken(`${base}-${i}`)) return `${base}-${i}`;
+}

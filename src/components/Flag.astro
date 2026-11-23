@@ -1,0 +1,40 @@
+---
+import { countryName, flagUrl } from "../data/countries";
+
+interface Props {
+  code?: string;
+  /** Show the country name as a tooltip / accessible label (decorative otherwise). */
+  label?: boolean;
+  class?: string;
+}
+const { code, label = false, class: className } = Astro.props;
+const url = flagUrl(code);
+---
+
+{
+  url && (
+    <span
+      class:list={["flag", className]}
+      style={`--flag: url("${url}")`}
+      role={label ? "img" : undefined}
+      aria-label={label ? countryName(code) : undefined}
+      aria-hidden={label ? undefined : "true"}
+      title={label ? countryName(code) : undefined}
+    />
+  )
+}
+
+<style>
+  @layer components {
+    .flag {
+      display: inline-block;
+      flex: none;
+      inline-size: 1.125rem;
+      aspect-ratio: 4 / 3;
+      background: var(--flag) center / cover no-repeat;
+      /* Hairline so white-field flags stay visible on white cards. */
+      box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+      vertical-align: -0.125em;
+    }
+  }
+</style>

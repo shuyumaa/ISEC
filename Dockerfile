@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Public URLs, baked into Astro's trusted hosts (the origin check also reads them at run time).
+ARG ISEC_HOSTS
+ARG SITE_URL
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-bookworm-slim

@@ -1,0 +1,190 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import Flag from "../../../components/Flag.astro";
+import Photo from "../../../components/Photo.astro";
+import TeamMark from "../../../components/TeamMark.astro";
+import TransferRow from "../../../components/TransferRow.astro";
+import { getPlayers, getTeams, getTransfers, playerElo, team, type PlayerStatus } from "../../../data";
+import { handlePost } from "../../../server/handle";
+import { PLAYER_STATUSES, deleteTransfer, setPlayerStatus } from "../../../server/mutations";
+
+const LABEL: Record<PlayerStatus, string> = { active: "Active", benched: "Benched", free: "Free agent", retired: "Retired" };
+
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "delete-transfer") {
+    deleteTransfer(String(form.get("id") ?? ""));
+    return { message: "Move removed from the history" };
+  }
+  const slug = String(form.get("player") ?? "");
+  const status = String(form.get("status") ?? "") as PlayerStatus;
+  if (!PLAYER_STATUSES.includes(status)) return { message: "Nothing changed" };
+  const p = setPlayerStatus(slug, status);
+  return { message: `${p.nickname} is now ${LABEL[status].toLowerCase()}` };
+});
+if (result instanceof Response) return result;
+
+const params = Astro.url.searchParams;
+const status = (PLAYER_STATUSES as string[]).includes(params.get("status") ?? "") ? (params.get("status") as PlayerStatus) : undefined;
+const teamFilter = params.get("team") ?? "";
+const q = (params.get("q") ?? "").trim().toLowerCase();
+
+const all = getPlayers();
+const statusOf = (p: (typeof all)[number]) => p.status ?? "active";
+const counts = Object.fromEntries(PLAYER_STATUSES.map((s) => [s, all.filter((p) => statusOf(p) === s).length])) as Record<PlayerStatus, number>;
+const list = all
+  .filter((p) => !status || statusOf(p) === status)
+  .filter((p) => !teamFilter || p.team === teamFilter)
+  .filter((p) => !q || [p.nickname, p.firstName, p.lastName, p.ign ?? ""].some((x) => x.toLowerCase().includes(q)))
+  .toSorted((a, b) => (a.team || "~").localeCompare(b.team || "~") || a.nickname.localeCompare(b.nickname));
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
+const moves = getTransfers().slice(0, 12);
+const href = (s?: PlayerStatus) => {
+  const u = new URLSearchParams(params);
+  if (s) u.set("status", s);
+  else u.delete("status");
+  const qs = u.toString();
+  return qs ? `?${qs}` : "?";
+};
+---
+
+<Admin title="Players" error={result?.error}>
+  <a slot="actions" class="btn" href="/admin/players/new/">Add a player</a>
+
+  <section class="admin-section" aria-labelledby="list-h">
+    <div class="section-head">
+      <h2 id="list-h">{list.length} {list.length === 1 ? "player" : "players"}</h2>
+      <nav class="segmented" aria-label="Filter by status">
+        <a href={href()} aria-current={!status ? "page" : undefined}>All <span class="n">{all.length}</span></a>
+        {PLAYER_STATUSES.map((s) => <a href={href(s)} aria-current={status === s ? "page" : undefined}>{LABEL[s]} <span class="n">{counts[s]}</span></a>)}
+      </nav>
+    </div>
+    <search>
+      <form method="get" class="filter-bar">
+        {status && <input type="hidden" name="status" value={status} />}
+        <div class="field"><label for="q">Search</label><input id="q" type="search" name="q" value={params.get("q") ?? ""} placeholder="Nickname or name" /></div>
+        <div class="field">
+          <label for="team">Team</label>
+          <select id="team" name="team">
+            <option value="">All teams</option>
+            {teams.map((t) => <option value={t.slug} selected={teamFilter === t.slug}>{t.name}</option>)}
+          </select>
+        </div>
+        <button type="submit" class="btn ghost">Apply</button>
+        {(q || teamFilter) && <a href={status ? `?status=${status}` : "?"}>Clear</a>}
+      </form>
+    </search>
+    <div class="table-wrap" role="region" aria-labelledby="list-h" tabindex="0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Player</th>
+            <th scope="col">Team</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="n">Elo</th>
+            <th scope="col" class="n">Maps</th>
+            <th scope="col"><span class="visually-hidden">Quick actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            list.map((p) => {
+              const st = statusOf(p);
+              const elo = playerElo(p.slug);
+              const t = p.team ? team(p.team) : undefined;
+              return (
+                <tr>
+                  <th scope="row">
+                    <a class="who" href={`/admin/players/${p.slug}/`}>
+                      <Photo player={p} size="thumb" />
+                      <span>
+                        <strong>{p.nickname}</strong>
+                        <span class="muted">
+                          <Flag code={p.countryCode} label /> {p.firstName} {p.lastName}
+                        </span>
+                      </span>
+                    </a>
+                  </th>
+                  <td>{t ? <a class="team-cell" href={`/admin/teams/${t.slug}/`}><TeamMark team={t} /> {t.name}</a> : <span class="muted">—</span>}</td>
+                  <td>{p.role}</td>
+                  <td><span class:list={["badge", { green: st === "active", blue: st === "free", purple: st === "benched" }]}>{LABEL[st]}</span></td>
+                  <td class="n mono">{elo?.elo ?? "—"}</td>
+                  <td class="n mono">{elo?.maps ?? 0}</td>
+                  <td>
+                    <form method="post" class="row-actions" data-enhance>
+                      <input type="hidden" name="intent" value="status" />
+                      <input type="hidden" name="player" value={p.slug} />
+                      {st === "active" && <button class="btn ghost small" name="status" value="benched">Bench</button>}
+                      {st === "benched" && <button class="btn ghost small" name="status" value="active">Activate</button>}
+                      {(st === "active" || st === "benched") && <button class="btn ghost small" name="status" value="free">Release</button>}
+                      {st !== "retired" && <button class="btn ghost small" name="status" value="retired">Retire</button>}
+                      <a class="btn ghost small" href={`/admin/players/${p.slug}/`}>Edit</a>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })
+          }
+        </tbody>
+      </table>
+      {list.length === 0 && <p class="empty">No players match. <a href="/admin/players/new/">Add a player</a>.</p>}
+    </div>
+  </section>
+
+  <section class="admin-section" aria-labelledby="moves-h">
+    <div class="section-head">
+      <h2 id="moves-h">Recent moves</h2>
+      <span class="muted">Recorded automatically when a team or status changes. Shown on the home page.</span>
+    </div>
+    {moves.length ? <ol class="moves">{moves.map((t) => <TransferRow transfer={t} deletable />)}</ol> : <p class="empty">No moves yet.</p>}
+  </section>
+</Admin>
+
+<style>
+  @layer components {
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: var(--sp-04);
+      & .field {
+        min-inline-size: 12rem;
+      }
+    }
+    .who {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+      text-decoration: none;
+      color: inherit;
+      & > span {
+        display: grid;
+      }
+      & strong {
+        color: var(--link);
+      }
+      & .muted {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+      }
+    }
+    .team-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: var(--sp-02);
+    }
+    .moves {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+</style>

@@ -3,7 +3,7 @@ import Admin from "../../layouts/Admin.astro";
 import LiveRegion from "../../components/LiveRegion.astro";
 import LocalTime from "../../components/LocalTime.astro";
 import MatchControl from "../../components/admin/MatchControl.astro";
-import { completedMatches, event, getArticles, getPlayers, getRanking, getTeams, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
+import { completedMatches, event, getArticles, getEvents, getMatches, getPlayers, getRanking, getTeams, liveMatches, matchInstant, team, upcomingMatches } from "../../data";
 import { listenerCount } from "../../server/bus";
 import { auditLog } from "../../server/db";
 import { handlePost } from "../../server/handle";
@@ -21,12 +21,42 @@ const live = liveMatches();
 const next = upcomingMatches().slice(0, 6);
 const log = auditLog(12);
 const leader = getRanking()[0];
+// First-run checklist: shown until the basics exist.
+const setup = [
+  { done: getTeams().length >= 2, label: "Add at least two teams", href: "/admin/teams/new/" },
+  { done: getPlayers().length >= 10, label: "Add players (five per team)", href: "/admin/players/new/" },
+  { done: getEvents().length > 0, label: "Create an event", href: "/admin/events/new/" },
+  { done: getMatches().length > 0, label: "Schedule a match", href: "/admin/matches/?new=1#new" },
+  { done: getMatches().some((m) => m.status !== "upcoming"), label: "Go live and score a match", href: "/admin/" },
+];
+const setupLeft = setup.filter((x) => !x.done).length;
 const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
 ---
 
 <Admin title="Dashboard" error={result?.error}>
   <a slot="actions" class="btn" href="/admin/matches/?new=1#new">Schedule a match</a>
   <a slot="actions" class="btn ghost" href="/admin/news/new/">Write news</a>
+
+  {
+    setupLeft > 0 && (
+      <section class="admin-section setup" aria-labelledby="setup-h">
+        <div class="section-head">
+          <h2 id="setup-h">Get the site ready</h2>
+          <span class="muted">{setup.length - setupLeft} of {setup.length} done</span>
+        </div>
+        <progress max={setup.length} value={setup.length - setupLeft} aria-labelledby="setup-h"></progress>
+        <ol class="steps">
+          {setup.map((x) => (
+            <li class:list={{ done: x.done }}>
+              <span class="tick" aria-hidden="true">{x.done && <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" /></svg>}</span>
+              {x.done ? <span>{x.label}</span> : <a href={x.href}>{x.label}</a>}
+              <span class="visually-hidden">{x.done ? "(done)" : "(to do)"}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )
+  }
 
   <LiveRegion key="tiles" deps={["*"]}>
     <div class="tiles">
@@ -107,6 +137,43 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
       display: grid;
       gap: var(--sp-05);
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+    }
+    .setup progress {
+      inline-size: 100%;
+      block-size: 0.5rem;
+      accent-color: var(--win);
+    }
+    .steps {
+      display: grid;
+      gap: var(--sp-02);
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      & li {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-03);
+        min-block-size: 2rem;
+      }
+      & .done {
+        color: var(--text-secondary);
+      }
+      & .done span:not(.tick) {
+        text-decoration: line-through;
+      }
+    }
+    .tick {
+      display: inline-grid;
+      place-items: center;
+      inline-size: 1.25rem;
+      block-size: 1.25rem;
+      border: var(--border-width) solid var(--border-strong);
+      font-size: var(--type-label);
+      .done & {
+        background: var(--win);
+        border-color: var(--win);
+        color: var(--white);
+      }
     }
     .log {
       display: grid;

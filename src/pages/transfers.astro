@@ -1,0 +1,80 @@
+---
+import Base from "../layouts/Base.astro";
+import LiveRegion from "../components/LiveRegion.astro";
+import TransferRow from "../components/TransferRow.astro";
+import { getTeams, getTransfers } from "../data";
+import { Temporal } from "temporal-polyfill";
+
+const teamFilter = Astro.url.searchParams.get("team") ?? "";
+const list = getTransfers().filter((t) => !teamFilter || t.from === teamFilter || t.to === teamFilter);
+const months = new Map<string, typeof list>();
+for (const t of list) {
+  const key = t.date.slice(0, 7);
+  if (!months.has(key)) months.set(key, []);
+  months.get(key)!.push(t);
+}
+const monthName = (key: string) => Temporal.PlainYearMonth.from(key).toLocaleString("en-GB", { month: "long", year: "numeric", calendar: "iso8601" });
+const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
+---
+
+<Base title="Transfers" description="Every ISEC roster move: signings, releases, benchings and retirements.">
+  <LiveRegion key="transfers" deps={["transfer:*", "player:*", "team:*"]}>
+    <header class="page-head">
+      <h1>Transfers</h1>
+      <p>Signings, releases, benchings and retirements, newest first.</p>
+    </header>
+
+    <search class="filters">
+      <form method="get">
+        <label for="team">Team</label>
+        <select id="team" name="team">
+          <option value="">All teams</option>
+          {teams.map((t) => <option value={t.slug} selected={teamFilter === t.slug}>{t.name}</option>)}
+        </select>
+        <button type="submit" class="btn small">Show</button>
+      </form>
+    </search>
+
+    {
+      months.size ? (
+        [...months].map(([key, items]) => (
+          <section class="panel month" aria-labelledby={`m-${key}`}>
+            <div class="panel-head"><h2 id={`m-${key}`}>{monthName(key)}</h2><span class="subtle">{items.length} {items.length === 1 ? "move" : "moves"}</span></div>
+            <ol class="moves">{items.map((t) => <TransferRow transfer={t} />)}</ol>
+          </section>
+        ))
+      ) : (
+        <p class="empty">No moves recorded{teamFilter ? " for this team" : ""}.</p>
+      )
+    }
+  </LiveRegion>
+</Base>
+
+<style>
+  @layer components {
+    .filters form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03);
+      margin-block-end: var(--sp-05);
+      & select {
+        min-block-size: 2.25rem;
+        padding: 0 var(--sp-03);
+        border: var(--border-width) solid var(--border-strong);
+        background: var(--surface);
+        color: var(--text-primary);
+        font: inherit;
+      }
+    }
+    .month {
+      margin-block-end: var(--sp-05);
+    }
+    .moves {
+      display: grid;
+      list-style: none;
+      margin: 0;
+      padding: 0 var(--sp-05);
+    }
+  }
+</style>

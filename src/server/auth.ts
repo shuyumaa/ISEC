@@ -38,27 +38,28 @@ export function checkPassword(input: string): boolean {
 
 const sign = (payload: string) => createHmac("sha256", secret).update(payload).digest("base64url");
 
-export function cookieName(url: URL) {
-  return url.protocol === "https:" ? "__Host-isec_session" : "isec_session";
-}
+const SECURE_NAME = "__Host-isec_session";
+const PLAIN_NAME = "isec_session";
 
-export function createSession(cookies: AstroCookies, url: URL) {
+/** `secure` = the visitor is on HTTPS (see servedOverHttps); then the __Host- prefix is used. */
+export function createSession(cookies: AstroCookies, secure: boolean) {
   const payload = Buffer.from(JSON.stringify({ sub: "admin", exp: Date.now() + SESSION_HOURS * 3600_000 })).toString("base64url");
-  cookies.set(cookieName(url), `${payload}.${sign(payload)}`, {
+  cookies.set(secure ? SECURE_NAME : PLAIN_NAME, `${payload}.${sign(payload)}`, {
     httpOnly: true,
     sameSite: "lax",
-    secure: url.protocol === "https:",
+    secure,
     path: "/",
     maxAge: SESSION_HOURS * 3600,
   });
 }
 
-export function destroySession(cookies: AstroCookies, url: URL) {
-  cookies.delete(cookieName(url), { path: "/" });
+export function destroySession(cookies: AstroCookies) {
+  cookies.delete(SECURE_NAME, { path: "/", secure: true });
+  cookies.delete(PLAIN_NAME, { path: "/" });
 }
 
-export function readSession(cookies: AstroCookies, url: URL): { sub: string } | null {
-  const raw = cookies.get(cookieName(url))?.value;
+export function readSession(cookies: AstroCookies): { sub: string } | null {
+  const raw = cookies.get(SECURE_NAME)?.value ?? cookies.get(PLAIN_NAME)?.value;
   if (!raw) return null;
   const [payload, mac] = raw.split(".");
   if (!payload || !mac) return null;

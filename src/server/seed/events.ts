@@ -3,6 +3,8 @@ import type { EsportsEvent, RankingEntry, Season } from "../../data/types";
 export const events: EsportsEvent[] = [
   {
     slug: "winter-open-2026",
+    related: ["masters-s3"],
+    mapPool: ["Ancient", "Anubis", "Dust2", "Inferno", "Mirage", "Nuke", "Train"],
     name: "ISEC Winter Open 2026",
     tier: "Premier",
     status: "ongoing",
@@ -30,6 +32,7 @@ export const events: EsportsEvent[] = [
   },
   {
     slug: "academy-league-s2",
+    mapPool: ["Ancient", "Anubis", "Dust2", "Inferno", "Mirage", "Nuke", "Train"],
     name: "ISEC Academy League Season 2",
     tier: "Academy",
     status: "ongoing",
@@ -52,6 +55,9 @@ export const events: EsportsEvent[] = [
   },
   {
     slug: "masters-s3",
+    mapPool: ["Ancient", "Anubis", "Dust2", "Inferno", "Mirage", "Nuke", "Train"],
+    swiss: { stage: "Swiss", wins: 3, losses: 3 },
+    related: ["winter-open-2026"],
     name: "ISEC Masters Season 3",
     tier: "Major",
     status: "upcoming",
@@ -82,6 +88,7 @@ export const events: EsportsEvent[] = [
   },
   {
     slug: "autumn-cup-2026",
+    mapPool: ["Ancient", "Anubis", "Dust2", "Inferno", "Mirage", "Nuke", "Train"],
     name: "ISEC Autumn Cup 2026",
     tier: "Open",
     status: "completed",
@@ -109,6 +116,7 @@ export const events: EsportsEvent[] = [
   },
   {
     slug: "pacific-invitational-2026",
+    mapPool: ["Ancient", "Anubis", "Dust2", "Inferno", "Mirage", "Nuke", "Train"],
     name: "ISEC Pacific Invitational 2026",
     tier: "Premier",
     status: "completed",

@@ -29,6 +29,17 @@
       grid-template-columns: 15rem minmax(0, 1fr) 16rem;
       grid-template-areas: "left main right";
     }
+    /* Pages with their own section nav drop the left rail and widen. */
+    &.no-left {
+      @media (width >= 64rem) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "main";
+      }
+      @media (width >= 82rem) {
+        grid-template-columns: minmax(0, 1fr) 16rem;
+        grid-template-areas: "main right";
+      }
+    }
   }
   .page {
     grid-area: main;
@@ -754,6 +765,32 @@
       font-family: var(--font-mono);
       color: var(--text-secondary);
     }
+  }
+  .rail-events {
+    & a > span {
+      display: grid;
+      min-inline-size: 0;
+    }
+    & .ev-name {
+      font-weight: 600;
+      font-size: var(--type-body-sm);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    & .subtle {
+      font-size: var(--type-label);
+    }
+    & .live {
+      color: var(--win);
+      font-weight: 600;
+    }
+  }
+  .rail-moves {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
   /* Recent activity: a small square names the kind of item (live / result /
      news); the meta text on the right says it in words too. */

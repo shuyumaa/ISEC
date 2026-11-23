@@ -29,12 +29,17 @@ export interface Team {
 
 export type Role = "IGL" | "AWP" | "Entry" | "Support" | "Lurker" | "Rifler";
 
+export type PlayerStatus = "active" | "benched" | "free" | "retired";
+
 export interface Player {
   slug: string;
   nickname: string;
   firstName: string;
   lastName: string;
-  team: string; // team slug
+  /** Team slug; empty for free agents and retired players. */
+  team: string;
+  /** Missing means "active" (older records). */
+  status?: PlayerStatus;
   role: Role;
   countryCode: string;
   age: number;
@@ -50,6 +55,22 @@ export interface Player {
 
 export type EventStatus = "ongoing" | "upcoming" | "completed";
 export type EventTier = "Major" | "Premier" | "Open" | "Academy";
+
+/**
+ * One roster move, recorded automatically when an admin changes a player's
+ * team or status (HLTV's "transfers"). `from`/`to` are team slugs; empty
+ * means no team. The kind is derived from the before/after state.
+ */
+export interface Transfer {
+  id: string;
+  player: string;
+  date: string; // YYYY-MM-DD
+  from: string;
+  to: string;
+  fromStatus: PlayerStatus;
+  toStatus: PlayerStatus;
+  note?: string;
+}
 
 export interface PrizeSlot {
   place: string;
@@ -76,6 +97,14 @@ export interface EsportsEvent {
   format: string[];
   prizes: PrizeSlot[];
   winner?: string;
+  /** Uploaded event logo (file name under /media/u/), shown in lists and the event header. */
+  logo?: string;
+  /** Maps in the event's pool (in veto order of the pool, not play order). */
+  mapPool?: MapName[];
+  /** Other events grouped with this one (stages of the same competition). */
+  related?: string[];
+  /** Swiss stage rules, when the event has one: wins to advance, losses to go out. */
+  swiss?: { wins: number; losses: number; stage: string };
   /** Event MVP (player slug) and EVPs (Exceptionally Valuable Players). */
   mvp?: string;
   evps?: string[];
@@ -233,7 +262,25 @@ export interface Settings {
   navHidden: NavKey[];
   footerLinks: { label: string; href: string }[];
   /** Rail headings and visibility. */
-  rails: { left: boolean; right: boolean; awardTitle: string; awardSubtitle: string; rankingTitle: string; activityTitle: string };
+  rails: {
+    left: boolean;
+    right: boolean;
+    awardTitle: string;
+    awardSubtitle: string;
+    rankingTitle: string;
+    activityTitle: string;
+    /* Individual rail boxes (missing = shown). */
+    nextMatch?: boolean;
+    award?: boolean;
+    ranking?: boolean;
+    events?: boolean;
+    activity?: boolean;
+    transfers?: boolean;
+    transfersTitle?: string;
+    transfersCount?: number;
+    rankingCount?: number;
+    eventsTitle?: string;
+  };
   /** Short intro lines under page headings. */
   intros: { matches: string; ranking: string; playerRank: string; season: string };
   /** Uploaded footer logo overrides (file names under /media/u/). */

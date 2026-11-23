@@ -1,6 +1,8 @@
-import { mapDecided, seriesScore } from "../data";
+import { mapDecided, matchRoster, seriesScore } from "../data";
 import type {
   EloSettings,
+  PlayerStatus,
+  Transfer,
   Article,
   EsportsEvent,
   EventStatus,
@@ -20,6 +22,8 @@ import type {
   VetoStep,
 } from "../data/types";
 import { snapshot, transaction } from "./db";
+import { countryName, isCountry } from "../data/countries";
+import { Temporal } from "temporal-polyfill";
 import {
   FormError,
   bool,
@@ -32,6 +36,7 @@ import {
   optionalText,
   paragraphs,
   slugify,
+  uniqueSlug,
   text,
   timeZone,
 } from "./forms";
@@ -279,7 +284,7 @@ export function updateMatch(id: string, intent: string, form: FormData): Match {
       const index = int(form, "map", { required: true, min: 0, max: m.maps.length - 1 })!;
       const map = m.maps[index]!;
       const rounds = Math.max(1, (map.scoreA ?? 0) + (map.scoreB ?? 0));
-      const roster = snapshot().players.filter((p) => p.team === m.teamA || p.team === m.teamB);
+      const roster = matchRoster(m);
       // A pasted Perfect World / CSV export fills the per-player fields, then the normal validation runs.
       const csv = text(form, "csv", { max: 20000 });
       if (csv) applyStatsCsv(form, csv, roster);
@@ -384,79 +389,141 @@ export function deleteArticle(slug: string) {
 type Upload = string | null | undefined;
 const pickUpload = (current: string | undefined, next: Upload) => (next === null ? undefined : (next ?? current));
 
+/** Country from the picker: a valid ISO code; the name is derived from it. */
+function readCountry(form: FormData, field = "countryCode", required = true): string {
+  const code = text(form, field, { required, max: 2, label: "Country" }).toUpperCase();
+  if (code && !isCountry(code)) throw new FormError("Choose a country from the list.", field);
+  return code;
+}
+
 export function saveTeam(slug: string | undefined, form: FormData, logo?: Upload): Team {
   const name = text(form, "name", { required: true, max: 60, label: "Name" });
-  const existing = slug ? snapshot().teams.find((t) => t.slug === slug) : undefined;
-  const newSlug = existing?.slug ?? slugify(name);
-  if (!existing && snapshot().teams.some((t) => t.slug === newSlug)) throw new FormError("A team with this name already exists.", "name");
+  const s = snapshot();
+  const existing = slug ? s.teams.find((t) => t.slug === slug) : undefined;
+  if (!existing && s.teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) throw new FormError("A team with this name already exists.", "name");
+  const newSlug = existing?.slug ?? uniqueSlug(slugify(name), (x) => s.teams.some((t) => t.slug === x));
+  const countryCode = readCountry(form);
   const t: Team = {
     slug: newSlug,
     name,
     tag: text(form, "tag", { required: true, max: 4, label: "Tag" }).toUpperCase(),
-    country: text(form, "country", { required: true, max: 60, label: "Country" }),
-    countryCode: text(form, "countryCode", { required: true, max: 2, label: "Country code" }).toUpperCase(),
+    country: countryName(countryCode),
+    countryCode,
     founded: int(form, "founded", { required: true, min: 1990, max: 2100, label: "Founded" })!,
     coach: text(form, "coach", { max: 60 }),
     logo: pickUpload(existing?.logo, logo),
   };
-  transaction((tx) => {
-    tx.put("team", t.slug, t);
-    // New teams enter the ranking at the bottom.
-    if (!existing) tx.put("ranking", t.slug, { team: t.slug, points: 0, change: 0 } satisfies RankingEntry);
-  }, ACTOR, existing ? "edit team" : "create team");
+  transaction((tx) => tx.put("team", t.slug, t), ACTOR, existing ? "edit team" : "create team");
   return t;
 }
 
+/** Deleting a team keeps its players (as free agents) and their history. */
 export function deleteTeam(slug: string) {
   const s = snapshot();
   if (s.matches.some((m) => m.teamA === slug || m.teamB === slug)) throw new FormError("This team has matches. Delete or reassign them first.");
+  const today = Temporal.Now.plainDateISO().toString();
   transaction((tx) => {
     tx.remove("team", slug);
     tx.remove("ranking", slug);
-    for (const p of s.players.filter((x) => x.team === slug)) tx.remove("player", p.slug);
+    for (const p of s.players.filter((x) => x.team === slug)) {
+      tx.put("player", p.slug, { ...p, team: "", status: "free" } satisfies Player);
+      tx.put("transfer", transferId(today), { id: transferId(today), player: p.slug, date: today, from: slug, to: "", fromStatus: p.status ?? "active", toStatus: "free", note: "Team disbanded" } satisfies Transfer);
+    }
   }, ACTOR, "delete team");
 }
 
-export function savePlayer(teamSlug: string, slug: string | undefined, form: FormData, photo?: Upload): Player {
+export const PLAYER_STATUSES: PlayerStatus[] = ["active", "benched", "free", "retired"];
+
+let seq = 0;
+const transferId = (date: string) => `${date}-${Date.now().toString(36)}${(seq++ % 1296).toString(36).padStart(2, "0")}`;
+
+/**
+ * Save a player. Team and status come from the form; when either changes
+ * (or a new player joins a team) a transfer is recorded on `moveDate`.
+ * Free agents and retired players have no team.
+ */
+export function savePlayer(slug: string | undefined, form: FormData, photo?: Upload): Player {
+  const s = snapshot();
   const nickname = text(form, "nickname", { required: true, max: 32, label: "Nickname" });
-  const existing = slug ? snapshot().players.find((p) => p.slug === slug) : undefined;
-  let newSlug = existing?.slug ?? slugify(nickname);
-  if (!existing && snapshot().players.some((p) => p.slug === newSlug)) newSlug = `${newSlug}-${teamSlug}`;
-  const team = snapshot().teams.find((t) => t.slug === teamSlug);
-  if (!team) throw new FormError("Unknown team.");
+  const existing = slug ? s.players.find((p) => p.slug === slug) : undefined;
+  if (slug && !existing) throw new FormError("This player no longer exists.");
+  const newSlug = existing?.slug ?? uniqueSlug(slugify(nickname), (x) => s.players.some((p) => p.slug === x));
+
+  let status = oneOf(form, "status", PLAYER_STATUSES, "Status");
+  let team = text(form, "team");
+  if (team && !s.teams.some((t) => t.slug === team)) throw new FormError("Choose a team from the list.", "team");
+  if (status === "free" || status === "retired") team = "";
+  else if (!team) throw new FormError(`An ${status} player needs a team. Choose one, or set the status to Free agent.`, "team");
+  if (!team && status === "active") status = "free";
+
+  const moveDate = optionalText(form, "moveDate", { max: 10 }) ?? Temporal.Now.plainDateISO().toString();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(moveDate)) throw new FormError("Move date must be a date.", "moveDate");
+  const before = { team: existing?.team ?? "", status: existing?.status ?? (existing ? "active" : "free") } as const;
+  const moved = before.team !== team || before.status !== status;
+
   const p: Player = {
     slug: newSlug,
     nickname,
     firstName: text(form, "firstName", { max: 40 }),
     lastName: text(form, "lastName", { max: 40 }),
-    team: teamSlug,
+    team,
+    status,
     role: oneOf(form, "role", ROLES, "Role"),
-    countryCode: (optionalText(form, "countryCode", { max: 2 }) ?? team.countryCode).toUpperCase(),
-    age: int(form, "age", { min: 12, max: 60, label: "Age" }) ?? 0,
+    countryCode: readCountry(form, "countryCode", false) || (s.teams.find((t) => t.slug === team)?.countryCode ?? ""),
+    age: int(form, "age", { min: 10, max: 60, label: "Age" }) ?? 0,
     ign: optionalText(form, "ign", { max: 64 }),
     steamId: optionalText(form, "steamId", { max: 32 }),
     photo: pickUpload(existing?.photo, photo),
-    joined: optionalText(form, "joined", { max: 10 }),
+    // "On team since" follows the latest move unless set explicitly.
+    joined: optionalText(form, "joined", { max: 10 }) ?? (moved && team ? moveDate : existing?.joined),
   };
   if (p.joined && !/^\d{4}-\d{2}-\d{2}$/.test(p.joined)) throw new FormError("Join date must be a date.", "joined");
   if (p.steamId && !/^(7656\d{13}|\[U:1:\d+\]|\d{1,10})$/.test(p.steamId)) {
     throw new FormError("Steam ID must be a SteamID64 (7656…) or [U:1:123456].", "steamId");
   }
-  transaction((tx) => tx.put("player", p.slug, p), ACTOR, existing ? "edit player" : "add player");
+  transaction((tx) => {
+    tx.put("player", p.slug, p);
+    if (moved) {
+      const id = transferId(moveDate);
+      tx.put("transfer", id, { id, player: p.slug, date: moveDate, from: before.team, to: team, fromStatus: before.status, toStatus: status, note: optionalText(form, "moveNote", { max: 120 }) } satisfies Transfer);
+    }
+  }, ACTOR, existing ? (moved ? "move player" : "edit player") : "add player");
   return p;
 }
 
+/** Quick roster actions from lists: bench, activate, release, retire. */
+export function setPlayerStatus(slug: string, status: PlayerStatus, team?: string) {
+  const p = snapshot().players.find((x) => x.slug === slug);
+  if (!p) throw new FormError("This player no longer exists.");
+  const form = new FormData();
+  for (const [k, v] of Object.entries({ ...p, status, team: team ?? p.team, joined: "" })) if (typeof v === "string" || typeof v === "number") form.set(k, String(v));
+  form.set("countryCode", p.countryCode ?? "");
+  if (p.joined && (team ?? p.team) === p.team) form.set("joined", p.joined);
+  return savePlayer(slug, form, undefined);
+}
+
 export function deletePlayer(slug: string) {
-  transaction((tx) => tx.remove("player", slug), ACTOR, "remove player");
+  const s = snapshot();
+  const maps = s.matches.reduce((n, m) => n + m.maps.filter((x) => x.stats?.some((st) => st.player === slug)).length, 0);
+  if (maps) throw new FormError(`This player has stats on ${maps} map${maps === 1 ? "" : "s"}. Set them to Retired instead, so their history stays.`);
+  transaction((tx) => {
+    tx.remove("player", slug);
+    for (const t of s.transfers.filter((x) => x.player === slug)) tx.remove("transfer", t.id);
+  }, ACTOR, "delete player");
+}
+
+export function deleteTransfer(id: string) {
+  if (!snapshot().transfers.some((t) => t.id === id)) throw new FormError("That move was already removed.");
+  transaction((tx) => tx.remove("transfer", id), ACTOR, "delete transfer");
 }
 
 /* ================================ Events ================================= */
 
-export function saveEvent(slug: string | undefined, form: FormData, trophyImage?: Upload): EsportsEvent {
+export function saveEvent(slug: string | undefined, form: FormData, trophyImage?: Upload, eventLogo?: Upload): EsportsEvent {
   const name = text(form, "name", { required: true, max: 100, label: "Name" });
   const existing = slug ? snapshot().events.find((e) => e.slug === slug) : undefined;
-  const newSlug = existing?.slug ?? slugify(name);
-  if (!existing && snapshot().events.some((e) => e.slug === newSlug)) throw new FormError("An event with this name already exists.", "name");
+  if (!existing && snapshot().events.some((e) => e.name.toLowerCase() === name.toLowerCase())) throw new FormError("An event with this name already exists.", "name");
+  const newSlug = existing?.slug ?? uniqueSlug(slugify(name), (x) => snapshot().events.some((e) => e.slug === x));
   const startDate = isoDate(form, "startDate", "Start date");
   const endDate = isoDate(form, "endDate", "End date");
   if (endDate < startDate) throw new FormError("End date must be on or after the start date.", "endDate");
@@ -464,16 +531,25 @@ export function saveEvent(slug: string | undefined, form: FormData, trophyImage?
   const resnapshot = bool(form, "resnapshot");
   const rosterNow = (team: string) => snapshot().players.filter((p) => p.team === team).map((p) => p.slug);
   const playerSlugs = new Set(snapshot().players.map((p) => p.slug));
-  const prizes = lines(form, "prizes").map((line, i) => {
-    const [place, prize, team] = line.split("|").map((x) => x.trim());
-    const amount = Number((prize ?? "").replace(/[^\d.]/g, ""));
-    if (!place || !Number.isFinite(amount)) throw new FormError(`Prize line ${i + 1} must look like "1st | 100000 | team-slug".`, "prizes");
-    if (team && !teamSlugs.has(team)) throw new FormError(`Prize line ${i + 1}: unknown team "${team}".`, "prizes");
+  // Prize rows: parallel fields, blank rows ignored.
+  const places = form.getAll("prizePlace").map((x) => String(x).trim());
+  const amounts = form.getAll("prizeAmount").map((x) => String(x).trim());
+  const prizeTeams = form.getAll("prizeTeam").map((x) => String(x).trim());
+  const prizes = places.flatMap((place, i) => {
+    const raw = amounts[i] ?? "";
+    const team = prizeTeams[i] ?? "";
+    if (!place && !raw && !team) return [];
+    if (!place) throw new FormError(`Prize row ${i + 1} needs a placement (e.g. 1st).`, "prizePlace");
+    const amount = raw ? Number(raw.replace(/[^\d.]/g, "")) : 0;
+    if (!Number.isFinite(amount) || amount < 0) throw new FormError(`Prize row ${i + 1}: the amount must be a number.`, "prizeAmount");
+    if (team && !teamSlugs.has(team)) throw new FormError(`Prize row ${i + 1}: choose a team from the list.`, "prizeTeam");
     // Keep the roster that earned this placement; snapshot the current roster for new placements.
     const before = existing?.prizes.find((x) => x.place === place && x.team === team);
     const players = team ? (resnapshot || !before?.players ? rosterNow(team) : before.players) : undefined;
-    return { place, prize: amount, team: team || undefined, players };
+    return [{ place, prize: amount, team: team || undefined, players }];
   });
+  const eventSlugs = new Set(snapshot().events.map((e) => e.slug));
+  const swissStage = text(form, "swissStage", { max: 40 });
   const winner = text(form, "winner");
   const ev: EsportsEvent = {
     slug: newSlug,
@@ -493,8 +569,27 @@ export function saveEvent(slug: string | undefined, form: FormData, trophyImage?
     mvp: playerSlugs.has(text(form, "mvp")) ? text(form, "mvp") : undefined,
     evps: form.getAll("evps").map(String).filter((x) => playerSlugs.has(x)),
     trophyImage: pickUpload(existing?.trophyImage, trophyImage),
+    logo: pickUpload(existing?.logo, eventLogo),
+    mapPool: MAP_POOL.filter((m) => form.getAll("mapPool").includes(m)),
+    related: form.getAll("related").map(String).filter((x) => eventSlugs.has(x) && x !== newSlug),
+    swiss: swissStage
+      ? {
+          stage: swissStage,
+          wins: int(form, "swissWins", { required: true, min: 1, max: 5, label: "Wins to advance" })!,
+          losses: int(form, "swissLosses", { required: true, min: 1, max: 5, label: "Losses to go out" })!,
+        }
+      : undefined,
   };
-  transaction((tx) => tx.put("event", ev.slug, ev), ACTOR, existing ? "edit event" : "create event");
+  transaction((tx) => {
+    tx.put("event", ev.slug, ev);
+    // Grouping is mutual: linking A to B also links B to A.
+    for (const e of snapshot().events) {
+      if (e.slug === ev.slug) continue;
+      const linked = ev.related!.includes(e.slug);
+      const has = e.related?.includes(ev.slug) ?? false;
+      if (linked !== has) tx.put("event", e.slug, { ...e, related: linked ? [...(e.related ?? []), ev.slug] : (e.related ?? []).filter((x) => x !== ev.slug) });
+    }
+  }, ACTOR, existing ? "edit event" : "create event");
   return ev;
 }
 
@@ -577,8 +672,8 @@ function applyStatsCsv(form: FormData, csv: string, roster: Player[]) {
 export function saveSeason(slug: string | undefined, form: FormData): Season {
   const name = text(form, "name", { required: true, max: 80, label: "Name" });
   const existing = slug ? snapshot().seasons.find((s) => s.slug === slug) : undefined;
-  const newSlug = existing?.slug ?? slugify(name);
-  if (!existing && snapshot().seasons.some((s) => s.slug === newSlug)) throw new FormError("A season with this name already exists.", "name");
+  if (!existing && snapshot().seasons.some((s) => s.name.toLowerCase() === name.toLowerCase())) throw new FormError("A season with this name already exists.", "name");
+  const newSlug = existing?.slug ?? uniqueSlug(slugify(name), (x) => snapshot().seasons.some((s) => s.slug === x));
   const startDate = isoDate(form, "startDate", "Start date");
   const endDate = isoDate(form, "endDate", "End date");
   if (endDate < startDate) throw new FormError("End date must be on or after the start date.", "endDate");
@@ -644,6 +739,16 @@ export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upl
       awardSubtitle: text(form, "awardSubtitle", { required: true, max: 40, label: "Award name" }),
       rankingTitle: text(form, "rankingTitle", { required: true, max: 40, label: "Ranking heading" }),
       activityTitle: text(form, "activityTitle", { required: true, max: 40, label: "Activity heading" }),
+      nextMatch: bool(form, "boxNextMatch"),
+      award: bool(form, "boxAward"),
+      ranking: bool(form, "boxRanking"),
+      events: bool(form, "boxEvents"),
+      activity: bool(form, "boxActivity"),
+      transfers: bool(form, "boxTransfers"),
+      eventsTitle: text(form, "eventsTitle", { max: 40 }) || "Events",
+      transfersTitle: text(form, "transfersTitle", { max: 40 }) || "Recent transfers",
+      rankingCount: int(form, "rankingCount", { min: 1, max: 30, label: "Teams in the ranking box" }) ?? 5,
+      transfersCount: int(form, "transfersCount", { min: 1, max: 20, label: "Moves in the transfers box" }) ?? 5,
     },
     intros: {
       matches: text(form, "introMatches", { max: 200 }),

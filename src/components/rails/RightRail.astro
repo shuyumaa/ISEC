@@ -1,14 +1,19 @@
 ---
 import LiveRegion from "../LiveRegion.astro";
-import { completedMatches, getArticles, getSettings, team, winnerOf } from "../../data";
+import TransferRow from "../TransferRow.astro";
+import { completedMatches, getArticles, getSettings, getTransfers, team, winnerOf } from "../../data";
 
 // HLTV's right rail is "Recent activity": here, latest results and news.
 const results = completedMatches().slice(0, 8);
 // The home page already leads with news; the rail would only repeat it.
 const news = Astro.url.pathname === "/" ? [] : getArticles().slice(0, 6);
+const rails = getSettings().rails;
+const transfers = rails.transfers === false ? [] : getTransfers().slice(0, rails.transfersCount ?? 5);
 ---
 
-<LiveRegion key="rail-right" deps={["match:*", "article:*", "team:*", "settings:*"]}>
+<LiveRegion key="rail-right" deps={["match:*", "article:*", "team:*", "player:*", "transfer:*", "settings:*"]}>
+  <div class="rail-stack">
+  {rails.activity !== false && (
   <section class="rail-box" aria-labelledby="rail-activity">
     <h2 id="rail-activity" class="rail-title">{getSettings().rails.activityTitle}</h2>
     <ul class="activity">
@@ -40,4 +45,15 @@ const news = Astro.url.pathname === "/" ? [] : getArticles().slice(0, 6);
     </ul>
     <a class="rail-button" href="/results/">All results</a>
   </section>
+  )}
+  {
+    transfers.length > 0 && (
+      <section class="rail-box" aria-labelledby="rail-transfers">
+        <h2 id="rail-transfers" class="rail-title">{rails.transfersTitle ?? "Recent transfers"}</h2>
+        <ol class="rail-moves">{transfers.map((t) => <TransferRow transfer={t} compact />)}</ol>
+        <a class="rail-button" href="/transfers/">All transfers</a>
+      </section>
+    )
+  }
+  </div>
 </LiveRegion>

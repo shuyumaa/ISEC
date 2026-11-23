@@ -5,7 +5,7 @@ import LiveRegion from "../../../components/LiveRegion.astro";
 import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
 import MatchControl from "../../../components/admin/MatchControl.astro";
 import MatchMetaFields from "../../../components/admin/MatchMetaFields.astro";
-import { findMatch, getPlayers, team } from "../../../data";
+import { event, findMatch, matchRoster, team, teamAt } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { MAP_POOL, deleteMatch, updateMatch } from "../../../server/mutations";
 import { createFeed, feedFor, revokeFeed } from "../../../server/ingest";
@@ -41,7 +41,6 @@ if (!m) return Astro.rewrite("/404");
 const a = team(m.teamA);
 const b = team(m.teamB);
 const action = `/admin/matches/${m.id}/`;
-const roster = (slug: string) => getPlayers().filter((p) => p.team === slug);
 const pickValue = (slug?: string) => (slug === m.teamA ? "A" : slug === m.teamB ? "B" : "");
 const deps = [`match:${m.id}`];
 const feed = feedFor(m.id);
@@ -76,9 +75,17 @@ const gsiConfig = feed
 ---
 
 <Admin title={`${a.name} vs ${b.name}`} error={result?.error}>
-  <p class="actions">
-    <a class="btn ghost small" href={`/matches/${m.id}/`} target="_blank" rel="noopener">Public match page <Icon name="arrow" size={14} /></a>
-  </p>
+  <a slot="actions" class="btn ghost" href="/admin/matches/">All matches</a>
+  <a slot="actions" class="btn ghost" href={`/matches/${m.id}/`} target="_blank" rel="noopener">Public page <Icon name="arrow" size={14} /></a>
+  <p class="muted match-sub">{event(m.event).name} · {m.stage} · Best of {m.bestOf}</p>
+  <nav class="segmented jump" aria-label="Match sections">
+    <a href="#live-h">Score</a>
+    <a href="#maps-h">Maps</a>
+    <a href="#stats-h">Player stats</a>
+    <a href="#veto-h">Veto</a>
+    <a href="#feed-h">Game server</a>
+    <a href="#details-h">Details</a>
+  </nav>
 
   <section class="admin-section" aria-labelledby="live-h">
     <h2 id="live-h">Live control</h2>
@@ -242,7 +249,7 @@ const gsiConfig = feed
                     </tr>
                   </thead>
                   <tbody>
-                    {[...roster(m.teamA), ...roster(m.teamB)].map((p) => {
+                    {matchRoster(m).map((p) => {
                       const s = map.stats?.find((x) => x.player === p.slug);
                       const cells: [string, number | undefined, string][] = [
                         ["k", s?.kills, "1"], ["d", s?.deaths, "1"], ["a", s?.assists, "1"],
@@ -252,7 +259,7 @@ const gsiConfig = feed
                       ];
                       return (
                         <tr>
-                          <th scope="row">{p.nickname} <span class="subtle">{team(p.team).tag}</span></th>
+                          <th scope="row">{p.nickname} <span class="subtle">{team(teamAt(p.slug, m.start.slice(0, 10)) || p.team).tag}</span></th>
                           {cells.map(([key, value, step]) => (
                             <td>
                               <input
@@ -339,6 +346,18 @@ const gsiConfig = feed
 </Admin>
 
 <style>
+  .match-sub {
+    margin-block-start: calc(var(--sp-05) * -1);
+  }
+  .jump {
+    position: sticky;
+    inset-block-start: calc(var(--header-height) + var(--sp-02));
+    z-index: 2;
+    background: var(--surface);
+  }
+  :global(.admin-section h2) {
+    scroll-margin-block-start: calc(var(--header-height) + 4rem);
+  }
   @layer components {
     .maps-forms {
       display: grid;

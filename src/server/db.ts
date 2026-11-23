@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, Season, Settings, Team } from "../data/types";
+import type { Article, EsportsEvent, Feed, Match, Player, RankingEntry, Season, Settings, Team, Transfer } from "../data/types";
 import { publish } from "./bus";
 import { events as seedEvents, ranking as seedRanking, rankingUpdated as seedRankingUpdated, seasons as seedSeasons } from "./seed/events";
 import { matches as seedMatches } from "./seed/matches";
@@ -20,7 +20,7 @@ import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
 // Loaded at runtime so bundlers don't try to resolve the prefix-only builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
-export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings";
+export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer";
 
 const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
 mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
@@ -68,6 +68,7 @@ export interface Snapshot {
   ranking: RankingEntry[];
   feeds: Feed[];
   seasons: Season[];
+  transfers: Transfer[];
   settings: Settings;
   meta: { rankingUpdated: string };
 }
@@ -131,6 +132,8 @@ export function snapshot(): Snapshot {
     ranking: all<RankingEntry>("ranking").sort((a, b) => b.points - a.points),
     feeds: all<Feed>("feed"),
     seasons: all<Season>("season").sort((a, b) => b.endDate.localeCompare(a.endDate)),
+    // Newest first; same-day moves keep insertion order (ids are time-based).
+    transfers: all<Transfer>("transfer").sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
     settings: mergeSettings(all<Settings>("settings")[0]),
     meta: { rankingUpdated: meta.find((m) => m.key === "rankingUpdated")?.value ?? "" },
   };
@@ -251,7 +254,9 @@ function seedDemo() {
   for (const [i, p] of seedPlayers.entries()) {
     // Deterministic join dates between 2023 and 2026.
     const joined = `${2023 + (i % 4)}-${String(1 + ((i * 5) % 12)).padStart(2, "0")}-${String(1 + ((i * 7) % 27)).padStart(2, "0")}`;
-    insert.run("player", p.slug, JSON.stringify({ ...p, joined }));
+    insert.run("player", p.slug, JSON.stringify({ ...p, joined, status: "active" }));
+    const t: Transfer = { id: `${joined}-${String(i).padStart(3, "0")}`, player: p.slug, date: joined, from: "", to: p.team, fromStatus: "free", toStatus: "active" };
+    insert.run("transfer", t.id, JSON.stringify(t));
   }
   const rosterOf = (team: string) => seedPlayers.filter((p) => p.team === team).map((p) => p.slug);
   for (const e of seedEvents) {
