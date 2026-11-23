@@ -2,6 +2,8 @@
 import Admin from "../../../layouts/Admin.astro";
 import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
 import EventMark from "../../../components/EventMark.astro";
+import ChipGroup from "../../../components/admin/ChipGroup.astro";
+import ChoiceGroup from "../../../components/admin/ChoiceGroup.astro";
 import { findEvent, getEvents, getPlayers, getTeams, matchesForEvent, team } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { EVENT_STATUSES, MAP_POOL, TIERS, deleteEvent, saveEvent } from "../../../server/mutations";
@@ -57,8 +59,8 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
         <legend>Basics</legend>
         <div class="form-grid">
           <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="100" value={ev?.name ?? ""} /></div>
-          <div class="field"><label for="tier">Tier</label><select id="tier" name="tier">{TIERS.map((t) => <option selected={(ev?.tier ?? "Open") === t}>{t}</option>)}</select></div>
-          <div class="field"><label for="status">Status</label><select id="status" name="status">{EVENT_STATUSES.map((s) => <option value={s} selected={(ev?.status ?? "upcoming") === s}>{STATUS[s]}</option>)}</select></div>
+          <ChoiceGroup wide name="tier" legend="Tier" value={ev?.tier ?? "Open"} options={TIERS.map((t) => ({ value: t, label: t }))} />
+          <ChoiceGroup wide name="status" legend="Status" value={ev?.status ?? "upcoming"} options={EVENT_STATUSES.map((x) => ({ value: x, label: STATUS[x] }))} />
           <div class="field"><label for="startDate">Start date</label><input id="startDate" name="startDate" type="date" required value={ev?.startDate ?? ""} /></div>
           <div class="field"><label for="endDate">End date</label><input id="endDate" name="endDate" type="date" required value={ev?.endDate ?? ""} /></div>
           <div class="field">
@@ -82,7 +84,7 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
 
       <fieldset>
         <legend>Teams attending <span class="muted">({ev?.teams.length ?? 0})</span></legend>
-        <div class="checks">{teams.map((t) => <label><input type="checkbox" name="teams" value={t.slug} checked={ev?.teams.includes(t.slug)} /> {t.name}</label>)}</div>
+        <ChipGroup name="teams" legend="Choose the teams" options={teams.map((t) => ({ value: t.slug, label: t.name }))} selected={ev?.teams ?? []} />
         {teams.length === 0 && <p class="hint">No teams yet. <a href="/admin/teams/new/">Add a team</a> first.</p>}
       </fieldset>
 
@@ -101,13 +103,11 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
           <div class="field"><label for="swissLosses">Losses to go out</label><input id="swissLosses" name="swissLosses" type="number" min="1" max="5" value={ev?.swiss?.losses ?? 3} /></div>
         </div>
         <p id="swiss-hint" class="hint">Matches whose stage starts with this prefix (e.g. "Swiss: Round 1") build the Group play diagram. Leave empty if the event has no Swiss stage. Stages named Quarter-final, Semi-final and Final build the playoff bracket.</p>
-        <p class="label">Map pool</p>
-        <div class="checks">{MAP_POOL.map((m) => <label><input type="checkbox" name="mapPool" value={m} checked={pool.includes(m)} /> {m}</label>)}</div>
+        <ChipGroup name="mapPool" legend="Map pool" options={MAP_POOL.map((m) => ({ value: m, label: m }))} selected={pool} />
         {
           otherEvents.length > 0 && (
             <>
-              <p class="label">Related events (stages of the same competition)</p>
-              <div class="checks">{otherEvents.map((e) => <label><input type="checkbox" name="related" value={e.slug} checked={ev?.related?.includes(e.slug)} /> {e.name}</label>)}</div>
+              <ChipGroup name="related" legend="Related events (stages of the same competition)" options={otherEvents.map((e) => ({ value: e.slug, label: e.name }))} selected={ev?.related ?? []} />
             </>
           )
         }
@@ -149,8 +149,7 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
             </select>
           </div>
         </div>
-        <p class="label">EVPs (Exceptionally Valuable Players)</p>
-        <div class="checks">{eligible.map((p) => <label><input type="checkbox" name="evps" value={p.slug} checked={ev?.evps?.includes(p.slug)} /> {p.nickname}</label>)}</div>
+        {eligible.length > 0 && <ChipGroup name="evps" legend="EVPs (Exceptionally Valuable Players)" options={eligible.map((p) => ({ value: p.slug, label: p.nickname }))} selected={ev?.evps ?? []} />}
         {!eligible.length && <p class="hint">Tick the attending teams and save to choose MVP and EVPs.</p>}
       </fieldset>
 

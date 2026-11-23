@@ -1,5 +1,7 @@
 ---
 import { getEvents, getTeams, type Match } from "../../data";
+import ChoiceGroup from "./ChoiceGroup.astro";
+import StarRating from "./StarRating.astro";
 
 interface Props {
   match?: Match;
@@ -28,27 +30,20 @@ const events = getEvents();
     <span class="hint">Shown to visitors in their own time zone.</span>
   </div>
   <div class="field">
-    <label for="bestOf">Format</label>
-    <select id="bestOf" name="bestOf" required>
-      {[1, 3, 5].map((n) => <option value={n} selected={(m?.bestOf ?? 3) === n}>Best of {n}</option>)}
-    </select>
-  </div>
-  <div class="field">
     <label for="teamA">Team A</label>
-    <select id="teamA" name="teamA" required>
-      <option value="">Choose…</option>
+    <select id="teamA" name="teamA" aria-describedby="tbd-hint">
+      <option value="">TBD (decide later)</option>
       {teams.map((t) => <option value={t.slug} selected={m?.teamA === t.slug}>{t.name}</option>)}
     </select>
   </div>
   <div class="field">
     <label for="teamB">Team B</label>
-    <select id="teamB" name="teamB" required>
-      <option value="">Choose…</option>
+    <select id="teamB" name="teamB" aria-describedby="tbd-hint">
+      <option value="">TBD (decide later)</option>
       {teams.map((t) => <option value={t.slug} selected={m?.teamB === t.slug}>{t.name}</option>)}
     </select>
+    <span id="tbd-hint" class="hint">Leave a side as TBD to publish the schedule first; set it before going live.</span>
   </div>
-  <div class="field">
-    <label for="stars">Featured stars (0–3)</label>
-    <input id="stars" name="stars" type="number" min="0" max="3" step="1" value={m?.stars ?? 0} />
-  </div>
+  <ChoiceGroup name="bestOf" legend="Format" value={String(m?.bestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
+  <StarRating value={m?.stars ?? 0} />
 </div>

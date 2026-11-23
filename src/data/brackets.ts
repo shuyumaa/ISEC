@@ -57,7 +57,8 @@ export function swissBracket(ev: EsportsEvent): Swiss | undefined {
   const rules = ev.swiss;
   if (!rules) return undefined;
   const prefix = rules.stage.toLowerCase();
-  const matches = matchesForEvent(ev.slug).filter((m) => m.stage.toLowerCase().startsWith(prefix));
+  // Undrawn (TBD) pairings are the "?" slots, so only drawn matches are placed.
+  const matches = matchesForEvent(ev.slug).filter((m) => m.stage.toLowerCase().startsWith(prefix) && m.teamA && m.teamB);
   if (!matches.length) return undefined;
 
   const teams = new Set(matches.flatMap((m) => [m.teamA, m.teamB]));

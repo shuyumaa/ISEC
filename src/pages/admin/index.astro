@@ -101,7 +101,7 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
                       <input type="hidden" name="intent" value="status" />
                       <input type="hidden" name="status" value="live" />
                       <input type="hidden" name="id" value={m.id} />
-                      <button type="submit" class="btn small">Go live</button>
+                      {m.teamA && m.teamB ? <button type="submit" class="btn small">Go live</button> : <a class="btn ghost small" href={`/admin/matches/${m.id}/#details-h`}>Set teams first</a>}
                     </form>
                   </td>
                 </tr>

@@ -2,6 +2,7 @@
 import Admin from "../../../layouts/Admin.astro";
 import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
 import CountrySelect from "../../../components/admin/CountrySelect.astro";
+import ChoiceGroup from "../../../components/admin/ChoiceGroup.astro";
 import Photo from "../../../components/Photo.astro";
 import TransferRow from "../../../components/TransferRow.astro";
 import { findPlayer, getTeams, playerElo, playerSummary, transfersFor } from "../../../data";
@@ -40,7 +41,7 @@ const elo = p ? playerElo(p.slug) : undefined;
 const summary = p ? playerSummary(p.slug) : undefined;
 const history = p ? transfersFor(p.slug) : [];
 const today = Temporal.Now.plainDateISO().toString();
-const LABEL = { active: "Active (starting five)", benched: "Benched", free: "Free agent", retired: "Retired" } as const;
+const SHORT = { active: "Active", benched: "Benched", free: "Free agent", retired: "Retired" } as const;
 ---
 
 <Admin title={p ? p.nickname : "New player"} error={result?.error}>
@@ -76,10 +77,7 @@ const LABEL = { active: "Active (starting five)", benched: "Benched", free: "Fre
               {teams.map((t) => <option value={t.slug} selected={presetTeam === t.slug}>{t.name}</option>)}
             </select>
           </div>
-          <div class="field">
-            <label for="status">Status</label>
-            <select id="status" name="status">{PLAYER_STATUSES.map((s) => <option value={s} selected={status === s}>{LABEL[s]}</option>)}</select>
-          </div>
+          <ChoiceGroup wide name="status" legend="Status" value={status} options={PLAYER_STATUSES.map((x) => ({ value: x, label: SHORT[x] }))} />
           <div class="field">
             <label for="moveDate">Move date</label>
             <input id="moveDate" name="moveDate" type="date" value={today} aria-describedby="move-hint" />

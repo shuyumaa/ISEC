@@ -13,7 +13,7 @@ const { team, size = "sm" } = Astro.props;
   team.logo ? (
     <span class:list={["team-mark", "logo", size, "protected"]} aria-hidden="true" style={`--img: url(/media/u/${team.logo})`} />
   ) : (
-    <span class:list={["team-mark", size]} aria-hidden="true">{team.tag}</span>
+    <span class:list={["team-mark", size, { tbd: !team.slug }]} aria-hidden="true">{team.tag}</span>
   )
 }
 
@@ -33,6 +33,12 @@ const { team, size = "sm" } = Astro.props;
       letter-spacing: -0.02em;
       --mark: 1.75rem;
 
+      /* Team still to be decided: a dashed placeholder. */
+      &.tbd {
+        border-style: dashed;
+        border-color: var(--border-strong);
+        color: var(--text-muted);
+      }
       &.logo {
         border: 0;
         background: var(--img) center / contain no-repeat;

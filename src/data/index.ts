@@ -43,7 +43,11 @@ function idx() {
 }
 
 /** Placeholder used when a record was deleted but is still referenced. */
-const unknownTeam = (slug: string): Team => ({ slug, name: slug, tag: "?", country: "", countryCode: "", founded: 0, coach: "" });
+/** An empty slug is a team still to be decided ("TBD"); a missing one was deleted. */
+const unknownTeam = (slug: string): Team =>
+  slug ? { slug, name: slug, tag: "?", country: "", countryCode: "", founded: 0, coach: "" } : { slug: "", name: "TBD", tag: "TBD", country: "", countryCode: "", founded: 0, coach: "" };
+/** Both teams are known (not TBD). */
+export const hasTeams = (m: Pick<Match, "teamA" | "teamB">) => Boolean(m.teamA && m.teamB);
 
 export const team = (slug: string): Team => idx().teams.get(slug) ?? unknownTeam(slug);
 export const findTeam = (slug: string) => idx().teams.get(slug);

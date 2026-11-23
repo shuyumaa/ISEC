@@ -1,0 +1,140 @@
+---
+/**
+ * Featured stars 0–3 as clickable stars. Radios underneath (visually hidden,
+ * focusable): hovering previews the rating, clicking sets it, arrow keys
+ * move between values, and "No stars" clears it.
+ */
+interface Props {
+  name?: string;
+  legend?: string;
+  value?: number;
+  max?: number;
+}
+const { name = "stars", legend = "Featured stars", value = 0, max = 3 } = Astro.props;
+const stars = Array.from({ length: max }, (_, i) => i + 1);
+---
+
+<fieldset class="rating">
+  <legend>{legend}</legend>
+  <div class="rating-row">
+    <label class="none">
+      <input type="radio" name={name} value="0" checked={value === 0} />
+      <span>No stars</span>
+    </label>
+    <span class="stars">
+      {
+        stars.map((n) => (
+          <label class="star" title={`${n} ${n === 1 ? "star" : "stars"}`}>
+            <input type="radio" name={name} value={String(n)} checked={value === n} />
+            <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><path d="m16 2-4.6 9.3L1 12.9l7.5 7.3L6.7 30.5 16 25.6l9.3 4.9-1.8-10.3 7.5-7.3-10.4-1.6z" /></svg>
+            <span class="visually-hidden">{n} {n === 1 ? "star" : "stars"}</span>
+          </label>
+        ))
+      }
+    </span>
+  </div>
+</fieldset>
+
+<style>
+  @layer components {
+    .rating {
+      display: grid;
+      gap: var(--sp-02);
+      margin: 0;
+      padding: 0;
+      border: 0;
+      & legend {
+        padding: 0 0 var(--sp-02);
+        font-size: var(--type-label);
+        letter-spacing: 0.032em;
+        color: var(--text-secondary);
+      }
+    }
+    .rating-row {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-04);
+      min-block-size: 2.25rem;
+    }
+    .rating label {
+      position: relative;
+      cursor: pointer;
+      & input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      &:has(input:focus-visible) {
+        outline: var(--focus-width) solid var(--focus);
+        outline-offset: 2px;
+      }
+    }
+    .none {
+      font-size: var(--type-body-sm);
+      color: var(--text-secondary);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      &:has(input:checked) {
+        color: var(--text-primary);
+        font-weight: 600;
+        text-decoration: none;
+      }
+    }
+    .stars {
+      display: inline-flex;
+      gap: var(--sp-01);
+    }
+    .star {
+      display: grid;
+      place-items: center;
+      inline-size: 2.25rem;
+      block-size: 2.25rem;
+      & svg {
+        fill: transparent;
+        stroke: var(--text-secondary);
+        stroke-width: 1.5;
+        transition: fill var(--duration-fast) var(--ease-productive), scale var(--duration-fast) var(--ease-productive);
+      }
+    }
+    /* Filled up to the checked star... */
+    .stars:has(.star:nth-child(1) input:checked) .star:nth-child(-n + 1),
+    .stars:has(.star:nth-child(2) input:checked) .star:nth-child(-n + 2),
+    .stars:has(.star:nth-child(3) input:checked) .star:nth-child(-n + 3),
+    .stars:has(.star:nth-child(4) input:checked) .star:nth-child(-n + 4),
+    .stars:has(.star:nth-child(5) input:checked) .star:nth-child(-n + 5) {
+      & svg {
+        /* Same ink as the public match stars. */
+        fill: var(--text-primary);
+        stroke: var(--text-primary);
+      }
+    }
+    /* ...and while hovering, a preview up to the hovered star replaces it. */
+    @media (hover: hover) {
+      .stars:hover .star svg {
+        fill: transparent;
+        stroke: var(--text-secondary);
+      }
+      .stars .star:hover svg,
+      .stars .star:has(~ .star:hover) svg {
+        fill: var(--link);
+        stroke: var(--link);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .stars .star:hover svg {
+          scale: 1.12;
+        }
+      }
+    }
+    @media (forced-colors: active) {
+      .star svg {
+        stroke: CanvasText;
+      }
+      .stars .star:has(input:checked) svg,
+      .stars:has(input:checked) .star:has(~ .star input:checked) svg {
+        fill: Highlight;
+      }
+    }
+  }
+</style>

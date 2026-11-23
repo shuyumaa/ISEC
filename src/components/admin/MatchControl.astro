@@ -46,6 +46,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
               <div class="round-side">
                 <span class="side-name">{t.name}</span>
                 <span class="round-score" aria-label={`${t.name} rounds`}>{score}</span>
+                <progress class="race" max={Math.max(13, score + 1)} value={score} aria-label={`${t.name}: ${score} of 13 rounds to win the map`}></progress>
                 <div class="round-buttons">
                   <form method="post" action={action} data-enhance>
                     <input type="hidden" name="intent" value="round" />
@@ -66,7 +67,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
 
   <form method="post" action={action} class="control-status" data-enhance>
     <input type="hidden" name="intent" value="status" />
-    {m.status === "upcoming" && <button type="submit" class="btn" name="status" value="live">Go live</button>}
+    {m.status === "upcoming" && (m.teamA && m.teamB ? <button type="submit" class="btn" name="status" value="live">Go live</button> : <a class="btn ghost" href={`${action}#details-h`}>Set teams first</a>)}
     {m.status === "live" && <button type="submit" class="btn" name="status" value="completed">Finish match</button>}
     {m.status === "live" && <button type="submit" class="btn ghost" name="status" value="upcoming">Back to upcoming</button>}
     {m.status === "completed" && <button type="submit" class="btn ghost" name="status" value="live">Reopen as live</button>}
@@ -129,6 +130,12 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
       gap: var(--sp-03);
       padding: var(--sp-04);
       background: var(--layer);
+    }
+    /* Race to 13 (overtime stretches the bar). */
+    .race {
+      inline-size: 100%;
+      block-size: 0.375rem;
+      accent-color: var(--button-primary);
     }
     .round-score {
       font-family: var(--font-mono);

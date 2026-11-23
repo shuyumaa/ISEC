@@ -23,6 +23,9 @@ const state = (slug: string) => (winner ? (winner === slug ? "won" : "lost") : u
 // One primary link (stretched over the board) plus team links, never a link
 // inside a link: see Modern Web Guidance "card".
 const Center = link ? "a" : "div";
+// A TBD side has no team page to link to.
+const SideA = a.slug ? "a" : "div";
+const SideB = b.slug ? "a" : "div";
 const seriesA = m.bestOf === 1 ? (m.maps[0]?.scoreA ?? 0) : m.seriesA;
 const seriesB = m.bestOf === 1 ? (m.maps[0]?.scoreB ?? 0) : m.seriesB;
 const flagA = flagUrl(a.countryCode);
@@ -46,11 +49,11 @@ const flagB = flagUrl(b.countryCode);
   </span>
 
   <div class="sb-main">
-    <a class:list={["sb-team", state(a.slug)]} href={`/teams/${a.slug}/`}>
+    <SideA class:list={["sb-team", state(a.slug), { tbd: !a.slug }]} href={a.slug ? `/teams/${a.slug}/` : undefined}>
       <TeamMark team={a} size="xl" />
       <span class="sb-name">{a.name}</span>
       {rankOf(a.slug) && <span class="subtle">Rank #{rankOf(a.slug)}</span>}
-    </a>
+    </SideA>
 
     <Center class:list={["sb-center", { "card-link": link }]} href={link ? `/matches/${m.id}/` : undefined} aria-label={link ? `Match page: ${a.name} vs ${b.name}` : undefined}>
       {
@@ -79,11 +82,11 @@ const flagB = flagUrl(b.countryCode);
       }
     </Center>
 
-    <a class:list={["sb-team", state(b.slug)]} href={`/teams/${b.slug}/`}>
+    <SideB class:list={["sb-team", state(b.slug), { tbd: !b.slug }]} href={b.slug ? `/teams/${b.slug}/` : undefined}>
       <TeamMark team={b} size="xl" />
       <span class="sb-name">{b.name}</span>
       {rankOf(b.slug) && <span class="subtle">Rank #{rankOf(b.slug)}</span>}
-    </a>
+    </SideB>
   </div>
 </div>
 

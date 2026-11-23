@@ -1,6 +1,7 @@
 ---
 import Admin from "../../layouts/Admin.astro";
 import ConfirmDelete from "../../components/admin/ConfirmDelete.astro";
+import ChoiceGroup from "../../components/admin/ChoiceGroup.astro";
 import TeamMark from "../../components/TeamMark.astro";
 import { findTeam, getTeams } from "../../data";
 import { MIN_PASSWORD, ROOT_USER, createAccount, deleteAccount, listAccounts, setAccountDisabled, setAccountPassword } from "../../server/auth";
@@ -45,13 +46,7 @@ const presetTeam = Astro.url.searchParams.get("team") ?? "";
     <form method="post" class="form" aria-label="Create an account">
       <input type="hidden" name="intent" value="create" />
       <div class="form-grid">
-        <div class="field">
-          <label for="role">Type</label>
-          <select id="role" name="role">
-            <option value="team" selected>Team account (manages one team)</option>
-            <option value="admin">Admin account (everything)</option>
-          </select>
-        </div>
+        <ChoiceGroup wide name="role" legend="Type" value="team" options={[{ value: "team", label: "Team account" }, { value: "admin", label: "Admin account" }]} hint="A team account manages one team; an admin account can change everything." />
         <div class="field">
           <label for="team">Team</label>
           <select id="team" name="team" aria-describedby="team-hint">
