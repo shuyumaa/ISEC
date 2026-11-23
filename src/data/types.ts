@@ -43,6 +43,8 @@ export interface Player {
   /** Position in the team's lineup (lower first); unset players follow, by name. */
   order?: number;
   role: Role;
+  /** Optional second role, e.g. an AWPer who also leads (IGL). */
+  role2?: Role;
   countryCode: string;
   age: number;
   /** Name shown on the game server, if different from the nickname (used by the live feed). */

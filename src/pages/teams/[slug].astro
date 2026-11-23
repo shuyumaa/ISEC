@@ -66,6 +66,7 @@ for (const m of results) {
 const mapPool = [...pool].sort((a, b) => b[1].played - a[1].played);
 import Flag from "../../components/Flag.astro";
 import TransferRow from "../../components/TransferRow.astro";
+import { rolesOf } from "../../data";
 import RoleIcon from "../../components/RoleIcon.astro";
 ---
 
@@ -81,7 +82,7 @@ import RoleIcon from "../../components/RoleIcon.astro";
               <a href={`/players/${p.slug}/`}>
                 <span class="lineup-photo">
                   <Photo player={p} size="card" />
-                  <span class="lineup-role"><RoleIcon role={p.role} size="md" /></span>
+                  <span class="lineup-role"><RoleIcon player={p} size="md" stack /></span>
                 </span>
                 <span class="lineup-name"><Flag code={p.countryCode} label /> {p.nickname}</span>
               </a>
@@ -99,7 +100,7 @@ import RoleIcon from "../../components/RoleIcon.astro";
                   <a href={`/players/${p.slug}/`}>
                     <Photo player={p} size="thumb" />
                     <span>{p.nickname}</span>
-                    <RoleIcon role={p.role} />
+                    <RoleIcon player={p} />
                   </a>
                 </li>
               ))}
@@ -157,7 +158,7 @@ import RoleIcon from "../../components/RoleIcon.astro";
                   return (
                     <tr>
                       <th scope="row"><a href={`/players/${p.slug}/`}>{p.nickname}</a> <span class="subtle">{p.firstName} {p.lastName}</span></th>
-                      <td><span class="role-cell"><RoleIcon role={p.role} />{p.role}{p.status === "benched" ? " · Bench" : ""}</span></td>
+                      <td><span class="role-cell"><RoleIcon player={p} />{rolesOf(p).join(" / ")}{p.status === "benched" ? " · Bench" : ""}</span></td>
                       <td>{since(p.joined)}</td>
                       <td class="n">{st?.maps ?? 0}</td>
                       <td class:list={["n", "rating", st && ratingTone(st.rating)]}>{st ? st.rating.toFixed(2) : "—"}</td>

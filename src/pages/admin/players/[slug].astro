@@ -64,6 +64,14 @@ const SHORT = { active: "Active", benched: "Benched", free: "Free agent", retire
             <label for="role">Role</label>
             <select id="role" name="role">{ROLES.map((r) => <option selected={(p?.role ?? "Rifler") === r}>{r}</option>)}</select>
           </div>
+          <div class="field">
+            <label for="role2">Second role (optional)</label>
+            <select id="role2" name="role2" aria-describedby="role2-hint">
+              <option value="">None</option>
+              {ROLES.map((r) => <option selected={p?.role2 === r}>{r}</option>)}
+            </select>
+            <span id="role2-hint" class="hint">e.g. an AWPer who is also the IGL shows both icons.</span>
+          </div>
         </div>
       </fieldset>
 
