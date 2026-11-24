@@ -45,7 +45,7 @@ const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
     <p class="muted">Ratings update by themselves when a result is saved. As of the last result: {getRankingUpdated() || "no results yet"}.</p>
   </section>
 
-  <section class="admin-section" aria-labelledby="table-h">
+  <section class="admin-section">
     <div class="section-head">
       <h2 id="table-h">Team ranking</h2>
       <span class="muted">Points = Elo + adjustment. Movement is over the last 7 days.</span>
@@ -99,7 +99,7 @@ const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
     </form>
   </section>
 
-  <section class="admin-section" aria-labelledby="players-h">
+  <section class="admin-section">
     <div class="section-head">
       <h2 id="players-h">Top player ratings</h2>
       <a href="/players/?board=elo" target="_blank" rel="noopener">Full player rank</a>

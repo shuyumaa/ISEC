@@ -163,11 +163,15 @@ const short = (slug?: string) => (slug ? team(slug).tag : "Decider");
         </Panel>
 
         <Panel title="Head to head">
-          <div class="h2h">
-            <span class:list={{ won: h2h.winsA > h2h.winsB }}><TeamMark team={a} size="md" /> {h2h.winsA}</span>
-            <span class="subtle">{h2h.games.length} {h2h.games.length === 1 ? "match" : "matches"}</span>
-            <span class:list={{ won: h2h.winsB > h2h.winsA }}>{h2h.winsB} <TeamMark team={b} size="md" /></span>
-          </div>
+          {h2h.games.length === 0 ? (
+            <p class="empty">First meeting between {a.name} and {b.name}.</p>
+          ) : (
+            <div class="h2h">
+              <span class:list={{ won: h2h.winsA > h2h.winsB }}><TeamMark team={a} size="md" /> {h2h.winsA}</span>
+              <span class="subtle">{h2h.games.length} {h2h.games.length === 1 ? "match" : "matches"}</span>
+              <span class:list={{ won: h2h.winsB > h2h.winsA }}>{h2h.winsB} <TeamMark team={b} size="md" /></span>
+            </div>
+          )}
           {h2h.games.map((g) => <MatchRow match={g} showDate />)}
         </Panel>
 

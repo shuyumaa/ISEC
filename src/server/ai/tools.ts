@@ -316,6 +316,41 @@ export function adminTools(actorName: string) {
       inputSchema: z.object({ slug, status: z.enum(PLAYER_STATUSES as [string, ...string[]]), team: slug.optional() }),
       execute: ({ slug: s, status, team: t }) => as(() => brief.player(setPlayerStatus(s, status as Player["status"] & string, t))),
     }),
+    scheduleMatches: tool({
+      description: "Schedule several matches of one event at once (e.g. a whole bracket with TBD teams). One approval covers the batch; prefer this over many scheduleMatch calls.",
+      inputSchema: z.object({
+        event: slug,
+        matches: z
+          .array(
+            z.object({
+              stage: z.string().min(1).max(80),
+              bestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]),
+              start: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).describe("Local time in the event's time zone"),
+              teamA: slug.optional(),
+              teamB: slug.optional(),
+            }),
+          )
+          .min(1)
+          .max(40),
+      }),
+      execute: ({ event, matches }) =>
+        as(() => {
+          // Check every row first, so a bad row doesn't leave half a bracket behind.
+          if (!findEvent(event)) throw new FormError(`No event "${event}".`);
+          matches.forEach((x, i) => {
+            for (const t of [x.teamA, x.teamB]) if (t && !findTeam(t)) throw new FormError(`Match ${i + 1}: no team "${t}".`);
+            if (x.teamA && x.teamA === x.teamB) throw new FormError(`Match ${i + 1}: a team can't play itself.`);
+          });
+          const forms = matches.map((x) => {
+            const f = new FormData();
+            f.set("event", event);
+            for (const [k, v] of Object.entries(x)) if (v !== undefined) f.set(k, String(v));
+            return f;
+          });
+          const created = forms.map((f) => createMatch(f).id);
+          return { created: created.length, ids: created, url: `/admin/matches/?event=${encodeURIComponent(event)}` };
+        }),
+    }),
     scheduleMatch: tool({
       description: "Schedule a match. Teams may be left out (TBD) for brackets that aren't decided yet.",
       inputSchema: z.object({
@@ -357,7 +392,7 @@ export function adminTools(actorName: string) {
           f.set("scoreB", String(scoreB));
           if (cur.startSideA) f.set("startSideA", cur.startSideA);
           const saved = updateMatch(m.id, "map", f);
-          return { status: saved.status, series: `${saved.maps.filter((x) => (x.scoreA ?? 0) > (x.scoreB ?? 0) && !x.live).length}` };
+          return { status: saved.status, maps: saved.maps.map((x) => `${x.map} ${x.scoreA ?? "-"}:${x.scoreB ?? "-"}`) };
         }),
     }),
     recordMapStats: tool({
@@ -378,4 +413,4 @@ export function adminTools(actorName: string) {
   };
 }
 
-export const WRITE_TOOLS = ["createEvent", "updateEvent", "createTeam", "createPlayer", "updatePlayer", "setPlayerStatus", "scheduleMatch", "setMapResult", "recordMapStats", "setMatchStatus"] as const;
+export const WRITE_TOOLS = ["createEvent", "updateEvent", "createTeam", "createPlayer", "updatePlayer", "setPlayerStatus", "scheduleMatch", "scheduleMatches", "setMapResult", "recordMapStats", "setMatchStatus"] as const;

@@ -13,7 +13,9 @@ for (const t of list) {
   if (!months.has(key)) months.set(key, []);
   months.get(key)!.push(t);
 }
-const monthName = (key: string) => Temporal.PlainYearMonth.from(key).toLocaleString("en-GB", { month: "long", year: "numeric", calendar: "iso8601" });
+// Intl on a plain Date: the Temporal polyfill's toLocaleString drops the month.
+const MONTH = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+const monthName = (key: string) => MONTH.format(new Date(`${key}-01T00:00:00Z`));
 const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 ---
 

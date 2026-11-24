@@ -8,50 +8,60 @@ const ready = aiReady();
 const suggestions = [
   "Create the event “ISEC Winter Cup 2026”, Open tier, 12–14 December, online, Asia/Shanghai.",
   "Sign the free agent … to …",
-  "Schedule a Bo3 quarter-final in … on Saturday 15:00 between … and …",
+  "Schedule every match of … with TBD teams, one Bo3 every 3 hours from 10:00.",
   "Read this scoreboard and record it for match …",
 ];
 ---
 
 <Admin title="AI assistant">
-  <a slot="actions" class="btn ghost" href="/admin/assistant/settings/">Provider settings</a>
   {
     !ready ? (
-      <section class="admin-section setup-ai" aria-labelledby="setup-h">
+      <section class="admin-section" aria-labelledby="setup-h">
         <h2 id="setup-h">Connect an AI provider</h2>
         <p class="muted">The assistant uses your own AI account: Vercel AI Gateway, OpenAI, Anthropic, Google Gemini, or any OpenAI-compatible server. Paste an API key once; it's stored encrypted.</p>
         <div class="actions"><a class="btn" href="/admin/assistant/settings/">Set up a provider</a></div>
       </section>
     ) : (
-      <div class="assistant" data-assistant>
-        <section class="chat" aria-label="Conversation">
-          <div class="chat-head">
-            <span class="muted">{PROVIDERS[c!.provider].label} · <span class="mono">{c!.model}</span></span>
-            <button type="button" class="btn ghost small new-chat">New chat</button>
-          </div>
+      <section class="chat" data-assistant aria-label="Conversation with the assistant">
+        <div class="chat-head">
+          <span class="chat-model">
+            {PROVIDERS[c!.provider].label} <span class="mono">{c!.model}</span> <a href="/admin/assistant/settings/">Change</a>
+          </span>
+          <button type="button" class="btn ghost small new-chat">New chat</button>
+        </div>
+
+        <div class="chat-scroll" tabindex="0" aria-label="Messages">
           <div class="chat-empty">
             <h2>What should we do?</h2>
-            <p class="muted">Ask in plain words. The assistant looks things up on its own and shows a card for every change, so nothing is saved until you approve it.</p>
+            <p class="muted">Ask in plain words. The assistant looks things up itself and shows a card for every change; nothing is saved until you approve it.</p>
             <ul class="suggest">
               {suggestions.map((s) => <li><button type="button" class="chip" data-suggest={s}>{s}</button></li>)}
             </ul>
           </div>
-          <ol class="chat-log" aria-live="polite" aria-label="Messages"></ol>
-          <p class="chat-status" role="status"></p>
-          <form class="composer">
-            <label for="prompt" class="visually-hidden">Message the assistant</label>
-            <textarea id="prompt" rows="2" maxlength="4000" placeholder="e.g. Move frost from Northwind to Monolith, starting today" required={false}></textarea>
-            <div class="composer-bar">
-              <label class="btn ghost small attach" for="attach"><Icon name="arrow" size={14} /> Attach screenshot</label>
-              <input id="attach" type="file" accept="image/png,image/jpeg,image/webp" multiple class="visually-hidden" />
-              <span class="attach-preview" hidden></span>
-              <span class="spacer"></span>
-              <button type="button" class="btn ghost small stop" hidden>Stop</button>
-              <button type="submit" class="btn small send">Send</button>
-            </div>
-          </form>
-        </section>
-      </div>
+          <ol class="chat-log" aria-live="polite"></ol>
+          <button type="button" class="btn small jump-latest" hidden><Icon name="down" size={14} /> Jump to latest</button>
+        </div>
+
+        <div class="approve-bar" hidden>
+          <span class="count"></span>
+          <button type="button" class="btn small approve-all">Approve all</button>
+          <button type="button" class="btn ghost small decline-all">Decline all</button>
+        </div>
+        <p class="chat-status" role="alert" hidden></p>
+
+        <form class="composer">
+          <label for="prompt" class="visually-hidden">Message the assistant</label>
+          <textarea id="prompt" rows="2" maxlength="8000" placeholder="e.g. Move frost from Northwind to Monolith, starting today. Enter sends, Shift+Enter adds a line."></textarea>
+          <div class="composer-bar">
+            <label class="btn ghost small attach" for="attach"><Icon name="attach" size={16} /> Screenshot</label>
+            <input id="attach" type="file" accept="image/png,image/jpeg,image/webp" multiple class="visually-hidden" />
+            <span class="attach-preview" hidden></span>
+            <span class="spacer"></span>
+            <button type="button" class="btn ghost small stop" hidden>Stop</button>
+            <button type="submit" class="btn small send">Send</button>
+          </div>
+        </form>
+      </section>
     )
   }
 </Admin>
@@ -62,20 +72,23 @@ const suggestions = [
 
 <style>
   @layer components {
-    .assistant {
-      display: grid;
-      max-inline-size: 56rem;
-    }
-    /* Component display rules would otherwise beat the hidden attribute. */
-    .assistant [hidden] {
-      display: none;
+    /* The chat is the page: no page scroll below it, only the log scrolls. */
+    :global(.admin-main:has(> .chat)) {
+      max-inline-size: none;
+      padding-block-end: var(--sp-05);
     }
     .chat {
+      --chat-h: max(26rem, calc(100dvh - var(--header-height, 4rem) - 8.5rem));
+      box-sizing: border-box;
       display: grid;
-      grid-template-rows: auto auto 1fr auto auto;
-      min-block-size: calc(100dvh - 14rem);
+      grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+      block-size: var(--chat-h);
+      inline-size: 100%;
       background: var(--surface);
       border: var(--border-width) solid var(--border-subtle);
+      [hidden] {
+        display: none;
+      }
     }
     .chat-head {
       display: flex;
@@ -90,6 +103,32 @@ const suggestions = [
         white-space: nowrap;
       }
     }
+    .chat-model {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--sp-02) var(--sp-03);
+      min-inline-size: 0;
+      color: var(--text-secondary);
+      & .mono {
+        color: var(--text-primary);
+        overflow-wrap: anywhere;
+      }
+    }
+
+    .chat-scroll {
+      position: relative;
+      display: grid;
+      align-content: start;
+      min-block-size: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      &:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: -2px;
+      }
+    }
     .chat-empty {
       display: grid;
       gap: var(--sp-03);
@@ -98,7 +137,7 @@ const suggestions = [
         font-size: var(--type-heading-md, 1.25rem);
       }
       & p {
-        max-inline-size: 60ch;
+        max-inline-size: 65ch;
         margin: 0;
       }
     }
@@ -120,10 +159,12 @@ const suggestions = [
       font-size: var(--type-body-sm);
       text-align: start;
       cursor: pointer;
+      transition: background-color var(--duration-fast-02, 110ms) ease-out;
       &:hover {
         background: var(--layer-hover);
       }
     }
+
     .chat-log {
       display: grid;
       align-content: start;
@@ -131,24 +172,25 @@ const suggestions = [
       list-style: none;
       margin: 0;
       padding: var(--sp-05);
-      overflow-y: auto;
-      max-block-size: calc(100dvh - 18rem);
       &:empty {
         display: none;
       }
     }
     .chat-log :global(.msg) {
       display: grid;
+      justify-items: start;
       gap: var(--sp-03);
-      max-inline-size: 46rem;
+      min-inline-size: 0;
     }
     .chat-log :global(.msg.user) {
-      justify-self: end;
       justify-items: end;
     }
     .chat-log :global(.msg-text) {
+      box-sizing: border-box;
+      max-inline-size: min(75ch, 100%);
       padding: var(--sp-03) var(--sp-04);
       line-height: 1.5;
+      overflow-wrap: anywhere;
       & :global(p),
       & :global(ul) {
         margin: 0;
@@ -167,13 +209,43 @@ const suggestions = [
       }
     }
     .chat-log :global(.msg.user .msg-text) {
+      max-inline-size: min(60ch, 85%);
       background: var(--layer-selected);
+      white-space: pre-wrap;
     }
     .chat-log :global(.msg-img) {
       max-inline-size: min(22rem, 100%);
       border: var(--border-width) solid var(--border-subtle);
     }
+    .chat-log :global(.msg-file) {
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+    }
+    .chat-log :global(.thinking) {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+      padding-inline: var(--sp-04);
+      color: var(--text-secondary);
+      font-size: var(--type-body-sm);
+    }
+    /* Three dots that breathe while the model works (static with reduced motion). */
+    .chat-log :global(.dots) {
+      inline-size: 1.75rem;
+      block-size: 0.5rem;
+      background: radial-gradient(circle closest-side, currentColor 90%, transparent) 0 50% / 0.5rem 0.5rem repeat-x;
+      opacity: 0.7;
+      @media (prefers-reduced-motion: no-preference) {
+        animation: breathe 1.2s ease-in-out infinite;
+      }
+    }
+    @keyframes breathe {
+      50% {
+        opacity: 0.25;
+      }
+    }
     .chat-log :global(.tool-read) {
+      padding-inline: var(--sp-04);
       font-size: var(--type-label);
       color: var(--text-secondary);
       &:global(.failed) {
@@ -181,10 +253,10 @@ const suggestions = [
       }
     }
     .chat-log :global(.tool-card) {
+      box-sizing: border-box;
       display: grid;
       gap: var(--sp-03);
-      box-sizing: border-box;
-      inline-size: min(30rem, 100%);
+      inline-size: min(34rem, 100%);
       padding: var(--sp-04);
       background: var(--layer);
       border: var(--border-width) solid var(--border-subtle);
@@ -212,15 +284,24 @@ const suggestions = [
       font-size: var(--type-body-sm);
       & :global(div) {
         display: grid;
-        grid-template-columns: 8rem minmax(0, 1fr);
+        grid-template-columns: 9rem minmax(0, 1fr);
         gap: var(--sp-03);
       }
       & :global(dt) {
         color: var(--text-secondary);
+        overflow-wrap: anywhere;
       }
       & :global(dd) {
         margin: 0;
         overflow-wrap: anywhere;
+      }
+    }
+    .chat-log :global(.tool-more) {
+      font-size: var(--type-body-sm);
+      & :global(summary) {
+        cursor: pointer;
+        color: var(--link);
+        margin-block-end: var(--sp-02);
       }
     }
     .chat-log :global(.tool-error) {
@@ -232,25 +313,52 @@ const suggestions = [
       display: flex;
       gap: var(--sp-03);
     }
+
+    /* Sticks to the bottom of the scroller while the reader is scrolled up. */
+    .jump-latest {
+      position: sticky;
+      inset-block-end: var(--sp-04);
+      justify-self: center;
+      margin-block: var(--sp-02) var(--sp-04);
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.18);
+    }
+
+    .approve-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03);
+      padding: var(--sp-03) var(--sp-05);
+      background: var(--tag-blue-bg);
+      color: var(--tag-blue-fg);
+      font-size: var(--type-body-sm);
+      & .count {
+        flex: 1;
+        font-weight: 600;
+      }
+    }
     .chat-status {
       margin: 0;
-      padding: 0 var(--sp-05);
-      min-block-size: 1.25rem;
-      color: var(--text-secondary);
+      padding: var(--sp-03) var(--sp-05);
+      color: var(--loss);
       font-size: var(--type-body-sm);
-      &:global(.is-error) {
-        color: var(--loss);
-      }
+      border-block-start: var(--border-width) solid var(--border-subtle);
     }
     .composer {
       display: grid;
       gap: var(--sp-02);
       padding: var(--sp-04) var(--sp-05);
       border-block-start: var(--border-width) solid var(--border-subtle);
-      & textarea {
+      /* The id outweighs the generic admin textarea size. */
+      & #prompt {
+        box-sizing: border-box;
         inline-size: 100%;
-        resize: vertical;
-        min-block-size: 3.5rem;
+        resize: none;
+        /* Grows with the message, up to a limit, then scrolls inside. */
+        field-sizing: content;
+        block-size: auto;
+        min-block-size: 2lh;
+        max-block-size: 8lh;
       }
     }
     .composer-bar {
@@ -261,9 +369,6 @@ const suggestions = [
       & .spacer {
         flex: 1;
       }
-    }
-    .attach :global(svg) {
-      rotate: -90deg;
     }
     .composer:has(#attach:focus-visible) .attach {
       outline: 2px solid var(--focus);

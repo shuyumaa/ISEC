@@ -9,7 +9,7 @@ interface Props {
   transfer: Transfer;
   /** Show a remove button (admin). */
   deletable?: boolean;
-  /** Narrow rail layout: photo and the move only, name in the tooltip. */
+  /** Rail size: team tags instead of names, relative dates, no note. */
   compact?: boolean;
 }
 const { transfer: t, deletable = false, compact = false } = Astro.props;
@@ -21,7 +21,6 @@ const end = (slug: string, status: Transfer["toStatus"]) => {
 };
 const from = end(t.from, t.fromStatus);
 const to = end(t.to, t.toStatus);
-const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).join(" ") || "No team";
 
 // What kind of move this is, for the rail's tag (text carries it, colour helps).
 const kind = (() => {
@@ -46,37 +45,23 @@ const ago = (() => {
 })();
 ---
 
-{compact ? (
-<li class="move compact" data-kind={kind.label.toLowerCase()}>
-  <a class="cm" href={`/players/${p.slug}/`} aria-label={`${p.nickname}: ${kind.label.toLowerCase()}, from ${describe(from)} to ${describe(to)}, ${t.date}`}>
+<li class:list={["move", { compact }]} data-kind={kind.label.toLowerCase()}>
+  <a class="cm" href={deletable ? `/admin/players/${p.slug}/` : `/players/${p.slug}/`}>
     <span class="cm-photo"><Photo player={p} size="thumb" /></span>
-    <span class="cm-top" aria-hidden="true">
+    <span class="cm-top">
       <strong class="cm-name"><Flag code={p.countryCode} /> {p.nickname}</strong>
       <span class:list={["badge", "cm-kind", kind.tone]}>{kind.label}</span>
     </span>
-    <span class="cm-path" aria-hidden="true">
-      <span class="cm-end">{from.team ? <><TeamMark team={from.team} /><span>{from.team.tag}</span></> : <span class="cm-none">{from.label || "No team"}</span>}</span>
-      <svg class="cm-arrow" viewBox="0 0 16 16" width="14" height="14"><path d="M2 8h10M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
-      <span class="cm-end">{to.team && t.to !== t.from ? <><TeamMark team={to.team} /><span>{to.label ? `${to.team.tag} · ${to.label}` : to.team.tag}</span></> : <span class="cm-none">{to.label || (to.team ? "Active" : "No team")}</span>}</span>
-      <time class="cm-ago" datetime={t.date}>{ago}</time>
+    <span class="cm-path">
+      <span class="visually-hidden">from </span>
+      <span class="cm-end">{from.team ? <><TeamMark team={from.team} /><span>{compact ? from.team.tag : from.team.name}</span></> : <span class="cm-none">{from.label || "No team"}</span>}</span>
+      <span class="visually-hidden"> to </span>
+      <svg class="cm-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 8h10M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+      <span class="cm-end">{to.team && t.to !== t.from ? <><TeamMark team={to.team} /><span>{compact ? to.team.tag : to.team.name}{to.label ? ` · ${to.label}` : ""}</span></> : <span class="cm-none">{to.label || (to.team ? "Active" : "No team")}</span>}</span>
+      <time class="cm-ago" datetime={t.date}>{compact ? ago : t.date}</time>
     </span>
+    {!compact && t.note && <span class="cm-note">{t.note}</span>}
   </a>
-</li>
-) : (
-<li class="move">
-  <a class="move-who" href={deletable ? `/admin/players/${p.slug}/` : `/players/${p.slug}/`} title={compact ? `${p.nickname}, ${t.date}` : undefined}>
-    <Photo player={p} size="thumb" />
-    <span class:list={{ "visually-hidden": compact }}>
-      <strong>{p.nickname}</strong>
-      <time class="muted" datetime={t.date}>{t.date}</time>
-    </span>
-  </a>
-  <span class="move-path" aria-label={`From ${describe(from)} to ${describe(to)}`}>
-    <span class="end">{from.team ? <TeamMark team={from.team} size={compact ? "md" : "sm"} /> : <span class="none" aria-hidden="true" />}<span class="lbl">{from.label || from.team?.tag}</span></span>
-    <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 8h10M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
-    <span class="end">{to.team ? <TeamMark team={to.team} size={compact ? "md" : "sm"} /> : <span class="none" aria-hidden="true" />}<span class="lbl">{to.label || to.team?.tag}</span></span>
-  </span>
-  {t.note && <span class="note muted">{t.note}</span>}
   {
     deletable && (
       <form method="post" data-enhance class="move-del">
@@ -87,31 +72,50 @@ const ago = (() => {
     )
   }
 </li>
-)}
 
 <style>
   @layer components {
+    /* One row design for every list of moves; it lays itself out by the
+       width it gets (rail, side card, full page). */
     .move {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      container-type: inline-size;
+      /* Flex so the Remove button wraps under the move in narrow side cards. */
+      display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: var(--sp-03) var(--sp-05);
-      padding: var(--sp-03) 0;
       border-block-end: var(--border-width) solid var(--border-subtle);
-      &:has(.move-del) {
-        grid-template-columns: minmax(0, 1fr) auto auto;
+      & > .cm {
+        flex: 1 1 15rem;
+        min-inline-size: 0;
       }
     }
-    /* Rail layout: a ticker of moves. Round portrait (clipped), name and a
-       tag saying what happened, then the path with both team marks. */
-    .move.compact {
-      display: block;
-      padding: 0;
+    .move-del {
+      margin-inline-start: auto;
+      padding: 0 var(--sp-04) var(--sp-02);
+    }
+    .cm-note {
+      grid-area: note;
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+    }
+    @container (width >= 34rem) {
+      .move:not(.compact) .cm {
+        grid-template-columns: 2.75rem minmax(9rem, 14rem) minmax(0, 1fr);
+        grid-template-areas: "photo top path" "photo top note";
+        column-gap: var(--sp-05);
+        /* Without a note it is one line: everything on the photo's centre. */
+        &:not(:has(.cm-note)) {
+          grid-template-areas: "photo top path";
+        }
+      }
+      .move:not(.compact) .cm-top {
+        justify-content: start;
+      }
     }
     .cm {
       display: grid;
       grid-template-columns: 2.75rem minmax(0, 1fr);
-      grid-template-areas: "photo top" "photo path";
+      grid-template-areas: "photo top" "photo path" "photo note";
       align-items: center;
       gap: var(--sp-01) var(--sp-03);
       padding: var(--sp-03) var(--sp-04);
@@ -225,53 +229,6 @@ const ago = (() => {
       flex: none;
       font-family: var(--font-mono);
       font-size: 0.625rem;
-    }
-    .move-who {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--sp-03);
-      text-decoration: none;
-      color: inherit;
-      min-inline-size: 0;
-      & > span {
-        display: grid;
-        min-inline-size: 0;
-      }
-      & strong {
-        color: var(--link);
-      }
-      & time {
-        font-family: var(--font-mono);
-        font-size: var(--type-label);
-      }
-    }
-    .move-path {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--sp-03);
-      color: var(--text-secondary);
-    }
-    .end {
-      display: inline-grid;
-      justify-items: center;
-      gap: var(--sp-01);
-      min-inline-size: 2.75rem;
-    }
-    .lbl {
-      font-size: 0.625rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      line-height: 1;
-    }
-    .none {
-      inline-size: 1.5rem;
-      block-size: 1.5rem;
-      border: var(--border-width) dashed var(--border-strong);
-    }
-    .note {
-      grid-column: 1 / -1;
-      font-size: var(--type-label);
     }
   }
 </style>

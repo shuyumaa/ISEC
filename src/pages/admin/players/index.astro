@@ -50,7 +50,7 @@ const href = (s?: PlayerStatus) => {
 <Admin title="Players" error={result?.error}>
   <a slot="actions" class="btn" href="/admin/players/new/">Add a player</a>
 
-  <section class="admin-section" aria-labelledby="list-h">
+  <section class="admin-section">
     <div class="section-head">
       <h2 id="list-h">{list.length} {list.length === 1 ? "player" : "players"}</h2>
       <nav class="segmented" aria-label="Filter by status">
