@@ -64,7 +64,7 @@ const ago = (() => {
   </a>
   {
     deletable && (
-      <form method="post" data-enhance class="move-del">
+      <form method="post" data-enhance class="move-del"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
         <input type="hidden" name="intent" value="delete-transfer" />
         <input type="hidden" name="id" value={t.id} />
         <button class="btn ghost small" aria-label={`Remove this move of ${p.nickname} from the history`}>Remove</button>

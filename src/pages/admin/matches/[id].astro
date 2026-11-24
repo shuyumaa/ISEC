@@ -129,7 +129,7 @@ const gsiConfig = feed
       <div class="maps-forms">
         {
           m.maps.map((map, i) => (
-            <form method="post" action={action} class="form" aria-label={`Map ${i + 1}`}>
+            <form method="post" action={action} class="form" aria-label={`Map ${i + 1}`}><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
               <input type="hidden" name="intent" value="map" />
               <input type="hidden" name="map" value={i} />
               <fieldset>
@@ -195,7 +195,7 @@ const gsiConfig = feed
       !ai ? (
         <p class="muted">Upload an end-of-map scoreboard (CS2, Perfect World, FACEIT, 5E…) and the AI fills in the map score and every player's K/D/A, ADR, HS% and rating for you to check. Connect an AI provider first.</p>
       ) : draft && draftMap ? (
-        <form method="post" action={action} class="form ocr-review" aria-labelledby="ocr-h">
+        <form method="post" action={action} class="form ocr-review" aria-labelledby="ocr-h"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
           <input type="hidden" name="draft" value={draft.id} />
           <input type="hidden" name="map" value={draft.mapIndex} />
           <input type="hidden" name="pickedBy" value={pickValue(draftMap.pickedBy)} />
@@ -235,7 +235,7 @@ const gsiConfig = feed
           </div>
         </form>
       ) : (
-        <form method="post" action={action} class="form ocr-upload" enctype="multipart/form-data" aria-labelledby="ocr-h" data-busy="Reading the screenshot…">
+        <form method="post" action={action} class="form ocr-upload" enctype="multipart/form-data" aria-labelledby="ocr-h" data-busy="Reading the screenshot…"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
           <input type="hidden" name="intent" value="ocr" />
           <p class="muted">Upload an end-of-map scoreboard (CS2, Perfect World, FACEIT, 5E…). The AI reads the score and every player's numbers; you check them before anything is saved.</p>
           <div class="form-grid">
@@ -260,7 +260,7 @@ const gsiConfig = feed
     {
       m.maps.map((map, i) =>
         map.scoreA === undefined ? null : (
-          <form method="post" action={action} class="form stats-form" aria-label={`Stats for map ${i + 1}`}>
+          <form method="post" action={action} class="form stats-form" aria-label={`Stats for map ${i + 1}`}><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
             <input type="hidden" name="intent" value="stats" />
             <input type="hidden" name="map" value={i} />
             <fieldset>
@@ -323,7 +323,7 @@ const gsiConfig = feed
 
   <section class="admin-section" aria-labelledby="veto-h">
     <h2 id="veto-h">Map veto</h2>
-    <form method="post" action={action} class="form" aria-labelledby="veto-h">
+    <form method="post" action={action} class="form" aria-labelledby="veto-h"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="veto" />
       <div class="table-wrap" role="region" aria-label="Veto steps" tabindex="0">
         <table class="data-table">
@@ -420,7 +420,7 @@ const gsiConfig = feed
         </div>
       )
     }
-    <form method="post" action={action} class="actions">
+    <form method="post" action={action} class="actions"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <button type="submit" class="btn small" name="intent" value="feed-create">{feed ? "Generate a new key" : "Connect a server"}</button>
       {feed && <button type="submit" class="btn ghost small" name="intent" value="feed-revoke">Disconnect</button>}
     </form>
@@ -428,7 +428,7 @@ const gsiConfig = feed
 
   <section class="admin-section" aria-labelledby="details-h">
     <h2 id="details-h">Details</h2>
-    <form method="post" action={action} class="form" aria-labelledby="details-h">
+    <form method="post" action={action} class="form" aria-labelledby="details-h"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="meta" />
       <MatchMetaFields match={m} />
       <div class="actions"><button type="submit" class="btn">Save details</button></div>

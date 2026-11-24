@@ -50,7 +50,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
                 <span class="round-score" aria-label={`${t.name} rounds`}>{score}</span>
                 <progress class="race" max={Math.max(13, score + 1)} value={score} aria-label={`${t.name}: ${score} of 13 rounds to win the map`}></progress>
                 <div class="round-buttons">
-                  <form method="post" action={action} data-enhance>
+                  <form method="post" action={action} data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                     <input type="hidden" name="intent" value="round" />
                     <input type="hidden" name="map" value={controlIndex} />
                     <input type="hidden" name="side" value={side} />
@@ -67,7 +67,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
     )
   }
 
-  <form method="post" action={action} class="control-status" data-enhance>
+  <form method="post" action={action} class="control-status" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
     <input type="hidden" name="intent" value="status" />
     {m.status === "upcoming" && (m.teamA && m.teamB ? <button type="submit" class="btn" name="status" value="live">Go live</button> : <a class="btn ghost" href={`${action}#details-h`}>Set teams first</a>)}
     {m.status === "live" && <button type="submit" class="btn" name="status" value="completed">Finish match</button>}

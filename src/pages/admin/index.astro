@@ -100,7 +100,7 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
                   <td>{event(m.event).name} · {m.stage}</td>
                   <td><LocalTime instant={matchInstant(m)} zone={event(m.event).timeZone} format="datetime" /></td>
                   <td>
-                    <form method="post" class="actions" data-enhance>
+                    <form method="post" class="actions" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                       <input type="hidden" name="intent" value="status" />
                       <input type="hidden" name="status" value="live" />
                       <input type="hidden" name="id" value={m.id} />

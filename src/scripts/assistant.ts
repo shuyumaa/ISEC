@@ -18,6 +18,8 @@ import {
  */
 
 const root = document.querySelector<HTMLElement>("[data-assistant]");
+// CSRF token for requests that change something (server/csrf.ts).
+const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "";
 
 /* ------------------------------ Labels ------------------------------ */
 
@@ -142,7 +144,7 @@ class Chat extends AbstractChat<UIMessage> {
     super({
       id,
       state,
-      transport: new DefaultChatTransport({ api: "/api/admin/assistant", credentials: "same-origin" }),
+      transport: new DefaultChatTransport({ api: "/api/admin/assistant", credentials: "same-origin", headers: () => ({ "X-CSRF-Token": csrf() }) }),
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
       onError: () => render(),
       // Saved on the server when the answer ends: refresh the history list.
@@ -199,7 +201,7 @@ function historyItem(c: Summary) {
       }, 4000);
       return;
     }
-    const r = await fetch(`/api/admin/chats/${encodeURIComponent(c.id)}`, { method: "DELETE" });
+    const r = await fetch(`/api/admin/chats/${encodeURIComponent(c.id)}`, { method: "DELETE", headers: { "X-CSRF-Token": csrf() } });
     if (!r.ok) return;
     if (c.id === chatId) startNew();
     await refreshHistory();

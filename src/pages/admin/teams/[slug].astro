@@ -88,7 +88,7 @@ import Icon from "../../../components/Icon.astro";
 
   <section class="admin-section" aria-labelledby="team-h">
     <h2 id="team-h">Team details</h2>
-    <form method="post" class="form" aria-labelledby="team-h" enctype="multipart/form-data">
+    <form method="post" class="form" aria-labelledby="team-h" enctype="multipart/form-data"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="team" />
       <div class="form-grid">
         <div class="field"><label for="name">Name</label><input id="name" name="name" required maxlength="60" value={t?.name ?? ""} /></div>
@@ -132,14 +132,14 @@ import Icon from "../../../components/Icon.astro";
                     <td class="n mono">{playerElo(p.slug)?.elo ?? "—"}</td>
                     <td class="mono">{p.joined ?? "—"}</td>
                     <td>
-                      <form method="post" class="row-actions" data-enhance>
+                      <form method="post" class="row-actions" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                         <input type="hidden" name="intent" value="status" />
                         <input type="hidden" name="player" value={p.slug} />
                         {st === "active" ? <button class="btn ghost small" name="status" value="benched">Bench</button> : <button class="btn ghost small" name="status" value="active">Activate</button>}
                         <button class="btn ghost small" name="status" value="free">Release</button>
                         <a class="btn ghost small" href={`/admin/players/${p.slug}/`}>Edit</a>
                       </form>
-                      <form method="post" class="order-btns" data-enhance>
+                      <form method="post" class="order-btns" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                         <input type="hidden" name="intent" value="move" />
                         <input type="hidden" name="player" value={p.slug} />
                         <button class="btn ghost small icon-only" name="dir" value="up" disabled={edge(p, -1)} aria-label={`Move ${p.nickname} up`} title="Move up"><Icon name="up" size={14} /></button>
@@ -154,7 +154,7 @@ import Icon from "../../../components/Icon.astro";
           {roster.length === 0 && <p class="empty">No players yet. Add a new player, or sign one below.</p>}
         </div>
         {signable.length > 0 && (
-          <form method="post" class="sign-row" data-enhance>
+          <form method="post" class="sign-row" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
             <input type="hidden" name="intent" value="sign" />
             <div class="field">
               <label for="sign-player">Sign a player</label>

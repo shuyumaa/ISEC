@@ -50,7 +50,7 @@ const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
       <h2 id="table-h">Team ranking</h2>
       <span class="muted">Points = Elo + adjustment. Movement is over the last 7 days.</span>
     </div>
-    <form method="post" class="form full" data-enhance>
+    <form method="post" class="form full" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="adjust" />
       <div class="table-wrap" role="region" aria-labelledby="table-h" tabindex="0">
         <table class="data-table">
@@ -126,7 +126,7 @@ const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
 
   <details class="admin-section" open={Boolean(result?.error)}>
     <summary>Ranking maths</summary>
-    <form method="post" class="form">
+    <form method="post" class="form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="math" />
       <div class="form-grid">
         <div class="field"><label for="start">Starting rating</label><input id="start" name="start" type="number" required min="100" max="5000" value={cfg.start} /></div>

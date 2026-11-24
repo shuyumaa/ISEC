@@ -43,7 +43,7 @@ const presetTeam = Astro.url.searchParams.get("team") ?? "";
 <Admin title="Accounts" error={result?.error}>
   <details class="admin-section" id="new" open={Boolean(result?.error) || Astro.url.searchParams.has("new")}>
     <summary>Create an account</summary>
-    <form method="post" class="form" aria-label="Create an account">
+    <form method="post" class="form" aria-label="Create an account"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="create" />
       <div class="form-grid">
         <ChoiceGroup wide name="role" legend="Type" value="team" options={[{ value: "team", label: "Team account" }, { value: "admin", label: "Admin account" }]} hint="A team account manages one team; an admin account can change everything." />
@@ -101,7 +101,7 @@ const presetTeam = Astro.url.searchParams.get("team") ?? "";
                     <div class="row-actions">
                       <details class="inline-reset">
                         <summary class="btn ghost small">Reset password</summary>
-                        <form method="post" class="reset-form">
+                        <form method="post" class="reset-form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                           <input type="hidden" name="intent" value="password" />
                           <input type="hidden" name="id" value={a.id} />
                           <input type="hidden" name="username" value={a.username} autocomplete="username" />
@@ -111,7 +111,7 @@ const presetTeam = Astro.url.searchParams.get("team") ?? "";
                         </form>
                       </details>
                       {a.id !== me.id && (
-                        <form method="post" data-enhance>
+                        <form method="post" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                           <input type="hidden" name="id" value={a.id} />
                           <button class="btn ghost small" name="intent" value={a.disabled ? "enable" : "disable"}>{a.disabled ? "Enable" : "Disable"}</button>
                         </form>

@@ -24,7 +24,7 @@ const t = me.team ? findTeam(me.team) : undefined;
   {t && <a slot="actions" class="btn ghost" href={`/teams/${t.slug}/`} target="_blank" rel="noopener">View public page</a>}
   {
     t ? (
-      <form method="post" class="form" enctype="multipart/form-data">
+      <form method="post" class="form" enctype="multipart/form-data"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
         <input type="hidden" name="intent" value="save" />
         <div class="form-grid">
           <div class="field"><label for="name">Team name</label><input id="name" name="name" required maxlength="60" value={t.name} /></div>

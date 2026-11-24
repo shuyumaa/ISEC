@@ -36,7 +36,7 @@ const when = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "
   <span class:list={["badge", { blue: r.status === "pending", green: r.status === "approved" }]}>{STATUS[r.status]}</span>
   {
     r.status === "pending" && as === "admin" && (
-      <form method="post" class="req-actions" data-enhance>
+      <form method="post" class="req-actions" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
         <input type="hidden" name="id" value={r.id} />
         <label class="visually-hidden" for={`reason-${r.id}`}>Reason (optional)</label>
         <input id={`reason-${r.id}`} name="reason" maxlength="200" placeholder="Reason (optional)" />
@@ -47,7 +47,7 @@ const when = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "
   }
   {
     r.status === "pending" && as === "team" && (
-      <form method="post" class="req-actions" data-enhance>
+      <form method="post" class="req-actions" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
         <input type="hidden" name="id" value={r.id} />
         <button class="btn ghost small" name="intent" value="cancel">Withdraw</button>
       </form>

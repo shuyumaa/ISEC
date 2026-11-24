@@ -30,7 +30,7 @@ const past = mine.filter((r) => r.status !== "pending").slice(0, 20);
   <div class="two">
     <section class="admin-section" aria-labelledby="in-h">
       <h2 id="in-h">Sign a player</h2>
-      <form method="post" class="form">
+      <form method="post" class="form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
         <input type="hidden" name="intent" value="request" />
         <input type="hidden" name="direction" value="in" />
         <div class="field">
@@ -48,7 +48,7 @@ const past = mine.filter((r) => r.status !== "pending").slice(0, 20);
 
     <section class="admin-section" aria-labelledby="out-h">
       <h2 id="out-h">Move one of your players</h2>
-      <form method="post" class="form">
+      <form method="post" class="form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
         <input type="hidden" name="intent" value="request" />
         <input type="hidden" name="direction" value="out" />
         <div class="field">

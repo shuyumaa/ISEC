@@ -15,9 +15,9 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/private ./private
-COPY package.json ./
+COPY package.json server.mjs ./
 RUN mkdir -p /data && chown node:node /data
 VOLUME ["/data"]
 EXPOSE 4321
 USER node
-CMD ["node", "--disable-warning=ExperimentalWarning", "dist/server/entry.mjs"]
+CMD ["node", "--disable-warning=ExperimentalWarning", "server.mjs"]

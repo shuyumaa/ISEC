@@ -24,7 +24,7 @@ const on = !!getSettings().comingSoon;
     <p class="muted">
       {on ? "Visitors only see the coming-soon page. You're signed in as an admin, so you still see the full site." : "The full site is public. Turn this on to show only the coming-soon page to visitors."}
     </p>
-    <form method="post" action="/admin/settings/" class="cs-actions">
+    <form method="post" action="/admin/settings/" class="cs-actions"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="coming-soon" />
       <input type="hidden" name="back" value={back} />
       <button class:list={["btn", "small", { ghost: on }]} name="comingSoon" value={on ? "off" : "on"}>{on ? "Open the site to visitors" : "Turn on coming soon"}</button>

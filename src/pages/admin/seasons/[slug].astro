@@ -36,7 +36,7 @@ const teams = getTeams().toSorted((a, b) => a.name.localeCompare(b.name));
 ---
 
 <Admin title={s ? s.name : "New season"} error={result?.error}>
-  <form method="post" class="form">
+  <form method="post" class="form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
     <input type="hidden" name="intent" value="save" />
     <div class="form-grid">
       <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="80" value={s?.name ?? ""} placeholder="Winter Season 2026" /></div>
