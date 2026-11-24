@@ -337,7 +337,7 @@
 
     & th,
     & td {
-      padding: var(--sp-03) var(--sp-04);
+      padding: var(--sp-02) var(--sp-03);
       border-block-end: var(--border-width) solid var(--border-subtle);
       vertical-align: middle;
     }

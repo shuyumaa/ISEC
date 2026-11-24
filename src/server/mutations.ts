@@ -1,4 +1,4 @@
-import { PLAY_ORDER, bestOfFor, mapDecided, matchRoster, rosterOf, seriesScore, slotDef, winnerOf } from "../data";
+import { PLAY_ORDER, bestOfFor, linkExisting, mapDecided, matchRoster, rosterOf, seriesScore, slotDef, winnerOf } from "../data";
 import type {
   EloSettings,
   PlayerStatus,
@@ -184,7 +184,25 @@ export function generateBracket(eventSlug: string, form: FormData) {
       seeds.set(`${g}:UQF${Math.ceil(i / 2)}:${i % 2 ? "A" : "B"}`, t);
     }
 
-  const existing = new Set(s.matches.filter((m) => m.event === ev.slug && m.slot).map((m) => m.slot));
+  const mine = s.matches.filter((m) => m.event === ev.slug);
+  const existing = new Set(mine.filter((m) => m.slot).map((m) => m.slot!));
+  // Matches scheduled by hand before the bracket (e.g. "Group A Upper QF 1")
+  // take their slot instead of getting a duplicate.
+  const linked: Match[] = [];
+  for (const [slot, found] of linkExisting(mine, existing, seeds)) {
+    const m = structuredClone(found);
+    m.slot = slot;
+    m.stage = slotDef(slot)!.stage;
+    if (m.status === "upcoming") {
+      m.bestOf = bestOfFor(slot, cfg);
+      resizeMaps(m);
+      m.teamA ||= seeds.get(`${slot}:A`) ?? "";
+      m.teamB ||= seeds.get(`${slot}:B`) ?? "";
+      if (m.teamA && m.teamA === m.teamB) m.teamB = "";
+    }
+    linked.push(m);
+    existing.add(slot);
+  }
   let id = Math.max(2380000, ...s.matches.map((x) => Number(x.id)).filter(Number.isFinite));
   const day0 = Temporal.PlainDate.from(ev.startDate);
   const created: Match[] = [];
@@ -216,9 +234,15 @@ export function generateBracket(eventSlug: string, form: FormData) {
   const teams = [...new Set([...ev.teams, ...used])];
   transaction((tx) => {
     tx.put("event", ev.slug, { ...ev, bracket: cfg, teams });
-    for (const m of created) tx.put("match", m.id, m);
-  }, actor(), `create bracket (${created.length} matches)`);
-  return { created: created.length, existing: existing.size };
+    for (const m of [...linked, ...created]) tx.put("match", m.id, m);
+  }, actor(), `create bracket (${created.length} new, ${linked.length} linked)`);
+  // Results of linked matches that were already played flow on, in play order.
+  const order = new Map(PLAY_ORDER.map((slot, i) => [slot, i]));
+  for (const m of linked.filter((x) => x.status === "completed").toSorted((a, b) => order.get(a.slot!)! - order.get(b.slot!)!)) {
+    const next = advance(snapshot().matches.find((x) => x.id === m.id)!);
+    if (next.length) transaction((tx) => next.forEach((n) => tx.put("match", n.id, n)), actor(), "advance bracket");
+  }
+  return { created: created.length, linked: linked.length, existing: existing.size - linked.length };
 }
 
 function resizeMaps(m: Match) {
@@ -457,6 +481,17 @@ export function deleteMatch(id: string) {
   transaction((tx) => tx.remove("match", id), actor(), "delete match");
 }
 
+/** Delete several matches at once (all or nothing). */
+export function deleteMatches(ids: string[]) {
+  const known = new Set(snapshot().matches.map((m) => m.id));
+  const list = [...new Set(ids)].filter((id) => known.has(id));
+  if (!list.length) throw new FormError("Select at least one match.");
+  transaction((tx) => {
+    for (const id of list) tx.remove("match", id);
+  }, actor(), `delete ${list.length} matches`);
+  return list;
+}
+
 /* ================================= News ================================== */
 
 export function saveArticle(slug: string | undefined, form: FormData): Article {
@@ -501,8 +536,8 @@ const pickUpload = (current: string | undefined, next: Upload) => (next === null
 
 /** Country from the picker: a valid ISO code; the name is derived from it. */
 function readCountry(form: FormData, field = "countryCode", required = true): string {
-  const code = text(form, field, { required, max: 2, label: "Country" }).toUpperCase();
-  if (code && !isCountry(code)) throw new FormError("Choose a country from the list.", field);
+  const code = text(form, field, { required, max: 2, label: "Country/region" }).toUpperCase();
+  if (code && !isCountry(code)) throw new FormError("Choose a country/region from the list.", field);
   return code;
 }
 
@@ -840,7 +875,7 @@ export function deleteSeason(slug: string) {
 
 /* ================================ Settings ================================ */
 
-const NAV_KEYS = ["matches", "results", "events", "ranking", "players", "news", "season"] as const;
+export const NAV_KEYS = ["matches", "results", "events", "ranking", "players", "news", "season"] as const;
 
 export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upload } = {}) {
   const current = snapshot().settings;
@@ -895,6 +930,65 @@ export function saveSettings(form: FormData, logos: { light?: Upload; dark?: Upl
     comingSoon: current.comingSoon,
   };
   transaction((tx) => tx.put("settings", "site", settings), actor(), "edit settings");
+}
+
+/** Fields the assistant may change (each checked like the settings form does). */
+export interface SettingsPatch {
+  rankingName?: string;
+  seasonPageName?: string;
+  /** null removes the announcement bar. */
+  announcement?: { text: string; href?: string } | null;
+  /** null goes back to the automatic pick. */
+  featuredMatch?: string | null;
+  homeNewsCount?: number;
+  homeResultsCount?: number;
+  homeUpcomingCount?: number;
+  footerText?: string;
+  playerRankMinMaps?: number;
+  navHidden?: (typeof NAV_KEYS)[number][];
+  leftRail?: boolean;
+  rightRail?: boolean;
+  comingSoon?: boolean;
+}
+
+/** Change a few site settings, leaving everything else as it is. */
+export function patchSettings(p: SettingsPatch): Settings {
+  const cur = snapshot().settings;
+  const next: Settings = structuredClone(cur);
+  const str = (v: string, label: string, max: number) => {
+    const t = v.trim();
+    if (!t) throw new FormError(`${label} can't be empty.`);
+    if (t.length > max) throw new FormError(`${label} is longer than ${max} characters.`);
+    return t;
+  };
+  const num = (v: number, label: string, min: number, max: number) => {
+    if (!Number.isInteger(v) || v < min || v > max) throw new FormError(`${label} must be a whole number from ${min} to ${max}.`);
+    return v;
+  };
+  if (p.rankingName !== undefined) next.rankingName = str(p.rankingName, "Ranking name", 40);
+  if (p.seasonPageName !== undefined) next.seasonPageName = str(p.seasonPageName, "Season page name", 40);
+  if (p.footerText !== undefined) next.footerText = str(p.footerText, "Footer text", 300);
+  if (p.announcement === null) next.announcement = undefined;
+  else if (p.announcement) {
+    const href = p.announcement.href?.trim();
+    if (href && !/^(\/|https:\/\/)/.test(href)) throw new FormError("Announcement link must start with / or https://.");
+    next.announcement = { text: str(p.announcement.text, "Announcement", 200), href: href || undefined };
+  }
+  if (p.featuredMatch === null) next.featuredMatch = undefined;
+  else if (p.featuredMatch !== undefined) {
+    if (!snapshot().matches.some((m) => m.id === p.featuredMatch)) throw new FormError("No match with that id.");
+    next.featuredMatch = p.featuredMatch;
+  }
+  if (p.homeNewsCount !== undefined) next.homeNewsCount = num(p.homeNewsCount, "News on the home page", 1, 20);
+  if (p.homeResultsCount !== undefined) next.homeResultsCount = num(p.homeResultsCount, "Results on the home page", 1, 30);
+  if (p.homeUpcomingCount !== undefined) next.homeUpcomingCount = num(p.homeUpcomingCount, "Upcoming on the home page", 1, 30);
+  if (p.playerRankMinMaps !== undefined) next.playerRankMinMaps = num(p.playerRankMinMaps, "Minimum maps", 0, 50);
+  if (p.navHidden !== undefined) next.navHidden = NAV_KEYS.filter((k) => p.navHidden!.includes(k));
+  if (p.leftRail !== undefined) next.rails.left = p.leftRail;
+  if (p.rightRail !== undefined) next.rails.right = p.rightRail;
+  if (p.comingSoon !== undefined) next.comingSoon = p.comingSoon;
+  transaction((tx) => tx.put("settings", "site", next), actor(), "edit settings");
+  return next;
 }
 
 /** Switch the pre-launch coming-soon page on or off for visitors. */

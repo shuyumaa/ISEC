@@ -381,7 +381,7 @@ const suggestions = [
       border-block-start: 2px solid var(--border-strong);
     }
     .chat-log :global(.tool-card[data-state="approval-requested"]) {
-      border-block-start-color: var(--interactive, var(--link));
+      border-block-start-color: var(--button-primary);
     }
     .chat-log :global(.tool-card[data-state="output-available"]) {
       border-block-start-color: var(--win);
@@ -429,7 +429,117 @@ const suggestions = [
     }
     .chat-log :global(.tool-actions) {
       display: flex;
+      flex-wrap: wrap;
       gap: var(--sp-03);
+    }
+    .chat-log :global(.tool-card.danger[data-state="approval-requested"]) {
+      border-block-start-color: var(--loss);
+    }
+
+    /* A run of changes: one card, a line per change, one Approve all. */
+    .chat-log :global(.tool-stack) {
+      box-sizing: border-box;
+      display: grid;
+      gap: var(--sp-03);
+      inline-size: min(40rem, 100%);
+      padding: var(--sp-03) var(--sp-04);
+      background: var(--layer);
+      border: var(--border-width) solid var(--border-subtle);
+      border-block-start: 2px solid var(--button-primary);
+    }
+    .chat-log :global(.stack-head) {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--sp-02) var(--sp-04);
+    }
+    .chat-log :global(.stack-title) {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--sp-03);
+    }
+    .chat-log :global(.stack-tally) {
+      font-size: var(--type-label);
+      color: var(--text-secondary);
+    }
+    .chat-log :global(.stack-list) {
+      display: grid;
+      max-block-size: 22rem;
+      overflow-y: auto;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-block-start: var(--border-width) solid var(--border-subtle);
+      & > :global(li) {
+        border-block-end: var(--border-width) solid var(--border-subtle);
+      }
+    }
+    .chat-log :global(.tool-row) {
+      display: flex;
+      align-items: start;
+      gap: var(--sp-03);
+      & > :global(.tool-card) {
+        flex: 1;
+        min-inline-size: 0;
+      }
+      & > :global(.tool-actions) {
+        flex-wrap: nowrap;
+        padding-block: var(--sp-02);
+      }
+      & :global(.btn.small) {
+        min-block-size: 1.75rem;
+        padding-block: 0;
+      }
+    }
+    .chat-log :global(.tool-card.compact) {
+      inline-size: auto;
+      padding: 0;
+      background: none;
+      border: 0;
+      & > :global(summary) {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-03);
+        min-block-size: 2.25rem;
+        cursor: pointer;
+        list-style: none;
+        font-size: var(--type-body-sm);
+        &::-webkit-details-marker {
+          display: none;
+        }
+        &::before {
+          content: "";
+          flex: none;
+          inline-size: 0.375rem;
+          block-size: 0.375rem;
+          border-inline-end: 1.5px solid currentColor;
+          border-block-end: 1.5px solid currentColor;
+          rotate: -45deg;
+          transition: rotate var(--duration-fast) var(--ease-productive);
+        }
+        & > :global(strong) {
+          flex: none;
+        }
+        & > :global(.badge) {
+          margin-inline-start: auto;
+          flex: none;
+        }
+      }
+      & > :global(.tool-fields) {
+        padding: 0 0 var(--sp-03) var(--sp-05);
+      }
+    }
+    .chat-log :global(.tool-card.compact[open] > summary::before) {
+      rotate: 45deg;
+    }
+    .chat-log :global(.tool-line) {
+      min-inline-size: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text-secondary);
     }
 
     /* Sticks to the bottom of the scroller while the reader is scrolled up. */

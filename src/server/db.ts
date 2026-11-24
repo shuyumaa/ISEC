@@ -51,6 +51,8 @@ function open(): DB {
   `);
   // Older builds logged feed keys as audit targets; scrub them.
   db.exec("UPDATE audit SET target = 'feed:*' WHERE target LIKE 'feed:%' AND target <> 'feed:*'");
+  // Teams store their country/region name: Taiwan competes as Chinese Taipei.
+  db.exec("UPDATE docs SET data = json_set(data, '$.country', 'Chinese Taipei') WHERE kind = 'team' AND json_extract(data, '$.countryCode') = 'TW' AND json_extract(data, '$.country') IS NOT 'Chinese Taipei'");
   // Repair transfers saved with a record id different from their row key (an
   // old "team disbanded" bug): such rows could not be removed or cleared.
   db.exec("UPDATE docs SET data = json_set(data, '$.id', id) WHERE kind = 'transfer' AND json_extract(data, '$.id') IS NOT id");

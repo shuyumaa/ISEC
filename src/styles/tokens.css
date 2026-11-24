@@ -81,7 +81,7 @@
     --type-body: 1rem;
     --type-heading-sm: 1.25rem;
     --type-heading: 1.75rem;
-    --type-heading-lg: clamp(2rem, 1.5rem + 1.6vw, 2.625rem);
+    --type-heading-lg: clamp(1.5rem, 1.25rem + 1vw, 2rem);
     --type-display: clamp(2.5rem, 1.6rem + 3.2vw, 4.5rem);
 
     --container: 90rem;

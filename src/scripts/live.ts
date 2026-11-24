@@ -102,12 +102,18 @@ function swap(current: HTMLElement, next: HTMLElement) {
   // Remember UI state that a re-render would otherwise reset.
   const focusedId = current.contains(document.activeElement) ? document.activeElement?.id : undefined;
   const selectedTabs = [...current.querySelectorAll<HTMLElement>('[role="tab"][aria-selected="true"]')].map((t) => t.id);
+  // Ticked selection boxes (bulk actions) survive the update.
+  const ticked = new Set([...current.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-keep]:checked")].map((i) => `${i.name}=${i.value}`));
   const announce = current.dataset.announce !== undefined ? next.querySelector<HTMLElement>("[data-announce-text]")?.textContent : undefined;
 
   const fresh = document.importNode(next, true);
   current.replaceWith(fresh);
 
   for (const id of selectedTabs) document.getElementById(id)?.click();
+  if (ticked.size) {
+    for (const i of fresh.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-keep]")) i.checked = ticked.has(`${i.name}=${i.value}`);
+    fresh.dispatchEvent(new Event("change", { bubbles: true }));
+  }
   if (focusedId) document.getElementById(focusedId)?.focus({ preventScroll: true });
   fresh.dispatchEvent(new CustomEvent("isec:hydrate", { bubbles: true }));
   fresh.classList.add("just-updated");

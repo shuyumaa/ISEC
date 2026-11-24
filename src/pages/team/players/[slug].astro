@@ -51,7 +51,7 @@ const blank = { slug: "new", nickname: "", firstName: "", lastName: "", team: ""
           <div class="field"><label for="nickname">Nickname</label><input id="nickname" name="nickname" required maxlength="32" autocomplete="off" value={p?.nickname ?? ""} /></div>
           <div class="field"><label for="firstName">First name</label><input id="firstName" name="firstName" maxlength="40" autocomplete="off" value={p?.firstName ?? ""} /></div>
           <div class="field"><label for="lastName">Last name</label><input id="lastName" name="lastName" maxlength="40" autocomplete="off" value={p?.lastName ?? ""} /></div>
-          <div class="field"><label for="countryCode">Country</label><CountrySelect id="countryCode" value={p?.countryCode} /></div>
+          <div class="field"><label for="countryCode">Country/region</label><CountrySelect id="countryCode" value={p?.countryCode} /></div>
           <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="10" max="60" inputmode="numeric" value={p?.age || ""} /></div>
           <div class="field"><label for="role">Role</label><select id="role" name="role">{ROLES.map((r) => <option selected={(p?.role ?? "Rifler") === r}>{r}</option>)}</select></div>
           <div class="field">

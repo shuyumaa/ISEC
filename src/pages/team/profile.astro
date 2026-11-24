@@ -29,7 +29,7 @@ const t = me.team ? findTeam(me.team) : undefined;
         <div class="form-grid">
           <div class="field"><label for="name">Team name</label><input id="name" name="name" required maxlength="60" value={t.name} /></div>
           <div class="field"><label for="tag">Tag (2–4 letters)</label><input id="tag" name="tag" required minlength="2" maxlength="4" pattern="[\p{L}\p{N}]{2,4}" value={t.tag} /></div>
-          <div class="field"><label for="countryCode">Country</label><CountrySelect id="countryCode" value={t.countryCode} required /></div>
+          <div class="field"><label for="countryCode">Country/region</label><CountrySelect id="countryCode" value={t.countryCode} required /></div>
           <div class="field"><label for="founded">Founded</label><input id="founded" name="founded" type="number" required min="1990" max="2100" value={t.founded} /></div>
           <div class="field"><label for="coach">Coach</label><input id="coach" name="coach" maxlength="60" value={t.coach} autocomplete="off" /></div>
           <div class="field">

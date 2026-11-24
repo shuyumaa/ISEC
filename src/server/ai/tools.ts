@@ -1,10 +1,13 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { findEvent, findMatch, findPlayer, findTeam, getEvents, getMatches, getPlayers, getTeams, matchRoster, rosterOf, team } from "../../data";
+import { findEvent, findMatch, findPlayer, findTeam, getEvents, getMatches, getSettings, getPlayers, getTeams, matchRoster, rosterOf, team } from "../../data";
 import type { EsportsEvent, Player } from "../../data/types";
 import { runAs } from "../actor";
 import { FormError } from "../forms";
-import { EVENT_STATUSES, MAP_POOL, MATCH_STATUSES, PLAYER_STATUSES, ROLES, TIERS, createMatch, generateBracket, saveEvent, savePlayer, saveTeam, setPlayerStatus, updateMatch } from "../mutations";
+import { accountsForTeam, setAccountDisabled } from "../auth";
+import { revokeFeed } from "../ingest";
+import { EVENT_STATUSES, MAP_POOL, MATCH_STATUSES, NAV_KEYS, PLAYER_STATUSES, ROLES, TIERS, createMatch, deleteEvent, deleteMatches, deletePlayer, deleteTeam, generateBracket, patchSettings, saveEvent, savePlayer, saveTeam, setPlayerStatus, updateMatch } from "../mutations";
+import { removeUpload } from "../uploads";
 
 /*
  * What the admin assistant can do. Read tools run straight away; every tool
@@ -111,7 +114,7 @@ const playerFields = {
   nickname: z.string().min(1).max(32).optional(),
   firstName: z.string().max(40).optional(),
   lastName: z.string().max(40).optional(),
-  countryCode: z.string().length(2).optional().describe("ISO 3166-1 alpha-2, e.g. CN"),
+  countryCode: z.string().length(2).optional().describe("Country/region, ISO 3166-1 alpha-2, e.g. CN; TW is shown as Chinese Taipei"),
   age: z.number().int().min(10).max(60).optional(),
   role: role.optional(),
   role2: role.nullable().optional().describe("Second role, e.g. AWP + IGL; null removes it"),
@@ -425,6 +428,100 @@ export function adminTools(actorName: string) {
       inputSchema: z.object({ matchId: z.string(), mapIndex: z.number().int().min(0).max(4), players: z.array(statLine).min(1).max(12) }),
       execute: ({ matchId, mapIndex, players }) => as(() => recordStats(matchId, mapIndex, players)),
     }),
+    /* ---------------------- Delete (always approved) --------------------- */
+    deleteMatches: tool({
+      description: "Delete one or more matches (with their maps and player stats). Get the ids from search or getEvent first.",
+      inputSchema: z.object({ ids: z.array(z.string().min(1).max(20)).min(1).max(60) }),
+      execute: ({ ids }) =>
+        as(() => {
+          const gone = deleteMatches(ids);
+          for (const id of gone) revokeFeed(id);
+          return { deleted: gone.length, notFound: ids.filter((i) => !gone.includes(i)) };
+        }),
+    }),
+    deleteEvent: tool({
+      description: "Delete an event. It must have no matches left (delete them with deleteMatches first).",
+      inputSchema: z.object({ slug }),
+      execute: ({ slug: s }) =>
+        as(async () => {
+          const ev = findEvent(s);
+          if (!ev) throw new FormError("No event with that slug.");
+          deleteEvent(s);
+          await removeUpload(ev.logo);
+          await removeUpload(ev.trophyImage);
+          return { deleted: ev.name };
+        }),
+    }),
+    deleteTeam: tool({
+      description: "Delete a team. It must have no matches. Its players become free agents and its team accounts are switched off.",
+      inputSchema: z.object({ slug }),
+      execute: ({ slug: s }) =>
+        as(() => {
+          const t = findTeam(s);
+          if (!t) throw new FormError("No team with that slug.");
+          deleteTeam(s);
+          for (const a of accountsForTeam(s)) setAccountDisabled(a.id, true, actorName);
+          return { deleted: t.name };
+        }),
+    }),
+    deletePlayer: tool({
+      description: "Delete a player who has no recorded map stats (otherwise set them to retired with setPlayerStatus).",
+      inputSchema: z.object({ slug }),
+      execute: ({ slug: s }) =>
+        as(() => {
+          const p = findPlayer(s);
+          if (!p) throw new FormError("No player with that slug.");
+          deletePlayer(s);
+          return { deleted: p.nickname };
+        }),
+    }),
+
+    /* ---------------------------- Site settings --------------------------- */
+    getSettings: tool({
+      description: "Current site settings the assistant can change.",
+      inputSchema: z.object({}),
+      execute: () => {
+        const st = getSettings();
+        return {
+          comingSoon: !!st.comingSoon,
+          rankingName: st.rankingName,
+          seasonPageName: st.seasonPageName,
+          announcement: st.announcement ?? null,
+          featuredMatch: st.featuredMatch ?? null,
+          homeNewsCount: st.homeNewsCount,
+          homeResultsCount: st.homeResultsCount,
+          homeUpcomingCount: st.homeUpcomingCount,
+          footerText: st.footerText,
+          playerRankMinMaps: st.playerRankMinMaps,
+          navHidden: st.navHidden,
+          leftRail: st.rails.left,
+          rightRail: st.rails.right,
+        };
+      },
+    }),
+    updateSettings: tool({
+      description: "Change site settings. Only send the fields to change. comingSoon true hides the site from visitors behind the coming-soon page.",
+      inputSchema: z.object({
+        comingSoon: z.boolean().optional(),
+        rankingName: z.string().min(1).max(40).optional(),
+        seasonPageName: z.string().min(1).max(40).optional(),
+        announcement: z.object({ text: z.string().min(1).max(200), href: z.string().max(300).optional().describe("Starts with / or https://") }).nullable().optional().describe("null removes the announcement bar"),
+        featuredMatch: z.string().max(20).nullable().optional().describe("Match id to pin on the home page; null for the automatic pick"),
+        homeNewsCount: z.number().int().min(1).max(20).optional(),
+        homeResultsCount: z.number().int().min(1).max(30).optional(),
+        homeUpcomingCount: z.number().int().min(1).max(30).optional(),
+        footerText: z.string().min(1).max(300).optional(),
+        playerRankMinMaps: z.number().int().min(0).max(50).optional(),
+        navHidden: z.array(z.enum(NAV_KEYS)).optional().describe("Top-bar sections to hide; the full list replaces the current one"),
+        leftRail: z.boolean().optional(),
+        rightRail: z.boolean().optional(),
+      }),
+      execute: (patch) =>
+        as(() => {
+          patchSettings(patch);
+          return { changed: Object.keys(patch) };
+        }),
+    }),
     setMatchStatus: tool({
       description: "Set a match to upcoming, live or completed.",
       inputSchema: z.object({ matchId: z.string(), status: z.enum(MATCH_STATUSES as [string, ...string[]]) }),
@@ -438,4 +535,4 @@ export function adminTools(actorName: string) {
   };
 }
 
-export const WRITE_TOOLS = ["createEvent", "updateEvent", "createTeam", "createPlayer", "updatePlayer", "setPlayerStatus", "scheduleMatch", "scheduleMatches", "createBracket", "setMapResult", "recordMapStats", "setMatchStatus"] as const;
+export const WRITE_TOOLS = ["createEvent", "updateEvent", "createTeam", "createPlayer", "updatePlayer", "setPlayerStatus", "scheduleMatch", "scheduleMatches", "createBracket", "setMapResult", "recordMapStats", "setMatchStatus", "deleteMatches", "deleteEvent", "deleteTeam", "deletePlayer", "updateSettings"] as const;
