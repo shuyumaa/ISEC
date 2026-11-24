@@ -131,6 +131,8 @@ export function playoffBracket(ev: EsportsEvent): PlayoffRound[] {
   const rounds = new Map<number, PlayoffRound>();
   for (const m of matchesForEvent(ev.slug)) {
     if (swissPrefix && m.stage.toLowerCase().startsWith(swissPrefix)) continue;
+    // Matches placed in a bracket format are drawn by that format's diagram.
+    if (m.slot) continue;
     // "Lower bracket final" and other double-elimination stages are left to the match list.
     if (/lower|upper|group/i.test(m.stage)) continue;
     const i = ROUNDS.findIndex(([re]) => re.test(m.stage));

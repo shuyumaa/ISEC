@@ -133,6 +133,8 @@ export interface EsportsEvent {
   related?: string[];
   /** Swiss stage rules, when the event has one: wins to advance, losses to go out. */
   swiss?: { wins: number; losses: number; stage: string };
+  /** "Two groups + playoffs" bracket (data/gsl.ts): best-of per round. */
+  bracket?: { format: "groups-de-2x8"; groupBestOf: 1 | 3 | 5; qfBestOf: 1 | 3 | 5; sfBestOf: 1 | 3 | 5; gfBestOf: 1 | 3 | 5 };
   /** Event MVP (player slug) and EVPs (Exceptionally Valuable Players). */
   mvp?: string;
   evps?: string[];
@@ -223,6 +225,8 @@ export interface Match {
   maps: MapResult[];
   veto: VetoStep[];
   stars: 0 | 1 | 2 | 3;
+  /** Place in the event's bracket format (data/gsl.ts), e.g. "A:UQF1" or "PO:GF". */
+  slot?: string;
   /** Live server feed status, when a game server is connected to this match. */
   feed?: { lastSeenAt: string; source: "cs2-log" | "gsi"; unmatched?: string[] };
 }

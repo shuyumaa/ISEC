@@ -1,4 +1,5 @@
 ---
+import { mediaUrl } from "../server/media";
 import type { Medal } from "../data";
 
 /**
@@ -27,7 +28,7 @@ const isMedal = kind === "mvp" || kind === "evp";
 
 {
   image ? (
-    <span class="trophy-photo protected" role="img" aria-label={label} style={`--img: url(/media/u/${image}); --size: ${size}px`} />
+    <span class="trophy-photo protected" role="img" aria-label={label} style={`--img: url(${mediaUrl(image, size > 120 ? 640 : 320)}); --size: ${size}px`} />
   ) : (
     <svg class="trophy" width={size} height={size * 1.25} viewBox="0 0 64 80" role="img" aria-label={label}>
       <defs>

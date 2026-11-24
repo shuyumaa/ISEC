@@ -6,7 +6,8 @@ import ChipGroup from "../../../components/admin/ChipGroup.astro";
 import ChoiceGroup from "../../../components/admin/ChoiceGroup.astro";
 import { findEvent, getEvents, getPlayers, getTeams, matchesForEvent, team } from "../../../data";
 import { handlePost } from "../../../server/handle";
-import { EVENT_STATUSES, MAP_POOL, TIERS, deleteEvent, saveEvent } from "../../../server/mutations";
+import { EVENT_STATUSES, MAP_POOL, TIERS, deleteEvent, generateBracket, saveEvent } from "../../../server/mutations";
+import { PLAY_ORDER } from "../../../data/gsl";
 import { removeUpload, saveUpload } from "../../../server/uploads";
 
 const slug = Astro.params.slug ?? "";
@@ -19,6 +20,13 @@ const result = await handlePost(Astro.request, async (form, intent) => {
     await removeUpload(old?.trophyImage);
     await removeUpload(old?.logo);
     return { redirect: "/admin/events/", message: "Event deleted" };
+  }
+  if (intent === "bracket") {
+    const r = generateBracket(slug, form);
+    return {
+      redirect: `/admin/events/${slug}/#bracket-h`,
+      message: r.created ? `Bracket created: ${r.created} matches scheduled${r.existing ? `, ${r.existing} already existed` : ""}` : "All bracket matches already exist",
+    };
   }
   const before = isNew ? undefined : findEvent(slug);
   const trophyUp = await saveUpload(form, "trophyImage", "Trophy photo");
@@ -43,6 +51,8 @@ const eligible = ev ? getPlayers().filter((p) => ev.teams.includes(p.team)).toSo
 const prizeRows = [...(ev?.prizes ?? []), ...Array.from({ length: Math.max(3, 8 - (ev?.prizes.length ?? 0)) }, () => undefined)];
 const pool = ev?.mapPool ?? MAP_POOL.filter((m) => m !== "Train");
 const matches = ev ? matchesForEvent(ev.slug) : [];
+const slotted = matches.filter((m) => m.slot).length;
+const bracketCfg = ev?.bracket;
 const count = (s: string) => matches.filter((m) => m.status === s).length;
 const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed" } as const;
 ---
@@ -185,10 +195,114 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
       {ev && <ConfirmDelete id="delete-event" what={ev.name} action={`/admin/events/${ev.slug}/`} label="Delete event" />}
     </aside>
   </div>
+
+  {
+    ev && (
+      <section class="admin-section bracket-setup" aria-labelledby="bracket-h">
+        <div class="section-head">
+          <h2 id="bracket-h">Bracket: two groups + playoffs</h2>
+          {slotted > 0 && <a href={`/events/${ev.slug}/#brackets`} target="_blank" rel="noopener">See the bracket</a>}
+        </div>
+        <ul class="format-sum">
+          <li><strong>Group stage</strong> Groups A and B, 8 teams each, double elimination</li>
+          <li><strong>Upper bracket</strong> Quarter-finals → semi-finals → final</li>
+          <li><strong>Lower bracket</strong> Round 1 → round 2 → lower final</li>
+          <li><strong>Playoffs</strong> Single elimination: A2–B3 and B2–A3, then group winners in the semis, then the Grand final</li>
+        </ul>
+        <p class="muted">
+          {slotted ? `${slotted} of ${PLAY_ORDER.length} matches exist. Creating again only adds the missing ones.` : `Creates all ${PLAY_ORDER.length} matches with TBD teams. Winners and losers move into the next matches by themselves as results come in.`}
+        </p>
+        <form method="post" class="form bracket-form" aria-labelledby="bracket-h">
+          <input type="hidden" name="intent" value="bracket" />
+          <div class="form-grid">
+            <ChoiceGroup name="groupBestOf" legend="Group matches" value={String(bracketCfg?.groupBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
+            <ChoiceGroup name="qfBestOf" legend="Quarter-finals" value={String(bracketCfg?.qfBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
+            <ChoiceGroup name="sfBestOf" legend="Semi-finals" value={String(bracketCfg?.sfBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
+            <ChoiceGroup name="gfBestOf" legend="Grand final" value={String(bracketCfg?.gfBestOf ?? 5)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
+            <div class="field"><label for="dayStart">First match of the day</label><input id="dayStart" name="dayStart" type="time" required value="10:00" /></div>
+            <div class="field"><label for="perDay">Matches per day</label><input id="perDay" name="perDay" type="number" min="1" max="12" required value="8" /></div>
+            <div class="field"><label for="gap">Minutes between matches</label><input id="gap" name="gap" type="number" min="30" max="600" step="15" required value="90" aria-describedby="gap-hint" /><span id="gap-hint" class="hint">Each start time can be changed on the match afterwards.</span></div>
+          </div>
+          <details class="seeding">
+            <summary>Seed the groups (optional)</summary>
+            <p class="hint">Teams play the upper quarter-final next to them. Leave empty for TBD; teams can also be set on each match later.</p>
+            <div class="seed-groups">
+              {["A", "B"].map((g) => (
+                <fieldset class="seed-group">
+                  <legend>Group {g}</legend>
+                  <ol class="seed-pairs">
+                    {[1, 3, 5, 7].map((i) => (
+                      <li>
+                        <span class="pair-label">Upper QF {(i + 1) / 2}</span>
+                        {[i, i + 1].map((n) => (
+                          <select name={`seed_${g}${n}`} aria-label={`Group ${g}, seed ${n}`}>
+                            <option value="">TBD</option>
+                            {teams.map((t) => <option value={t.slug}>{t.name}</option>)}
+                          </select>
+                        ))}
+                      </li>
+                    ))}
+                  </ol>
+                </fieldset>
+              ))}
+            </div>
+          </details>
+          <div class="actions"><button type="submit" class="btn">{slotted ? "Add the missing matches" : "Create bracket matches"}</button></div>
+        </form>
+      </section>
+    )
+  }
 </Admin>
 
 <style>
   @layer components {
+    .format-sum {
+      display: grid;
+      gap: var(--sp-02);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      & li {
+        display: grid;
+        grid-template-columns: 9rem minmax(0, 1fr);
+        gap: var(--sp-04);
+      }
+      & strong {
+        font-weight: 600;
+      }
+    }
+    .bracket-form {
+      max-inline-size: none;
+    }
+    .seeding > summary {
+      cursor: pointer;
+      color: var(--link);
+    }
+    .seed-groups {
+      display: grid;
+      gap: var(--sp-05);
+      margin-block-start: var(--sp-03);
+      @container page (width >= 56rem) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .seed-pairs {
+      display: grid;
+      gap: var(--sp-03);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      & li {
+        display: grid;
+        grid-template-columns: 6rem minmax(0, 1fr) minmax(0, 1fr);
+        align-items: center;
+        gap: var(--sp-03);
+      }
+    }
+    .pair-label {
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+    }
     .editor {
       display: grid;
       gap: var(--sp-04);

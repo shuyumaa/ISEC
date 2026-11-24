@@ -4,7 +4,7 @@ import { findEvent, findMatch, findPlayer, findTeam, getEvents, getMatches, getP
 import type { EsportsEvent, Player } from "../../data/types";
 import { runAs } from "../actor";
 import { FormError } from "../forms";
-import { EVENT_STATUSES, MAP_POOL, MATCH_STATUSES, PLAYER_STATUSES, ROLES, TIERS, createMatch, saveEvent, savePlayer, saveTeam, setPlayerStatus, updateMatch } from "../mutations";
+import { EVENT_STATUSES, MAP_POOL, MATCH_STATUSES, PLAYER_STATUSES, ROLES, TIERS, createMatch, generateBracket, saveEvent, savePlayer, saveTeam, setPlayerStatus, updateMatch } from "../mutations";
 
 /*
  * What the admin assistant can do. Read tools run straight away; every tool
@@ -316,6 +316,31 @@ export function adminTools(actorName: string) {
       inputSchema: z.object({ slug, status: z.enum(PLAYER_STATUSES as [string, ...string[]]), team: slug.optional() }),
       execute: ({ slug: s, status, team: t }) => as(() => brief.player(setPlayerStatus(s, status as Player["status"] & string, t))),
     }),
+    createBracket: tool({
+      description:
+        "Set up the 'two groups + playoffs' format for an event in one go: groups A and B of 8 teams in double elimination (upper QF/SF/final, lower R1/R2/final) and single-elimination playoffs (A2–B3, B2–A3, group winners in the semis, Grand final). Creates all 29 matches with TBD teams (or the seeds given) and fills later rounds automatically as results come in. Prefer this over scheduleMatches for that format.",
+      inputSchema: z.object({
+        event: slug,
+        groupBestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]).default(3),
+        qfBestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]).default(3),
+        sfBestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]).default(3),
+        gfBestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]).default(5),
+        dayStart: z.string().regex(/^\d{2}:\d{2}$/).default("10:00").describe("Local time of each day's first match"),
+        perDay: z.number().int().min(1).max(12).default(8),
+        gapMinutes: z.number().int().min(30).max(600).default(90),
+        groupA: z.array(slug).max(8).optional().describe("Team slugs in upper quarter-final order (1v2, 3v4, …)"),
+        groupB: z.array(slug).max(8).optional(),
+      }),
+      execute: (x) =>
+        as(() => {
+          const f = new FormData();
+          for (const k of ["groupBestOf", "qfBestOf", "sfBestOf", "gfBestOf", "dayStart", "perDay"] as const) f.set(k, String(x[k]));
+          f.set("gap", String(x.gapMinutes));
+          (x.groupA ?? []).forEach((t, i) => f.set(`seed_A${i + 1}`, t));
+          (x.groupB ?? []).forEach((t, i) => f.set(`seed_B${i + 1}`, t));
+          return { ...generateBracket(x.event, f), url: `/events/${x.event}/#brackets` };
+        }),
+    }),
     scheduleMatches: tool({
       description: "Schedule several matches of one event at once (e.g. a whole bracket with TBD teams). One approval covers the batch; prefer this over many scheduleMatch calls.",
       inputSchema: z.object({
@@ -413,4 +438,4 @@ export function adminTools(actorName: string) {
   };
 }
 
-export const WRITE_TOOLS = ["createEvent", "updateEvent", "createTeam", "createPlayer", "updatePlayer", "setPlayerStatus", "scheduleMatch", "scheduleMatches", "setMapResult", "recordMapStats", "setMatchStatus"] as const;
+export const WRITE_TOOLS = ["createEvent", "updateEvent", "createTeam", "createPlayer", "updatePlayer", "setPlayerStatus", "scheduleMatch", "scheduleMatches", "createBracket", "setMapResult", "recordMapStats", "setMatchStatus"] as const;

@@ -8,6 +8,7 @@ import MatchRow from "../../components/MatchRow.astro";
 import Panel from "../../components/Panel.astro";
 import StatsTable from "../../components/StatsTable.astro";
 import SwissBracket from "../../components/SwissBracket.astro";
+import GslBracket from "../../components/GslBracket.astro";
 import TeamMark from "../../components/TeamMark.astro";
 import {
   findEvent,
@@ -19,6 +20,7 @@ import {
   playoffBracket,
   rankOf,
   swissBracket,
+  bracketView,
   team,
   winnerOf,
 } from "../../data";
@@ -31,6 +33,19 @@ const upcoming = list.filter((m) => m.status === "upcoming");
 const results = list.filter((m) => m.status === "completed").reverse();
 const swiss = swissBracket(ev);
 const playoffs = playoffBracket(ev);
+const gsl = bracketView(ev, list);
+// Group placings: 1st/2nd from the upper final, 3rd from the lower final.
+const placings = (g: string) => {
+  const uf = list.find((m) => m.slot === `${g}:UF`);
+  const lf = list.find((m) => m.slot === `${g}:LF`);
+  const w = uf && winnerOf(uf);
+  const second = w ? (w === uf!.teamA ? uf!.teamB : uf!.teamA) : undefined;
+  return [
+    { place: "1st", to: "Semi-final", team: w },
+    { place: "2nd", to: "Quarter-final", team: second },
+    { place: "3rd", to: "Quarter-final", team: lf && winnerOf(lf) },
+  ];
+};
 const related = (ev.related ?? []).map((s) => findEvent(s)).filter((e) => e !== undefined);
 const top = playerLeaderboard(1, (m) => m.event === ev.slug).slice(0, 10);
 
@@ -45,6 +60,7 @@ const sections = [
   { id: "matches", label: "Matches" },
   related.length > 0 && { id: "related", label: "Related events" },
   swiss && { id: "group-play", label: "Group play" },
+  gsl && { id: "brackets", label: "Brackets" },
   playoffs.length > 0 && { id: "playoffs", label: "Playoffs" },
   ev.prizes.length > 0 && { id: "prizes", label: "Prize distribution" },
   ev.teams.length > 0 && { id: "teams", label: "Teams attending" },
@@ -112,6 +128,41 @@ const sections = [
                 <span class="subtle">Swiss · {swiss.rules.wins} wins to advance, {swiss.rules.losses} losses out</span>
               </div>
               <SwissBracket swiss={swiss} />
+            </section>
+          )
+        }
+
+        {
+          gsl && (
+            <section id="brackets" class="block" aria-labelledby="br-h">
+              <div class="block-head">
+                <h2 id="br-h">Brackets</h2>
+                <span class="subtle">Groups: double elimination, Bo{ev.bracket!.groupBestOf} · Playoffs: single elimination, Grand final Bo{ev.bracket!.gfBestOf}</span>
+              </div>
+              {gsl.groups.map((g) => (
+                <div class="gsl-group-block">
+                  <h3 class="gsl-group-h">{g.name}</h3>
+                  <div class="gsl-group-body">
+                    <div class="gsl-trees">
+                      <GslBracket columns={g.upper} titles={["Upper quarter-finals", "Upper semi-finals", "Upper final"]} label={`${g.name} upper bracket`} />
+                      <GslBracket columns={g.lower} titles={["Lower round 1", "Lower round 2", "Lower final"]} label={`${g.name} lower bracket`} />
+                    </div>
+                    <ol class="placings" aria-label={`${g.name} placings`}>
+                      {placings(g.name.slice(-1)).map((p) => (
+                        <li>
+                          <span class="place">{p.place}</span>
+                          {p.team ? <a href={`/teams/${p.team}/`}><TeamMark team={team(p.team)} /> {team(p.team).name}</a> : <span class="subtle">TBD</span>}
+                          <span class="subtle to">→ {p.to}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
+              ))}
+              <div class="gsl-group-block">
+                <h3 class="gsl-group-h">Playoffs</h3>
+                <GslBracket columns={gsl.playoffs} titles={["Quarter-finals", "Semi-finals", "Grand final"]} label="Playoffs bracket" />
+              </div>
             </section>
           )
         }
@@ -387,6 +438,60 @@ const sections = [
         & > span {
           display: grid;
         }
+      }
+    }
+    .gsl-group-block {
+      display: grid;
+      gap: var(--sp-04);
+      padding: var(--sp-05);
+      background: var(--surface);
+      & + & {
+        border-block-start: var(--border-width) solid var(--border-subtle);
+      }
+    }
+    .gsl-group-h {
+      font-size: var(--type-heading-sm, 1rem);
+    }
+    .gsl-group-body {
+      display: grid;
+      gap: var(--sp-05);
+    }
+    .gsl-trees {
+      display: grid;
+      gap: var(--sp-06);
+      min-inline-size: 0;
+    }
+    /* Under the brackets: where the group's top three go next. */
+    .placings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+      gap: var(--sp-02);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      & li {
+        display: grid;
+        grid-template-columns: 2.5rem minmax(0, 1fr);
+        align-items: center;
+        gap: var(--sp-01) var(--sp-03);
+        padding: var(--sp-02) var(--sp-03);
+        background: var(--layer);
+      }
+      & a {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-02);
+        min-inline-size: 0;
+        color: inherit;
+        font-weight: 600;
+      }
+      & .place {
+        grid-row: span 2;
+        font-family: var(--font-mono);
+        font-weight: 600;
+      }
+      & .to {
+        font-size: var(--type-label);
       }
     }
     .bracket-wrap {

@@ -130,4 +130,6 @@ export async function saveUpload(form: FormData, field: string, label: string): 
 export async function removeUpload(name: string | undefined) {
   if (!name || !UPLOAD_NAME.test(name)) return;
   await unlink(join(UPLOAD_DIR, name)).catch(() => {});
+  // Resized copies made by /media/u/ (see server/media.ts).
+  for (const w of [160, 320, 640, 960]) await unlink(join(UPLOAD_DIR, ".sized", `${name}.${w}.webp`)).catch(() => {});
 }

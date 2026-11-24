@@ -1,4 +1,5 @@
 ---
+import { mediaUrl } from "../server/media";
 import Logo from "./Logo.astro";
 import { getSettings } from "../data";
 
@@ -6,8 +7,8 @@ const settings = getSettings();
 const footerText = settings.footerText;
 // Uploaded footer logos (Admin → Site settings) replace the built-in artwork.
 const logoVars = [
-  settings.footerLogoLight && `--logo-light: url(/media/u/${settings.footerLogoLight})`,
-  settings.footerLogoDark && `--logo-dark: url(/media/u/${settings.footerLogoDark})`,
+  settings.footerLogoLight && `--logo-light: url(${mediaUrl(settings.footerLogoLight, 960)})`,
+  settings.footerLogoDark && `--logo-dark: url(${mediaUrl(settings.footerLogoDark, 960)})`,
 ].filter(Boolean).join("; ");
 ---
 

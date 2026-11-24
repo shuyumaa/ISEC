@@ -34,7 +34,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     const uploads = ((pathname.startsWith("/admin/") || pathname.startsWith("/team/")) && !PUBLIC_ADMIN.has(pathname)) || pathname === "/api/admin/assistant";
     const limit = uploads ? 26 * 1024 * 1024 : 64 * 1024;
     const length = ctx.request.headers.get("content-length");
-    if (length === null) return new Response("Length required", { status: 411 });
+    // A DELETE has no body (browsers send no Content-Length for it).
+    if (length === null && ctx.request.method !== "DELETE") return new Response("Length required", { status: 411 });
     if (Number(length) > limit) return new Response("Payload too large", { status: 413 });
   }
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
