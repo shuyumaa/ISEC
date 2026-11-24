@@ -37,6 +37,7 @@ const TOOL_LABELS: Record<string, [string, string]> = {
   setPlayerStatus: ["Roster move", ""],
   scheduleMatch: ["Schedule match", ""],
   scheduleMatches: ["Schedule matches", ""],
+  createBracket: ["Create bracket", ""],
   setMapResult: ["Set map score", ""],
   recordMapStats: ["Record player stats", ""],
   setMatchStatus: ["Set match status", ""],
@@ -137,12 +138,15 @@ class State implements ChatState<UIMessage> {
 }
 
 class Chat extends AbstractChat<UIMessage> {
-  constructor(state: State) {
+  constructor(state: State, id: string) {
     super({
+      id,
       state,
       transport: new DefaultChatTransport({ api: "/api/admin/assistant", credentials: "same-origin" }),
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
       onError: () => render(),
+      // Saved on the server when the answer ends: refresh the history list.
+      onFinish: () => void afterTurn(),
     });
   }
   protected override setStatus(o: { status: ChatStatus; error?: Error }) {
@@ -151,24 +155,119 @@ class Chat extends AbstractChat<UIMessage> {
   }
 }
 
-/* ------------------------------ Persistence ------------------------------ */
+/* ------------------------------ History ------------------------------ */
 
-const KEY = "isec-assistant";
-function load(): UIMessage[] {
-  try {
-    return JSON.parse(sessionStorage.getItem(KEY) ?? "[]") as UIMessage[];
-  } catch {
-    return [];
+/*
+ * Conversations live on the server (one list per admin). The sidebar is
+ * rendered by the page and refreshed here after every answer.
+ */
+interface Summary {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+const historyList = root?.querySelector<HTMLOListElement>(".history-list");
+const historyEmpty = root?.querySelector<HTMLElement>(".history-empty");
+const newId = () => crypto.randomUUID();
+let chatId = new URLSearchParams(location.search).get("chat") ?? newId();
+
+const when = (iso: string) => {
+  const d = new Date(iso);
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString([], { day: "numeric", month: "short" });
+};
+
+function historyItem(c: Summary) {
+  const li = el("li", "history-item");
+  li.dataset.id = c.id;
+  const open = el("button", "history-open");
+  open.type = "button";
+  open.append(el("span", "history-title", c.title), el("time", "history-time", when(c.updatedAt)));
+  (open.lastChild as HTMLTimeElement).dateTime = c.updatedAt;
+  open.addEventListener("click", () => void openChat(c.id));
+  const del = el("button", "history-del", "Delete");
+  del.type = "button";
+  del.setAttribute("aria-label", `Delete chat “${c.title}”`);
+  // Two steps: the first click asks, the second deletes.
+  del.addEventListener("click", async () => {
+    if (!del.classList.contains("confirm")) {
+      del.classList.add("confirm");
+      del.textContent = "Delete?";
+      setTimeout(() => {
+        del.classList.remove("confirm");
+        del.textContent = "Delete";
+      }, 4000);
+      return;
+    }
+    const r = await fetch(`/api/admin/chats/${encodeURIComponent(c.id)}`, { method: "DELETE" });
+    if (!r.ok) return;
+    if (c.id === chatId) startNew();
+    await refreshHistory();
+  });
+  li.append(open, del);
+  return li;
+}
+
+function markActive() {
+  for (const li of historyList?.children ?? []) {
+    const btn = li.querySelector(".history-open");
+    if ((li as HTMLElement).dataset.id === chatId) btn?.setAttribute("aria-current", "true");
+    else btn?.removeAttribute("aria-current");
   }
 }
-function save(messages: UIMessage[]) {
+
+async function refreshHistory() {
+  if (!historyList) return;
   try {
-    // Screenshots are too big to keep; the conversation text and results stay.
-    const light = messages.map((m) => ({ ...m, parts: m.parts.map((p) => (p.type === "file" && p.url.length > 50_000 ? { ...p, url: "" } : p)) }));
-    sessionStorage.setItem(KEY, JSON.stringify(light));
+    const r = await fetch("/api/admin/chats", { headers: { Accept: "application/json" } });
+    if (!r.ok) return;
+    const list = (await r.json()) as Summary[];
+    historyList.replaceChildren(...list.map(historyItem));
+    if (historyEmpty) historyEmpty.hidden = list.length > 0;
+    markActive();
   } catch {
-    /* storage full or blocked: keep the chat in memory only */
+    /* offline: keep the list we have */
   }
+}
+
+function setUrl() {
+  const url = new URL(location.href);
+  if (chat.messages.length) url.searchParams.set("chat", chatId);
+  else url.searchParams.delete("chat");
+  history.replaceState(null, "", url);
+}
+
+async function afterTurn() {
+  setUrl();
+  await refreshHistory();
+}
+
+function use(messages: UIMessage[], id: string) {
+  void chat?.stop();
+  chatId = id;
+  rendered.clear();
+  log?.replaceChildren();
+  chat = new Chat(new State(messages, render), id);
+  follow = true;
+  render();
+  setUrl();
+  markActive();
+}
+
+function startNew() {
+  use([], newId());
+  input?.focus();
+}
+
+async function openChat(id: string) {
+  if (id === chatId && chat.messages.length) return;
+  const r = await fetch(`/api/admin/chats/${encodeURIComponent(id)}`, { headers: { Accept: "application/json" } });
+  if (!r.ok) {
+    startNew();
+    return;
+  }
+  const c = (await r.json()) as { messages: UIMessage[] };
+  use(c.messages, id);
 }
 
 /* ------------------------------ Rendering ------------------------------ */
@@ -306,7 +405,6 @@ thinking.append(el("span", "dots"), el("span", undefined, "Thinking"));
 function render() {
   if (!log || !chat) return;
   const messages = chat.messages;
-  save(messages);
   const keep = new Set<string>();
   const nodes: HTMLElement[] = [];
   for (const m of messages) {
@@ -356,8 +454,11 @@ function showFiles() {
 }
 
 if (root && log && form && input) {
-  chat = new Chat(new State(load(), render));
+  chat = new Chat(new State([], render), chatId);
   render();
+  // Opened with ?chat=…: load that conversation from the server.
+  if (new URLSearchParams(location.search).has("chat")) void openChat(chatId).catch(() => startNew());
+  markActive();
 
   // Any upward movement is the reader taking over (wheel, touch, keys, scrollbar);
   // following resumes once they are back at the bottom. Auto-scroll only ever
@@ -408,14 +509,11 @@ if (root && log && form && input) {
   approveBar?.querySelector(".decline-all")?.addEventListener("click", () => {
     for (const id of pendingApprovals()) void chat.addToolApprovalResponse({ id, approved: false, reason: "The admin declined" });
   });
-  root.querySelector(".new-chat")?.addEventListener("click", () => {
-    void chat.stop();
-    rendered.clear();
-    log.replaceChildren();
-    chat = new Chat(new State([], render));
-    render();
-    input.focus();
-  });
+  root.querySelector(".new-chat")?.addEventListener("click", startNew);
+  for (const li of historyList?.querySelectorAll<HTMLLIElement>(".history-item") ?? []) {
+    li.replaceWith(historyItem({ id: li.dataset.id!, title: li.querySelector(".history-title")?.textContent ?? "", updatedAt: li.querySelector("time")?.dateTime ?? "" }));
+  }
+  markActive();
   for (const b of root.querySelectorAll<HTMLButtonElement>("[data-suggest]")) {
     b.addEventListener("click", () => {
       input.value = b.dataset.suggest ?? "";

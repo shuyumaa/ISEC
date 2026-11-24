@@ -1,0 +1,235 @@
+---
+import TeamMark from "./TeamMark.astro";
+import { feederLabel, team, winnerOf, type BracketCell } from "../data";
+
+/**
+ * One bracket tree (upper bracket, lower bracket or playoffs): columns of
+ * matches joined by connector lines. A column that halves (4 → 2 → 1) joins
+ * its matches in pairs; a column of equal size joins straight across.
+ * Empty sides say what they're waiting for ("Winner Upper QF 1", "Group A 2nd").
+ */
+interface Props {
+  columns: BracketCell[][];
+  titles: string[];
+  label: string;
+}
+const { columns, titles, label } = Astro.props;
+// Event-local wall clock, compact: "30 Dec 10:00".
+const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const when = (start: string) => `${day.format(new Date(`${start}:00Z`))} ${start.slice(11, 16)}`;
+const halves = (i: number) => (columns[i + 1]?.length ?? 0) * 2 === columns[i]!.length;
+// Halving columns go in pairs (joined by a line); others one cell per row.
+const groups = columns.map((col, i) => (halves(i) ? col.flatMap((c, j) => (j % 2 ? [] : [[c, col[j + 1]!]])) : col.map((c) => [c])));
+---
+
+<div class="gsl-wrap" role="region" aria-label={label} tabindex="0">
+  <ol class="gsl" style={`--cols: ${columns.length}`}>
+    {
+      columns.map((col, i) => (
+        <li class:list={["gsl-col", { halves: halves(i), last: i === columns.length - 1, first: i === 0 }]}>
+          <h4 class="gsl-title">{titles[i]}</h4>
+          <ul class="gsl-cells" style={`--rows: ${groups[i]!.length}`}>
+            {groups[i]!.map((group) => (
+            <li class:list={["gsl-group", { pair: group.length === 2 }]}>
+            <ul class="gsl-group-cells">
+            {group.map(({ def, match: m }) => {
+              const w = m ? winnerOf(m) : undefined;
+              const row = (side: "A" | "B") => {
+                const slug = m ? (side === "A" ? m.teamA : m.teamB) : "";
+                const score = m && m.status !== "upcoming" ? (side === "A" ? m.seriesA : m.seriesB) : undefined;
+                return { slug, score, state: w ? (w === slug ? "won" : "lost") : "", wait: slug ? "" : (feederLabel(def.slot, side) ?? "TBD") };
+              };
+              const rows = [row("A"), row("B")];
+              const body = (
+                <>
+                  <span class="cell-head">
+                    <span>{def.short}{m && def.part === "playoffs" && ` · Bo${m.bestOf}`}</span>
+                    {m?.status === "live" ? <span class="badge live">Live</span> : m && <time datetime={m.start}>{when(m.start)}</time>}
+                  </span>
+                  {rows.map((r) => (
+                    <span class:list={["cell-team", r.state, { waiting: !r.slug }]}>
+                      {r.slug ? <TeamMark team={team(r.slug)} /> : <span class="cell-q" aria-hidden="true" />}
+                      <span class="cell-name">{r.slug ? team(r.slug).name : r.wait}</span>
+                      <span class="cell-score">{r.score ?? ""}</span>
+                    </span>
+                  ))}
+                </>
+              );
+              return (
+                <li class:list={["gsl-cell", m?.status]}>
+                  {m ? <a href={`/matches/${m.id}/`}>{body}</a> : <div>{body}</div>}
+                </li>
+              );
+            })}
+            </ul>
+            </li>
+            ))}
+          </ul>
+        </li>
+      ))
+    }
+  </ol>
+</div>
+
+<style>
+  @layer components {
+    .gsl-wrap {
+      position: relative;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding-block-end: var(--sp-02);
+    }
+    .gsl {
+      --cell-w: 13rem;
+      --gap: 2rem;
+      display: grid;
+      grid-template-columns: repeat(var(--cols), var(--cell-w));
+      column-gap: var(--gap);
+      inline-size: max-content;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .gsl-col {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: var(--sp-03);
+    }
+    .gsl-title {
+      margin: 0;
+      font-size: var(--type-label);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    /* Equal rows per column: centres line up across rounds (see the pairs). */
+    .gsl-cells,
+    .gsl-group-cells {
+      display: grid;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    /* No row gaps (spacing is padding inside each row), so every centre sits
+       exactly at the middle of its row and lines meet the next round. */
+    .gsl-cells {
+      grid-template-rows: repeat(var(--rows), 1fr);
+    }
+    .gsl-group {
+      position: relative;
+      display: grid;
+    }
+    .gsl-group-cells {
+      grid-auto-rows: 1fr;
+      align-items: center;
+    }
+    .gsl-cell {
+      position: relative;
+      padding-block: var(--sp-02);
+      & > a,
+      & > div {
+        display: grid;
+        background: var(--layer);
+        border: var(--border-width) solid var(--border-subtle);
+        color: inherit;
+        text-decoration: none;
+      }
+      & > a:hover {
+        border-color: var(--link);
+      }
+      &.live > a {
+        box-shadow: inset 0 0 0 2px var(--live);
+      }
+      /* Stubs: in from the left (later rounds), out to the right (single cells). */
+      .gsl-col:not(.first) &::before,
+      .gsl-col:not(.last) .gsl-group:not(.pair) &::after,
+      .gsl-col:not(.last) .pair &::after {
+        content: "";
+        position: absolute;
+        inset-block-start: 50%;
+        inline-size: calc(var(--gap) / 2);
+        border-block-start: var(--border-width) solid var(--border-strong);
+      }
+      .gsl-col:not(.first) &::before {
+        inset-inline-end: 100%;
+      }
+      .gsl-col:not(.last) &::after {
+        inset-inline-start: 100%;
+      }
+    }
+    /* A pair's two matches meet in a vertical line, which feeds the next round
+       from its middle. */
+    .pair::after {
+      content: "";
+      position: absolute;
+      inset-inline-start: calc(100% + var(--gap) / 2);
+      inset-block: 25%;
+      border-inline-end: var(--border-width) solid var(--border-strong);
+    }
+    .pair::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: calc(100% + var(--gap) / 2);
+      inset-block-start: 50%;
+      inline-size: calc(var(--gap) / 2);
+      border-block-start: var(--border-width) solid var(--border-strong);
+    }
+    .cell-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--sp-02);
+      padding: var(--sp-01) var(--sp-03);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+      white-space: nowrap;
+      & time {
+        font-family: var(--font-mono);
+      }
+      & .badge {
+        min-block-size: 1.125rem;
+      }
+    }
+    .cell-team {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-03);
+      padding: var(--sp-02) var(--sp-03);
+      font-size: var(--type-body-sm);
+      & + & {
+        border-block-start: var(--border-width) solid var(--border-subtle);
+      }
+      &.won {
+        font-weight: 600;
+        & .cell-score {
+          color: var(--win);
+        }
+      }
+      &.lost {
+        color: var(--text-secondary);
+      }
+      &.waiting .cell-name {
+        color: var(--text-secondary);
+        font-size: var(--type-label);
+      }
+    }
+    .cell-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cell-score {
+      min-inline-size: 1ch;
+      font-family: var(--font-mono);
+      text-align: end;
+    }
+    .cell-q {
+      inline-size: 1.5rem;
+      aspect-ratio: 1;
+      border: var(--border-width) dashed var(--border-strong);
+    }
+  }
+</style>

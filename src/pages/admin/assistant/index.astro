@@ -2,9 +2,11 @@
 import Admin from "../../../layouts/Admin.astro";
 import Icon from "../../../components/Icon.astro";
 import { PROVIDERS, aiReady, getAiConfig } from "../../../server/ai/config";
+import { listChats } from "../../../server/ai/chats";
 
 const c = getAiConfig();
 const ready = aiReady();
+const chats = listChats(Astro.locals.user!.username);
 const suggestions = [
   "Create the event “ISEC Winter Cup 2026”, Open tier, 12–14 December, online, Asia/Shanghai.",
   "Sign the free agent … to …",
@@ -22,12 +24,23 @@ const suggestions = [
         <div class="actions"><a class="btn" href="/admin/assistant/settings/">Set up a provider</a></div>
       </section>
     ) : (
-      <section class="chat" data-assistant aria-label="Conversation with the assistant">
+      <div class="assistant" data-assistant>
+      <nav class="history" aria-label="Saved chats">
+        <button type="button" class="btn small new-chat">New chat</button>
+        <p class="history-empty" hidden={chats.length > 0}>Your chats are saved here.</p>
+        <ol class="history-list">
+          {chats.map((c) => (
+            <li class="history-item" data-id={c.id}>
+              <button type="button" class="history-open"><span class="history-title">{c.title}</span><time class="history-time" datetime={c.updatedAt}>{c.updatedAt.slice(0, 10)}</time></button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+      <section class="chat" aria-label="Conversation with the assistant">
         <div class="chat-head">
           <span class="chat-model">
             {PROVIDERS[c!.provider].label} <span class="mono">{c!.model}</span> <a href="/admin/assistant/settings/">Change</a>
           </span>
-          <button type="button" class="btn ghost small new-chat">New chat</button>
         </div>
 
         <div class="chat-scroll" tabindex="0" aria-label="Messages">
@@ -62,6 +75,7 @@ const suggestions = [
           </div>
         </form>
       </section>
+      </div>
     )
   }
 </Admin>
@@ -73,12 +87,119 @@ const suggestions = [
 <style>
   @layer components {
     /* The chat is the page: no page scroll below it, only the log scrolls. */
-    :global(.admin-main:has(> .chat)) {
+    :global(.admin-main:has(> .assistant)) {
       max-inline-size: none;
       padding-block-end: var(--sp-05);
     }
-    .chat {
+    /* History on the left, the conversation filling the rest. */
+    .assistant {
       --chat-h: max(26rem, calc(100dvh - var(--header-height, 4rem) - 8.5rem));
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--sp-04);
+      @container page (width >= 52rem) {
+        grid-template-columns: 15rem minmax(0, 1fr);
+      }
+      [hidden] {
+        display: none;
+      }
+    }
+    .history {
+      box-sizing: border-box;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: var(--sp-03);
+      max-block-size: 14rem;
+      padding: var(--sp-04);
+      background: var(--surface);
+      border: var(--border-width) solid var(--border-subtle);
+      @container page (width >= 52rem) {
+        max-block-size: none;
+        block-size: var(--chat-h);
+      }
+      & .new-chat {
+        inline-size: 100%;
+        justify-content: center;
+      }
+    }
+    .history-empty {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--type-body-sm);
+    }
+    .history-list {
+      display: grid;
+      align-content: start;
+      list-style: none;
+      margin: 0 calc(var(--sp-04) * -1);
+      padding: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .history-list :global(.history-item) {
+      position: relative;
+      display: flex;
+      align-items: center;
+      &:hover :global(.history-del),
+      &:focus-within :global(.history-del) {
+        opacity: 1;
+      }
+    }
+    .history-list :global(.history-open) {
+      display: grid;
+      flex: 1;
+      min-inline-size: 0;
+      gap: var(--sp-01);
+      padding: var(--sp-03) 4.5rem var(--sp-03) var(--sp-04);
+      border: 0;
+      border-inline-start: 3px solid transparent;
+      background: none;
+      color: var(--text-primary);
+      font: inherit;
+      text-align: start;
+      cursor: pointer;
+      &:hover {
+        background: var(--layer-hover);
+      }
+      &[aria-current="true"] {
+        background: var(--layer-selected);
+        border-inline-start-color: var(--interactive, var(--link));
+      }
+    }
+    .history-list :global(.history-title) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: var(--type-body-sm);
+    }
+    .history-list :global(.history-time) {
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+    }
+    /* Floats over the row's end, so the selected highlight spans the full width. */
+    .history-list :global(.history-del) {
+      position: absolute;
+      inset-inline-end: var(--sp-03);
+      inset-block-start: 50%;
+      translate: 0 -50%;
+      background: var(--surface);
+      padding: var(--sp-01) var(--sp-02);
+      border: 0;
+      color: var(--text-secondary);
+      font: inherit;
+      font-size: var(--type-label);
+      cursor: pointer;
+      opacity: 0;
+      @media (hover: none) {
+        opacity: 1;
+      }
+      &:hover,
+      &:global(.confirm) {
+        color: var(--loss);
+        opacity: 1;
+      }
+    }
+    .chat {
       box-sizing: border-box;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr) auto auto auto;
@@ -86,9 +207,6 @@ const suggestions = [
       inline-size: 100%;
       background: var(--surface);
       border: var(--border-width) solid var(--border-subtle);
-      [hidden] {
-        display: none;
-      }
     }
     .chat-head {
       display: flex;

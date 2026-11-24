@@ -1,4 +1,4 @@
-import { mapDecided, matchRoster, rosterOf, seriesScore } from "../data";
+import { PLAY_ORDER, bestOfFor, mapDecided, matchRoster, rosterOf, seriesScore, slotDef, winnerOf } from "../data";
 import type {
   EloSettings,
   PlayerStatus,
@@ -112,8 +112,113 @@ function normalise(m: Match): Match {
 
 function saveMatch(m: Match, action: string) {
   normalise(m);
-  transaction((tx) => tx.put("match", m.id, m), actor(), action);
+  const next = advance(m);
+  transaction((tx) => {
+    tx.put("match", m.id, m);
+    for (const x of next) tx.put("match", x.id, x);
+  }, actor(), action);
   return m;
+}
+
+/*
+ * Bracket formats (data/gsl.ts): when a match with a slot is decided, its
+ * winner (and in the upper bracket its loser) goes into the next matches.
+ * Only matches that haven't started are filled, so a later correction of a
+ * result also corrects the follow-up pairing until that one is played.
+ */
+function advance(m: Match): Match[] {
+  const def = m.slot ? slotDef(m.slot) : undefined;
+  if (!def) return [];
+  const w = winnerOf(m);
+  const l = w ? (w === m.teamA ? m.teamB : m.teamA) : undefined;
+  const out: Match[] = [];
+  for (const [route, who] of [
+    [def.winner, w],
+    [def.loser, l],
+  ] as const) {
+    if (!route) continue;
+    const target = snapshot().matches.find((x) => x.event === m.event && x.slot === route[0]);
+    if (!target || target.status !== "upcoming") continue;
+    const key = route[1] === "A" ? "teamA" : "teamB";
+    const value = who ?? "";
+    if (target[key] === value) continue;
+    const other = route[1] === "A" ? target.teamB : target.teamA;
+    if (value && value === other) continue;
+    out.push({ ...structuredClone(target), [key]: value });
+  }
+  return out;
+}
+
+/**
+ * Create the matches of the "two groups + playoffs" format for an event: the
+ * slots that don't exist yet, with TBD teams (or the seeds given for the
+ * upper quarter-finals), scheduled day by day from the event's start.
+ */
+export function generateBracket(eventSlug: string, form: FormData) {
+  const s = snapshot();
+  const ev = s.events.find((e) => e.slug === eventSlug);
+  if (!ev) throw new FormError("Save the event first.");
+  const bo = (name: string, label: string) => Number(oneOf(form, name, ["1", "3", "5"] as const, label)) as 1 | 3 | 5;
+  const cfg: NonNullable<EsportsEvent["bracket"]> = {
+    format: "groups-de-2x8",
+    groupBestOf: bo("groupBestOf", "Group matches"),
+    qfBestOf: bo("qfBestOf", "Quarter-finals"),
+    sfBestOf: bo("sfBestOf", "Semi-finals"),
+    gfBestOf: bo("gfBestOf", "Grand final"),
+  };
+  const dayStart = text(form, "dayStart", { required: true, label: "First match of the day" });
+  if (!/^\d{2}:\d{2}$/.test(dayStart)) throw new FormError("First match of the day must be a time, e.g. 10:00.", "dayStart");
+  const perDay = int(form, "perDay", { required: true, min: 1, max: 12, label: "Matches per day" })!;
+  const gap = int(form, "gap", { required: true, min: 30, max: 600, label: "Minutes between matches" })!;
+
+  // Seeds: up to 8 teams per group, in upper quarter-final order (1v2, 3v4, …).
+  const seeds = new Map<string, string>();
+  const used = new Set<string>();
+  for (const g of ["A", "B"])
+    for (let i = 1; i <= 8; i++) {
+      const t = text(form, `seed_${g}${i}`);
+      if (!t) continue;
+      if (!s.teams.some((x) => x.slug === t)) throw new FormError(`Group ${g} seed ${i}: choose a team from the list.`, `seed_${g}${i}`);
+      if (used.has(t)) throw new FormError(`${s.teams.find((x) => x.slug === t)!.name} is seeded twice.`, `seed_${g}${i}`);
+      used.add(t);
+      seeds.set(`${g}:UQF${Math.ceil(i / 2)}:${i % 2 ? "A" : "B"}`, t);
+    }
+
+  const existing = new Set(s.matches.filter((m) => m.event === ev.slug && m.slot).map((m) => m.slot));
+  let id = Math.max(2380000, ...s.matches.map((x) => Number(x.id)).filter(Number.isFinite));
+  const day0 = Temporal.PlainDate.from(ev.startDate);
+  const created: Match[] = [];
+  PLAY_ORDER.forEach((slot, i) => {
+    if (existing.has(slot)) return;
+    const def = slotDef(slot)!;
+    const day = day0.add({ days: Math.floor(i / perDay) });
+    const time = Temporal.PlainTime.from(dayStart).add({ minutes: (i % perDay) * gap });
+    const m: Match = {
+      id: String(++id),
+      event: ev.slug,
+      stage: def.stage,
+      bestOf: bestOfFor(slot, cfg),
+      status: "upcoming",
+      start: `${day.toString()}T${time.toString().slice(0, 5)}`,
+      teamA: seeds.get(`${slot}:A`) ?? "",
+      teamB: seeds.get(`${slot}:B`) ?? "",
+      seriesA: 0,
+      seriesB: 0,
+      maps: [],
+      veto: [],
+      stars: def.kind === "gf" ? 3 : def.kind === "sf" ? 2 : def.kind === "qf" ? 1 : 0,
+      slot,
+    };
+    resizeMaps(m);
+    created.push(m);
+  });
+  // Seeded teams also count as attending the event.
+  const teams = [...new Set([...ev.teams, ...used])];
+  transaction((tx) => {
+    tx.put("event", ev.slug, { ...ev, bracket: cfg, teams });
+    for (const m of created) tx.put("match", m.id, m);
+  }, actor(), `create bracket (${created.length} matches)`);
+  return { created: created.length, existing: existing.size };
 }
 
 function resizeMaps(m: Match) {
@@ -596,6 +701,8 @@ export function saveEvent(slug: string | undefined, form: FormData, trophyImage?
     evps: form.getAll("evps").map(String).filter((x) => playerSlugs.has(x)),
     trophyImage: pickUpload(existing?.trophyImage, trophyImage),
     logo: pickUpload(existing?.logo, eventLogo),
+    // Set by "Create bracket matches" (generateBracket), kept across edits.
+    bracket: existing?.bracket,
     mapPool: MAP_POOL.filter((m) => form.getAll("mapPool").includes(m)),
     related: form.getAll("related").map(String).filter((x) => eventSlugs.has(x) && x !== newSlug),
     swiss: swissStage

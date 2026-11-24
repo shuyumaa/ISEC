@@ -1,4 +1,5 @@
 ---
+import { mediaUrl } from "../server/media";
 import type { Player } from "../data";
 import { isCutout } from "../server/uploads";
 
@@ -15,7 +16,7 @@ const { player: p, size = "card" } = Astro.props;
 
 {
   p.photo ? (
-    <span class:list={["photo", size, "protected", { cutout: isCutout(p.photo) }]} role="img" aria-label={`Photo of ${p.nickname}`} style={`--img: url(/media/u/${p.photo})`} />
+    <span class:list={["photo", size, "protected", { cutout: isCutout(p.photo) }]} role="img" aria-label={`Photo of ${p.nickname}`} style={`--img: url(${mediaUrl(p.photo, size === "thumb" ? 160 : size === "hero" ? 960 : 640)})`} />
   ) : (
     <span class:list={["photo", size, "empty-photo"]} aria-hidden="true">
       <svg viewBox="0 0 120 150" preserveAspectRatio="xMidYMax meet">

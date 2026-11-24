@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { DATA_DIR } from "../db";
+import { DATA_DIR } from "./db";
 
 /*
  * Encryption at rest for provider API keys (AES-256-GCM). The key is derived
@@ -44,3 +44,6 @@ export function open(sealed: string): string | undefined {
 
 /** A separate secret for signing tool approvals sent through the browser. */
 export const approvalSecret = () => Buffer.from(hkdfSync("sha256", k(), "isec", "isec-ai-tool-approval", 32)).toString("base64url");
+
+/** Key for signing media URLs (see media.ts). */
+export const mediaSecret = () => Buffer.from(hkdfSync("sha256", k(), "isec", "isec-media-url", 32));

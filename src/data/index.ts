@@ -6,6 +6,7 @@ import type { EsportsEvent, MapResult, Match, Player, PlayerMapStats, Role, Team
 export type * from "./types";
 export * from "./elo";
 export * from "./brackets";
+export * from "./gsl";
 export { COUNTRIES, countryName, flagUrl, isCountry } from "./countries";
 
 /*

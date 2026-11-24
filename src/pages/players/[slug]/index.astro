@@ -1,4 +1,5 @@
 ---
+import { mediaUrl } from "../../../server/media";
 import Base from "../../../layouts/Base.astro";
 import LiveRegion from "../../../components/LiveRegion.astro";
 import Photo from "../../../components/Photo.astro";
@@ -55,7 +56,7 @@ import RoleIcon from "../../../components/RoleIcon.astro";
 <Base
   title={`${p.nickname} (${p.firstName} ${p.lastName})`}
   description={`${p.nickname} of ${t.name}: age, team, trophies, rating and attributes.`}
-  preloadImage={p.photo ? `/media/u/${p.photo}` : undefined}
+  preloadImage={p.photo ? mediaUrl(p.photo, 960) : undefined}
 >
   <LiveRegion key="player" deps={[`player:${p.slug}`, `team:${t.slug}`, "match:*", "event:*", "season:*"]}>
     <section class="profile-card" aria-labelledby="player-name">

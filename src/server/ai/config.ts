@@ -6,7 +6,7 @@ import { createGateway, generateText, type LanguageModel } from "ai";
 import { actor } from "../actor";
 import { readDoc, transaction } from "../db";
 import { FormError, text } from "../forms";
-import { open, seal } from "./secret";
+import { open, seal } from "../secret";
 
 /*
  * The admin's own AI provider ("bring your own key"). The API key is stored

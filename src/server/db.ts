@@ -20,7 +20,7 @@ import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
 // Loaded at runtime so bundlers don't try to resolve the prefix-only builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
-export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer" | "account" | "request" | "ai";
+export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer" | "account" | "request" | "ai" | "chat";
 
 export const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
 mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
@@ -148,6 +148,12 @@ export function snapshot(): Snapshot {
 
 export const currentVersion = () => version;
 
+/** Records outside the snapshot whose JSON `field` equals `value` (e.g. one admin's chats). */
+export function findDocs<T>(kind: Kind, field: string, value: string): T[] {
+  const rows = db.prepare(`SELECT data FROM docs WHERE kind = ? AND json_extract(data, ?) = ? ORDER BY rowid`).all(kind, `$.${field}`, value) as { data: string }[];
+  return rows.map((r) => JSON.parse(r.data) as T);
+}
+
 /** One record outside the snapshot (server-only settings such as the AI provider). */
 export function readDoc<T>(kind: Kind, id: string): T | undefined {
   const row = db.prepare("SELECT data FROM docs WHERE kind = ? AND id = ?").get(kind, id) as { data: string } | undefined;
@@ -163,7 +169,7 @@ export interface Change {
 }
 
 /** Kinds whose record ids are secrets (feed keys) and must never leave the server. */
-const SECRET_IDS = new Set<Kind>(["feed", "account", "ai"]);
+const SECRET_IDS = new Set<Kind>(["feed", "account", "ai", "chat"]);
 const publicId = (c: Change) => (SECRET_IDS.has(c.kind) ? "*" : c.id);
 
 function invalidate(changes: Change[]) {
@@ -183,7 +189,7 @@ export interface Tx {
 }
 
 /** Run several writes atomically, audit them and broadcast them as one change set. */
-export function transaction(fn: (tx: Tx) => void, actor = "system", action = "update", { audit = true } = {}) {
+export function transaction(fn: (tx: Tx) => void, actor = "system", action = "update", { audit = true, broadcast = true } = {}) {
   const changes: Change[] = [];
   const put: Tx["put"] = (kind, id, data) => {
     db.prepare(
@@ -208,7 +214,8 @@ export function transaction(fn: (tx: Tx) => void, actor = "system", action = "up
     db.exec("ROLLBACK");
     throw e;
   }
-  if (changes.length) invalidate(changes);
+  // Server-only records (chats) aren't in the snapshot: nothing to refresh.
+  if (changes.length && broadcast) invalidate(changes);
 }
 
 export function auditLog(limit = 30) {
