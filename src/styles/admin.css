@@ -133,7 +133,7 @@
       align-items: center;
       justify-content: space-between;
       gap: var(--sp-03);
-      min-block-size: 2.25rem;
+      min-block-size: 2rem;
       padding: var(--sp-01) var(--sp-05);
       white-space: nowrap;
       text-decoration: none;
@@ -161,10 +161,10 @@
   .admin-main {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--sp-05);
+    gap: var(--sp-04);
     align-content: start;
     max-inline-size: 80rem;
-    padding: var(--sp-05) var(--gutter) var(--sp-09);
+    padding: var(--sp-04) var(--gutter) var(--sp-08);
     min-inline-size: 0;
   }
 
@@ -186,13 +186,18 @@
     }
   }
   .admin-title {
-    font-size: var(--type-heading);
+    font-size: var(--type-heading-sm);
   }
 }
 
 @layer components {
-  .btn.small {
+  /* Admin is the dense surface: Carbon "sm" (32px) buttons, "xs"-ish small ones. */
+  .admin .btn {
     min-block-size: 2rem;
+    padding: var(--sp-02) var(--sp-04);
+  }
+  .btn.small {
+    min-block-size: 1.75rem;
     align-items: center;
     padding: var(--sp-02) var(--sp-04);
     gap: var(--sp-03);
@@ -251,7 +256,7 @@
   /* ---- Forms ------------------------------------------------------------- */
   .form {
     display: grid;
-    gap: var(--sp-04);
+    gap: var(--sp-03);
     max-inline-size: 64rem;
   }
 
@@ -259,7 +264,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
     align-items: start;
-    gap: var(--sp-04);
+    gap: var(--sp-03) var(--sp-04);
   }
 
   .field {
@@ -286,8 +291,8 @@
     box-sizing: border-box;
     inline-size: 100%;
     min-inline-size: 0;
-    block-size: 2.5rem;
-    padding: 0 var(--sp-04);
+    block-size: 2rem;
+    padding: 0 var(--sp-03);
     line-height: 1.25;
     border: 0;
     border-block-end: var(--border-width) solid var(--border-strong);
@@ -322,7 +327,7 @@
   .admin textarea {
     block-size: auto;
     padding-block: var(--sp-03);
-    min-block-size: 8rem;
+    min-block-size: 5rem;
     resize: vertical;
     line-height: 1.5;
   }
@@ -334,7 +339,7 @@
     display: grid;
     gap: var(--sp-03);
     margin: 0;
-    padding: var(--sp-04);
+    padding: var(--sp-03) var(--sp-04);
     border: var(--border-width) solid var(--border-subtle);
     min-inline-size: 0;
 
@@ -382,7 +387,7 @@
 
     & > h2,
     & > .section-head > h2 {
-      font-size: var(--type-heading-sm);
+      font-size: var(--type-body);
     }
     & > .table-wrap {
       margin-inline: calc(var(--sp-04) * -1);
@@ -409,7 +414,7 @@
       gap: var(--sp-03);
       cursor: pointer;
       list-style: none;
-      font-size: var(--type-heading-sm);
+      font-size: var(--type-body);
       font-weight: 600;
       &::-webkit-details-marker {
         display: none;
@@ -447,8 +452,8 @@
       display: inline-flex;
       align-items: center;
       gap: var(--sp-02);
-      min-block-size: 2.25rem;
-      padding: 0 var(--sp-04);
+      min-block-size: 2rem;
+      padding: 0 var(--sp-03);
       text-decoration: none;
       color: var(--text-secondary);
       & + a {
@@ -600,7 +605,7 @@
      (primary, ghost, danger, small) or element (a, button, summary). */
   :is(.actions, .row-actions, .req-actions, .join, .admin-title-actions, .control-status, .sign-row, .filter-bar, .reset-form, .admin-header-actions, .section-head) :is(.btn, .btn.small) {
     box-sizing: border-box;
-    min-block-size: 2.25rem;
+    min-block-size: 2rem;
     padding: 0 var(--sp-04);
     font-size: var(--type-body-sm);
     line-height: 1;
@@ -608,7 +613,7 @@
   }
   /* Inputs sitting in a button row match the buttons' height. */
   :is(.req-actions, .join, .reset-form) input {
-    block-size: 2.25rem;
+    block-size: 2rem;
   }
 }
 
@@ -630,8 +635,8 @@
   }
   :is(.order-btns, .row-actions) .btn.icon-only {
     box-sizing: border-box;
-    inline-size: 2.25rem;
-    min-block-size: 2.25rem;
+    inline-size: 2rem;
+    min-block-size: 2rem;
     padding: 0;
     justify-content: center;
   }
@@ -649,5 +654,19 @@
     border-color: var(--border-subtle);
     background: transparent;
     opacity: 0.5;
+  }
+}
+
+@layer components {
+  /* HLTV-dense tables in the admin: one line per row, tight cells. */
+  .admin .data-table {
+    & th,
+    & td {
+      padding: var(--sp-02) var(--sp-03);
+    }
+    & td > .btn.small {
+      min-block-size: 1.5rem;
+      padding-block: 0;
+    }
   }
 }

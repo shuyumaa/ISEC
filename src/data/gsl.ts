@@ -95,6 +95,72 @@ export const PLAY_ORDER = [
   "PO:GF",
 ];
 
+/**
+ * Which slot(s) a free-typed stage name means, e.g. "Group A Upper QF 2" →
+ * ["A:UQF2"], "Semi-final" → ["PO:SF1", "PO:SF2"], "Grand Final" → ["PO:GF"].
+ * Used to link matches that were scheduled by hand before the bracket existed.
+ */
+export function slotsForStage(stage: string): string[] {
+  let t = ` ${stage.toLowerCase().normalize("NFKD")} `
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\bquarter ?finals?\b|\bquarters\b/g, " qf ")
+    .replace(/\bsemi ?finals?\b|\bsemis\b/g, " sf ")
+    .replace(/\bgrand ?finals?\b/g, " gf ")
+    .replace(/\bu(qf|sf)(\d?)\b/g, " upper $1 $2 ")
+    .replace(/\buf\b/g, " upper final ")
+    .replace(/\blf\b/g, " lower final ")
+    .replace(/\blr ?(\d) ?(\d?)\b/g, " lower round $1 match $2 ")
+    .replace(/\b(qf|sf)(\d)\b/g, " $1 $2 ");
+  const group = /\bgroup ([ab])\b|\b([ab]) group\b/.exec(t);
+  const g = (group?.[1] ?? group?.[2])?.toUpperCase();
+  const lower = /\b(lower|lb|losers?|elimination)\b/.test(t);
+  const round = /\b(?:round|r) ?(\d)\b/.exec(t)?.[1];
+  if (round) t = t.replace(/\b(?:round|r) ?\d\b/, " ");
+  if (group) t = t.replace(group[0], " ");
+  const n = /\b(\d)\b/.exec(t)?.[1];
+  const kind = /\bgf\b/.test(t) ? "gf" : /\bqf\b/.test(t) ? "qf" : /\bsf\b/.test(t) ? "sf" : /\bfinal\b/.test(t) ? "final" : undefined;
+  const pick = (base: string, count: number) => (n ? (Number(n) >= 1 && Number(n) <= count ? [`${base}${n}`] : []) : Array.from({ length: count }, (_, i) => `${base}${i + 1}`));
+  if (!g) {
+    if (kind === "gf" || (kind === "final" && !lower && !/\bupper\b/.test(t))) return ["PO:GF"];
+    if (kind === "qf") return pick("PO:QF", 2);
+    if (kind === "sf") return pick("PO:SF", 2);
+    return [];
+  }
+  if (lower) {
+    if (kind === "final") return [`${g}:LF`];
+    if (round === "1" || round === "2") return pick(`${g}:LR${round}-`, 2);
+    return [];
+  }
+  if (kind === "qf") return pick(`${g}:UQF`, 4);
+  if (kind === "sf") return pick(`${g}:USF`, 2);
+  if (kind === "final") return [`${g}:UF`];
+  return [];
+}
+
+/**
+ * Pair an event's matches that have no slot yet with free slots: first by the
+ * seeded teams of a first-round match, then by stage name (earliest first).
+ */
+export function linkExisting(matches: Match[], taken: Set<string>, seeds = new Map<string, string>()): Map<string, Match> {
+  const out = new Map<string, Match>();
+  const free = (slot: string) => !taken.has(slot) && !out.has(slot);
+  const pool = matches.filter((m) => !m.slot).toSorted((a, b) => a.start.localeCompare(b.start) || Number(a.id) - Number(b.id));
+  const used = new Set<string>();
+  for (const slot of PLAY_ORDER) {
+    const a = seeds.get(`${slot}:A`);
+    const b = seeds.get(`${slot}:B`);
+    if (!a || !b || !free(slot)) continue;
+    const m = pool.find((x) => !used.has(x.id) && ((x.teamA === a && x.teamB === b) || (x.teamA === b && x.teamB === a)));
+    if (m) (out.set(slot, m), used.add(m.id));
+  }
+  for (const m of pool) {
+    if (used.has(m.id)) continue;
+    const slot = slotsForStage(m.stage).find(free);
+    if (slot) (out.set(slot, m), used.add(m.id));
+  }
+  return out;
+}
+
 /** What an empty side is waiting for, e.g. "Winner Upper QF 1" or "Group A 2nd". */
 export function feederLabel(slot: string, side: BracketSide): string | undefined {
   for (const d of SLOTS) {

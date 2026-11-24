@@ -78,7 +78,7 @@ import RoleIcon from "../../../components/RoleIcon.astro";
         <p class="realname">{p.firstName} {p.lastName}</p>
         <dl class="rows">
           <div><dt>Age</dt><dd>{p.age ? `${p.age} years` : "—"}</dd></div>
-          <div><dt>Nationality</dt><dd class="nat"><Flag code={p.countryCode} /> {countryName(p.countryCode) || "—"}</dd></div>
+          <div><dt>Country/region</dt><dd class="nat"><Flag code={p.countryCode} /> {countryName(p.countryCode) || "—"}</dd></div>
           <div><dt>Current team</dt><dd>{hasTeam && p.status !== "benched" ? <a href={`/teams/${t.slug}/`} class="team-link"><TeamMark team={t} /> {t.name}</a> : statusText}</dd></div>
           <div><dt>Role</dt><dd class="nat"><RoleIcon player={p} /> {rolesOf(p).join(" / ")}</dd></div>
           <div><dt>Prize money</dt><dd>{money(prize)}</dd></div>

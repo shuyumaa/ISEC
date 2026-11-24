@@ -7,7 +7,7 @@ import ChoiceGroup from "../../../components/admin/ChoiceGroup.astro";
 import { findEvent, getEvents, getPlayers, getTeams, matchesForEvent, team } from "../../../data";
 import { handlePost } from "../../../server/handle";
 import { EVENT_STATUSES, MAP_POOL, TIERS, deleteEvent, generateBracket, saveEvent } from "../../../server/mutations";
-import { PLAY_ORDER } from "../../../data/gsl";
+import { PLAY_ORDER, linkExisting, slotDef } from "../../../data/gsl";
 import { removeUpload, saveUpload } from "../../../server/uploads";
 
 const slug = Astro.params.slug ?? "";
@@ -25,7 +25,10 @@ const result = await handlePost(Astro.request, async (form, intent) => {
     const r = generateBracket(slug, form);
     return {
       redirect: `/admin/events/${slug}/#bracket-h`,
-      message: r.created ? `Bracket created: ${r.created} matches scheduled${r.existing ? `, ${r.existing} already existed` : ""}` : "All bracket matches already exist",
+      message:
+        r.created || r.linked
+          ? `Bracket ready: ${[r.created && `${r.created} new matches scheduled`, r.linked && `${r.linked} existing matches linked`, r.existing && `${r.existing} already in place`].filter(Boolean).join(", ")}`
+          : "All bracket matches already exist",
     };
   }
   const before = isNew ? undefined : findEvent(slug);
@@ -55,177 +58,197 @@ const slotted = matches.filter((m) => m.slot).length;
 const bracketCfg = ev?.bracket;
 const count = (s: string) => matches.filter((m) => m.status === s).length;
 const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed" } as const;
+// Hand-made matches the bracket would pick up (by stage name) instead of duplicating.
+const toLink = ev ? [...linkExisting(matches, new Set(matches.flatMap((m) => (m.slot ? [m.slot] : []))))] : [];
+const fmtDay = (d: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${d}T00:00Z`));
+const sections = [
+  ["details", "Details"],
+  ["teams", "Teams"],
+  ["stages", "Stages"],
+  ["results", "Results"],
+  ...(ev ? [["bracket", "Bracket"], ["danger", "Delete"]] : []),
+] as const;
+const BO = [{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }];
 ---
 
 <Admin title={ev ? ev.name : "New event"} error={result?.error}>
   <a slot="actions" class="btn ghost" href="/admin/events/">All events</a>
   {ev && <a slot="actions" class="btn ghost" href={`/events/${ev.slug}/`} target="_blank" rel="noopener">View page</a>}
 
-  <div class="editor">
-    <form method="post" class="form editor-main" enctype="multipart/form-data" id="event-form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
-      <input type="hidden" name="intent" value="save" />
+  {
+    ev && (
+      <section class="ev-summary" aria-label="Event summary">
+        <EventMark event={ev} size="md" />
+        <dl class="ev-facts">
+          <div><dt>Status</dt><dd><span class:list={["badge", { live: ev.status === "ongoing", blue: ev.status === "upcoming" }]}>{STATUS[ev.status]}</span></dd></div>
+          <div><dt>Dates</dt><dd>{fmtDay(ev.startDate)} – {fmtDay(ev.endDate)}</dd></div>
+          <div><dt>Where</dt><dd>{ev.online ? "Online" : ev.location}</dd></div>
+          <div><dt>Teams</dt><dd class="mono">{ev.teams.length}</dd></div>
+          <div><dt>Matches</dt><dd><a href={`/admin/matches/?event=${ev.slug}`}><span class="mono">{matches.length}</span> total · {count("live") ? <><span class="mono live-n">{count("live")}</span> live · </> : ""}<span class="mono">{count("upcoming")}</span> upcoming · <span class="mono">{count("completed")}</span> played</a></dd></div>
+        </dl>
+        <a class="btn small" href={`/admin/matches/?new=1&event=${ev.slug}#new`}>Schedule a match</a>
+      </section>
+    )
+  }
 
-      <fieldset>
-        <legend>Basics</legend>
-        <div class="form-grid">
-          <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="100" value={ev?.name ?? ""} /></div>
-          <ChoiceGroup wide name="tier" legend="Tier" value={ev?.tier ?? "Open"} options={TIERS.map((t) => ({ value: t, label: t }))} />
-          <ChoiceGroup wide name="status" legend="Status" value={ev?.status ?? "upcoming"} options={EVENT_STATUSES.map((x) => ({ value: x, label: STATUS[x] }))} />
-          <div class="field"><label for="startDate">Start date</label><input id="startDate" name="startDate" type="date" required value={ev?.startDate ?? ""} /></div>
-          <div class="field"><label for="endDate">End date</label><input id="endDate" name="endDate" type="date" required value={ev?.endDate ?? ""} /></div>
-          <div class="field">
-            <label for="timeZone">Time zone</label>
-            <input id="timeZone" name="timeZone" required list="zones" autocomplete="off" spellcheck="false" value={ev?.timeZone ?? "Asia/Shanghai"} aria-describedby="tz-hint" />
-            <datalist id="zones">{zones.map((z) => <option value={z} />)}</datalist>
-            <span id="tz-hint" class="hint">Match start times are entered in this zone.</span>
-          </div>
-          <div class="field"><label for="location">Location</label><input id="location" name="location" required maxlength="100" value={ev?.location ?? ""} placeholder="e.g. Beijing, China" /></div>
-          <div class="field"><label for="prizePool">Prize pool (USD)</label><input id="prizePool" name="prizePool" type="number" min="0" step="1" inputmode="numeric" value={ev?.prizePool ?? 0} /></div>
-          <div class="field">
-            <label for="winner">Winner</label>
-            <select id="winner" name="winner">
-              <option value="">Not decided</option>
-              {teams.map((t) => <option value={t.slug} selected={ev?.winner === t.slug}>{t.name}</option>)}
-            </select>
-          </div>
-        </div>
-        <label class="check"><input type="checkbox" name="online" checked={ev?.online} /> Online event</label>
-      </fieldset>
+  <nav class="jump" aria-label="Sections of this page">
+    {sections.map(([id, label]) => <a href={`#${id}`}>{label}</a>)}
+  </nav>
 
-      <fieldset>
-        <legend>Teams attending <span class="muted">({ev?.teams.length ?? 0})</span></legend>
-        <ChipGroup name="teams" legend="Choose the teams" options={teams.map((t) => ({ value: t.slug, label: t.name }))} selected={ev?.teams ?? []} />
-        {teams.length === 0 && <p class="hint">No teams yet. <a href="/admin/teams/new/">Add a team</a> first.</p>}
-      </fieldset>
+  <form method="post" class="ev-form" enctype="multipart/form-data" id="event-form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
+    <input type="hidden" name="intent" value="save" />
 
-      <fieldset>
-        <legend>Format and stages</legend>
+    <section class="admin-section ev-sec" id="details" aria-labelledby="details-h">
+      <h2 id="details-h">Details</h2>
+      <div class="form-grid">
+        <div class="field wide"><label for="name">Name</label><input id="name" name="name" required maxlength="100" value={ev?.name ?? ""} /></div>
+        <ChoiceGroup wide name="tier" legend="Tier" value={ev?.tier ?? "Open"} options={TIERS.map((t) => ({ value: t, label: t }))} />
+        <ChoiceGroup wide name="status" legend="Status" value={ev?.status ?? "upcoming"} options={EVENT_STATUSES.map((x) => ({ value: x, label: STATUS[x] }))} />
+        <div class="field"><label for="startDate">Start date</label><input id="startDate" name="startDate" type="date" required value={ev?.startDate ?? ""} /></div>
+        <div class="field"><label for="endDate">End date</label><input id="endDate" name="endDate" type="date" required value={ev?.endDate ?? ""} /></div>
         <div class="field">
-          <label for="format">Format, one line per stage</label>
-          <textarea id="format" name="format" rows="3" placeholder={"Swiss stage, best of one\nPlayoffs, best of three"}>{ev?.format.join("\n") ?? ""}</textarea>
+          <label for="timeZone">Time zone</label>
+          <input id="timeZone" name="timeZone" required list="zones" autocomplete="off" spellcheck="false" value={ev?.timeZone ?? "Asia/Shanghai"} aria-describedby="tz-hint" />
+          <datalist id="zones">{zones.map((z) => <option value={z} />)}</datalist>
+          <span id="tz-hint" class="hint">Match times are entered in this zone.</span>
         </div>
-        <div class="form-grid">
-          <div class="field">
-            <label for="swissStage">Swiss stage name prefix</label>
-            <input id="swissStage" name="swissStage" maxlength="40" value={ev?.swiss?.stage ?? ""} placeholder="e.g. Swiss" aria-describedby="swiss-hint" />
-          </div>
-          <div class="field"><label for="swissWins">Wins to advance</label><input id="swissWins" name="swissWins" type="number" min="1" max="5" value={ev?.swiss?.wins ?? 3} /></div>
-          <div class="field"><label for="swissLosses">Losses to go out</label><input id="swissLosses" name="swissLosses" type="number" min="1" max="5" value={ev?.swiss?.losses ?? 3} /></div>
+        <div class="field">
+          <label for="location">Location</label><input id="location" name="location" required maxlength="100" value={ev?.location ?? ""} placeholder="e.g. Beijing, China" />
+          <label class="check"><input type="checkbox" name="online" checked={ev?.online} /> Online event</label>
         </div>
-        <p id="swiss-hint" class="hint">Matches whose stage starts with this prefix (e.g. "Swiss: Round 1") build the Group play diagram. Leave empty if the event has no Swiss stage. Stages named Quarter-final, Semi-final and Final build the playoff bracket.</p>
-        <ChipGroup name="mapPool" legend="Map pool" options={MAP_POOL.map((m) => ({ value: m, label: m }))} selected={pool} />
-        {
-          otherEvents.length > 0 && (
-            <>
-              <ChipGroup name="related" legend="Related events (stages of the same competition)" options={otherEvents.map((e) => ({ value: e.slug, label: e.name }))} selected={ev?.related ?? []} />
-            </>
-          )
-        }
-      </fieldset>
-
-      <fieldset>
-        <legend>Prize distribution</legend>
-        <div class="table-wrap" role="region" aria-label="Prize distribution" tabindex="0">
-          <table class="data-table prize-table">
-            <thead><tr><th scope="col">Place</th><th scope="col">Amount (USD)</th><th scope="col">Team</th></tr></thead>
-            <tbody>
-              {prizeRows.map((p, i) => (
-                <tr>
-                  <td><input name="prizePlace" maxlength="20" value={p?.place ?? ""} placeholder={["1st", "2nd", "3rd–4th"][i] ?? ""} aria-label={`Place, row ${i + 1}`} /></td>
-                  <td><input name="prizeAmount" inputmode="numeric" value={p?.prize ?? ""} aria-label={`Amount, row ${i + 1}`} /></td>
-                  <td>
-                    <select name="prizeTeam" aria-label={`Team, row ${i + 1}`}>
-                      <option value="">Not decided</option>
-                      {teams.map((t) => <option value={t.slug} selected={p?.team === t.slug}>{t.name}</option>)}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p class="hint">Empty rows are ignored. Save to get more empty rows.</p>
-        <label class="check"><input type="checkbox" name="resnapshot" /> Re-capture prize rosters from current rosters (after a placement's lineup changed)</label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Awards</legend>
-        <div class="form-grid">
-          <div class="field">
-            <label for="mvp">Event MVP</label>
-            <select id="mvp" name="mvp">
-              <option value="">Not awarded</option>
-              {eligible.map((p) => <option value={p.slug} selected={ev?.mvp === p.slug}>{p.nickname} ({team(p.team).tag})</option>)}
-            </select>
-          </div>
-        </div>
-        {eligible.length > 0 && <ChipGroup name="evps" legend="EVPs (Exceptionally Valuable Players)" options={eligible.map((p) => ({ value: p.slug, label: p.nickname }))} selected={ev?.evps ?? []} />}
-        {!eligible.length && <p class="hint">Tick the attending teams and save to choose MVP and EVPs.</p>}
-      </fieldset>
-
-      <div class="actions"><button type="submit" class="btn">{isNew ? "Create event" : "Save event"}</button></div>
-    </form>
-
-    <aside class="editor-side" aria-label="Images and matches">
-      <div class="side-card">
-        <h2 class="side-h">Event logo</h2>
-        {ev && <EventMark event={ev} size="lg" />}
-        <div class="field"><label for="logo">Upload (square PNG/WebP works best)</label><input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" form="event-form" /></div>
-        {ev?.logo && <label class="check"><input type="checkbox" name="removeLogo" form="event-form" /> Remove the current logo</label>}
+        <div class="field"><label for="prizePool">Prize pool (USD)</label><input id="prizePool" name="prizePool" type="number" min="0" step="1" inputmode="numeric" value={ev?.prizePool ?? 0} /></div>
       </div>
-      <div class="side-card">
-        <h2 class="side-h">Trophy photo</h2>
-        <p class="hint">Shown on winners' profiles. A cut-out on a transparent background looks best.</p>
-        <div class="field"><label for="trophyImage">Upload</label><input id="trophyImage" name="trophyImage" type="file" accept="image/png,image/jpeg,image/webp" form="event-form" /></div>
-        {ev?.trophyImage && <label class="check"><input type="checkbox" name="removeTrophy" form="event-form" /> Remove the current photo</label>}
+      <div class="media-row">
+        <div class="field">
+          <label for="logo">Event logo (square PNG or WebP)</label>
+          <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" />
+          {ev?.logo && <label class="check"><input type="checkbox" name="removeLogo" /> Remove the current logo</label>}
+        </div>
+        <div class="field">
+          <label for="trophyImage">Trophy photo (shown on winners' profiles; a cut-out looks best)</label>
+          <input id="trophyImage" name="trophyImage" type="file" accept="image/png,image/jpeg,image/webp" />
+          {ev?.trophyImage && <label class="check"><input type="checkbox" name="removeTrophy" /> Remove the current photo</label>}
+        </div>
       </div>
-      {
-        ev && (
-          <div class="side-card">
-            <h2 class="side-h">Matches</h2>
-            <dl class="numbers">
-              <div><dt>Live</dt><dd>{count("live")}</dd></div>
-              <div><dt>Upcoming</dt><dd>{count("upcoming")}</dd></div>
-              <div><dt>Played</dt><dd>{count("completed")}</dd></div>
-            </dl>
-            <a class="btn small" href={`/admin/matches/?new=1&event=${ev.slug}#new`}>Schedule a match here</a>
+    </section>
+
+    <section class="admin-section ev-sec" id="teams" aria-labelledby="teams-h">
+      <h2 id="teams-h">Teams attending</h2>
+      <ChipGroup name="teams" legend="Choose the teams" options={teams.map((t) => ({ value: t.slug, label: t.name }))} selected={ev?.teams ?? []} />
+      {teams.length === 0 && <p class="hint">No teams yet. <a href="/admin/teams/new/">Add a team</a> first.</p>}
+    </section>
+
+    <section class="admin-section ev-sec" id="stages" aria-labelledby="stages-h">
+      <h2 id="stages-h">Stages</h2>
+      <ChipGroup name="mapPool" legend="Map pool" options={MAP_POOL.map((m) => ({ value: m, label: m }))} selected={pool} />
+      <div class="stage-grid">
+        <div class="field">
+          <label for="format">Format summary, one line per stage</label>
+          <textarea id="format" name="format" rows="3" placeholder={"Groups, double elimination, best of three\nPlayoffs, best of three"} aria-describedby="format-hint">{ev?.format.join("\n") ?? ""}</textarea>
+          <span id="format-hint" class="hint">Shown on the event page. The bracket itself comes from the stage names of the matches (see Bracket below).</span>
+        </div>
+        <fieldset class="swiss">
+          <legend>Swiss stage <span class="muted">(optional)</span></legend>
+          <div class="form-grid">
+            <div class="field"><label for="swissStage">Stage name prefix</label><input id="swissStage" name="swissStage" maxlength="40" value={ev?.swiss?.stage ?? ""} placeholder="e.g. Swiss" aria-describedby="swiss-hint" /></div>
+            <div class="field"><label for="swissWins">Wins to advance</label><input id="swissWins" name="swissWins" type="number" min="1" max="5" value={ev?.swiss?.wins ?? 3} /></div>
+            <div class="field"><label for="swissLosses">Losses to go out</label><input id="swissLosses" name="swissLosses" type="number" min="1" max="5" value={ev?.swiss?.losses ?? 3} /></div>
           </div>
-        )
-      }
-      {ev && <ConfirmDelete id="delete-event" what={ev.name} action={`/admin/events/${ev.slug}/`} label="Delete event" />}
-    </aside>
-  </div>
+          <p id="swiss-hint" class="hint">Matches whose stage starts with the prefix (e.g. "Swiss: Round 1") build the Swiss table. Leave empty for none.</p>
+        </fieldset>
+      </div>
+      {otherEvents.length > 0 && <ChipGroup name="related" legend="Related events (stages of the same competition)" options={otherEvents.map((e) => ({ value: e.slug, label: e.name }))} selected={ev?.related ?? []} />}
+    </section>
+
+    <section class="admin-section ev-sec" id="results" aria-labelledby="results-h">
+      <h2 id="results-h">Results</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="winner">Winner</label>
+          <select id="winner" name="winner">
+            <option value="">Not decided</option>
+            {teams.map((t) => <option value={t.slug} selected={ev?.winner === t.slug}>{t.name}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="mvp">Event MVP</label>
+          <select id="mvp" name="mvp" disabled={!eligible.length}>
+            <option value="">Not awarded</option>
+            {eligible.map((p) => <option value={p.slug} selected={ev?.mvp === p.slug}>{p.nickname} ({team(p.team).tag})</option>)}
+          </select>
+        </div>
+      </div>
+      {eligible.length > 0 ? <ChipGroup name="evps" legend="EVPs (Exceptionally Valuable Players)" options={eligible.map((p) => ({ value: p.slug, label: p.nickname }))} selected={ev?.evps ?? []} /> : <p class="hint">Choose the attending teams and save to pick an MVP and EVPs.</p>}
+      <div class="table-wrap" role="region" aria-labelledby="prize-h" tabindex="0">
+        <table class="data-table compact prize-table">
+          <caption id="prize-h">Prize distribution</caption>
+          <thead><tr><th scope="col">Place</th><th scope="col">Amount (USD)</th><th scope="col">Team</th></tr></thead>
+          <tbody>
+            {prizeRows.map((p, i) => (
+              <tr>
+                <td><input name="prizePlace" maxlength="20" value={p?.place ?? ""} placeholder={["1st", "2nd", "3rd–4th"][i] ?? ""} aria-label={`Place, row ${i + 1}`} /></td>
+                <td><input name="prizeAmount" inputmode="numeric" value={p?.prize ?? ""} aria-label={`Amount, row ${i + 1}`} /></td>
+                <td>
+                  <select name="prizeTeam" aria-label={`Team, row ${i + 1}`}>
+                    <option value="">Not decided</option>
+                    {teams.map((t) => <option value={t.slug} selected={p?.team === t.slug}>{t.name}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="hint">Empty rows are ignored; save to get more.</p>
+      <label class="check"><input type="checkbox" name="resnapshot" /> Re-capture prize rosters from the current rosters (after a placement's lineup changed)</label>
+    </section>
+
+    <div class="save-bar">
+      <span class="muted">{isNew ? "Name, dates and location are enough to start." : "Saves Details, Teams, Stages and Results."}</span>
+      <button type="submit" class="btn">{isNew ? "Create event" : "Save event"}</button>
+    </div>
+  </form>
 
   {
     ev && (
-      <section class="admin-section bracket-setup" aria-labelledby="bracket-h">
+      <section class="admin-section ev-sec bracket-setup" id="bracket" aria-labelledby="bracket-h">
         <div class="section-head">
           <h2 id="bracket-h">Bracket: two groups + playoffs</h2>
           {slotted > 0 && <a href={`/events/${ev.slug}/#brackets`} target="_blank" rel="noopener">See the bracket</a>}
         </div>
-        <ul class="format-sum">
-          <li><strong>Group stage</strong> Groups A and B, 8 teams each, double elimination</li>
-          <li><strong>Upper bracket</strong> Quarter-finals → semi-finals → final</li>
-          <li><strong>Lower bracket</strong> Round 1 → round 2 → lower final</li>
-          <li><strong>Playoffs</strong> Single elimination: A2–B3 and B2–A3, then group winners in the semis, then the Grand final</li>
-        </ul>
-        <p class="muted">
-          {slotted ? `${slotted} of ${PLAY_ORDER.length} matches exist. Creating again only adds the missing ones.` : `Creates all ${PLAY_ORDER.length} matches with TBD teams. Winners and losers move into the next matches by themselves as results come in.`}
+        <p class="muted bracket-sum">
+          Groups A and B (8 teams, double elimination: upper QF → SF → final, lower R1 → R2 → final), then single-elimination playoffs: A2–B3 and B2–A3 in the quarter-finals, group winners join in the semis, then the Grand final.
         </p>
+        <div class="progress" role="group" aria-label="Bracket progress">
+          <meter min="0" max={PLAY_ORDER.length} value={slotted} aria-label="Bracket matches in place"></meter>
+          <span><span class="mono">{slotted}</span> of <span class="mono">{PLAY_ORDER.length}</span> matches in place{toLink.length ? <>; <span class="mono">{toLink.length}</span> existing will be linked</> : ""}</span>
+        </div>
+        {
+          toLink.length > 0 && (
+            <details class="link-list">
+              <summary>Matches that will be linked</summary>
+              <ul>
+                {toLink.map(([slot, m]) => (
+                  <li><a href={`/admin/matches/${m.id}/`}>{m.teamA ? team(m.teamA).name : "TBD"} vs {m.teamB ? team(m.teamB).name : "TBD"}</a> <span class="muted">“{m.stage}” → {slotDef(slot)!.stage}</span></li>
+                ))}
+              </ul>
+            </details>
+          )
+        }
         <form method="post" class="form bracket-form" aria-labelledby="bracket-h"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
           <input type="hidden" name="intent" value="bracket" />
-          <div class="form-grid">
-            <ChoiceGroup name="groupBestOf" legend="Group matches" value={String(bracketCfg?.groupBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
-            <ChoiceGroup name="qfBestOf" legend="Quarter-finals" value={String(bracketCfg?.qfBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
-            <ChoiceGroup name="sfBestOf" legend="Semi-finals" value={String(bracketCfg?.sfBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
-            <ChoiceGroup name="gfBestOf" legend="Grand final" value={String(bracketCfg?.gfBestOf ?? 5)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />
+          <div class="form-grid bo-grid">
+            <ChoiceGroup name="groupBestOf" legend="Group matches" value={String(bracketCfg?.groupBestOf ?? 3)} options={BO} />
+            <ChoiceGroup name="qfBestOf" legend="Quarter-finals" value={String(bracketCfg?.qfBestOf ?? 3)} options={BO} />
+            <ChoiceGroup name="sfBestOf" legend="Semi-finals" value={String(bracketCfg?.sfBestOf ?? 3)} options={BO} />
+            <ChoiceGroup name="gfBestOf" legend="Grand final" value={String(bracketCfg?.gfBestOf ?? 5)} options={BO} />
             <div class="field"><label for="dayStart">First match of the day</label><input id="dayStart" name="dayStart" type="time" required value="10:00" /></div>
             <div class="field"><label for="perDay">Matches per day</label><input id="perDay" name="perDay" type="number" min="1" max="12" required value="8" /></div>
-            <div class="field"><label for="gap">Minutes between matches</label><input id="gap" name="gap" type="number" min="30" max="600" step="15" required value="90" aria-describedby="gap-hint" /><span id="gap-hint" class="hint">Each start time can be changed on the match afterwards.</span></div>
+            <div class="field"><label for="gap">Minutes between matches</label><input id="gap" name="gap" type="number" min="30" max="600" step="15" required value="90" /></div>
           </div>
           <details class="seeding">
             <summary>Seed the groups (optional)</summary>
-            <p class="hint">Teams play the upper quarter-final next to them. Leave empty for TBD; teams can also be set on each match later.</p>
+            <p class="hint">Teams play the upper quarter-final next to them. Leave empty for TBD; a match already scheduled between the same two teams is linked instead of duplicated.</p>
             <div class="seed-groups">
               {["A", "B"].map((g) => (
                 <fieldset class="seed-group">
@@ -247,8 +270,29 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
               ))}
             </div>
           </details>
-          <div class="actions"><button type="submit" class="btn">{slotted ? "Add the missing matches" : "Create bracket matches"}</button></div>
+          <div class="actions">
+            <button type="submit" class="btn">{slotted ? "Add the missing matches" : "Create bracket matches"}</button>
+            <span class="hint">Runs on its own: save other changes above first. Start times can be changed on each match.</span>
+          </div>
         </form>
+      </section>
+    )
+  }
+
+  {
+    ev && (
+      <section class="admin-section ev-sec danger-zone" id="danger" aria-labelledby="danger-h">
+        <h2 id="danger-h">Delete event</h2>
+        <div class="danger-row">
+          {
+            matches.length ? (
+              <p class="muted">This event still has <span class="mono">{matches.length}</span> matches. Delete them first in the <a href={`/admin/matches/?event=${ev.slug}`}>match list</a> (tick them, then "Delete selected").</p>
+            ) : (
+              <p class="muted">Removes the event and its page. This can't be undone.</p>
+            )
+          }
+          {matches.length === 0 && <ConfirmDelete id="delete-event" what={ev.name} action={`/admin/events/${ev.slug}/`} label="Delete event" />}
+        </div>
       </section>
     )
   }
@@ -256,23 +300,126 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
 
 <style>
   @layer components {
-    .format-sum {
-      display: grid;
-      gap: var(--sp-02);
+    .ev-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-04) var(--sp-06);
+      padding: var(--sp-03) var(--sp-04);
+      background: var(--surface);
+      border: var(--border-width) solid var(--border-subtle);
+    }
+    .ev-facts {
+      display: flex;
+      flex-wrap: wrap;
+      flex: 1 1 22rem;
+      gap: var(--sp-02) var(--sp-06);
       margin: 0;
-      padding: 0;
-      list-style: none;
-      & li {
+      & div {
         display: grid;
-        grid-template-columns: 9rem minmax(0, 1fr);
-        gap: var(--sp-04);
+        gap: var(--sp-01);
       }
-      & strong {
-        font-weight: 600;
+      & dt {
+        font-size: var(--type-label);
+        color: var(--text-secondary);
+      }
+      & dd {
+        margin: 0;
+      }
+      & .live-n {
+        color: var(--live);
+      }
+    }
+    /* Jump links, sticky under the admin header. */
+    .jump {
+      position: sticky;
+      inset-block-start: var(--header-height);
+      z-index: 5;
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: var(--background);
+      border-block-end: var(--border-width) solid var(--border-subtle);
+      & a {
+        flex: none;
+        padding: var(--sp-03) var(--sp-04);
+        color: var(--text-secondary);
+        text-decoration: none;
+        border-block-end: 2px solid transparent;
+        &:hover {
+          color: var(--text-primary);
+          border-block-end-color: var(--border-strong);
+        }
+      }
+    }
+    .ev-sec {
+      scroll-margin-block-start: calc(var(--header-height) + 3rem);
+    }
+    .ev-form {
+      display: grid;
+      gap: var(--sp-04);
+    }
+    .media-row,
+    .stage-grid {
+      display: grid;
+      gap: var(--sp-04);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+      align-items: start;
+    }
+    .swiss {
+      align-self: stretch;
+    }
+    .save-bar {
+      position: sticky;
+      inset-block-end: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--sp-03) var(--sp-05);
+      padding: var(--sp-03) var(--sp-04);
+      background: var(--surface);
+      border: var(--border-width) solid var(--border-strong);
+      box-shadow: 0 -2px 6px rgb(0 0 0 / 0.12);
+      @container page (width < 36rem) {
+        & .muted {
+          display: none;
+        }
       }
     }
     .bracket-form {
       max-inline-size: none;
+    }
+    .bracket-sum {
+      max-inline-size: 80ch;
+      margin: 0;
+    }
+    .progress {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03) var(--sp-04);
+      font-size: var(--type-body-sm);
+      & meter {
+        inline-size: 12rem;
+        block-size: 0.5rem;
+      }
+    }
+    .link-list {
+      & > summary {
+        cursor: pointer;
+        color: var(--link);
+      }
+      & ul {
+        display: grid;
+        gap: var(--sp-02);
+        margin: var(--sp-03) 0 0;
+        padding-inline-start: var(--sp-05);
+      }
+    }
+    .bo-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
     }
     .seeding > summary {
       cursor: pointer;
@@ -280,7 +427,7 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
     }
     .seed-groups {
       display: grid;
-      gap: var(--sp-05);
+      gap: var(--sp-04);
       margin-block-start: var(--sp-03);
       @container page (width >= 56rem) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -288,13 +435,13 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
     }
     .seed-pairs {
       display: grid;
-      gap: var(--sp-03);
+      gap: var(--sp-02);
       margin: 0;
       padding: 0;
       list-style: none;
       & li {
         display: grid;
-        grid-template-columns: 6rem minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 1fr);
         align-items: center;
         gap: var(--sp-03);
       }
@@ -303,55 +450,30 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
       color: var(--text-secondary);
       font-size: var(--type-label);
     }
-    .editor {
-      display: grid;
-      gap: var(--sp-04);
-      align-items: start;
-      grid-template-columns: minmax(0, 1fr);
-      @container page (width >= 64rem) {
-        grid-template-columns: minmax(0, 1fr) 18rem;
-      }
-    }
-    .editor-main {
-      max-inline-size: none;
-      padding: var(--sp-04);
-      background: var(--surface);
-      border: var(--border-width) solid var(--border-subtle);
-    }
-    .editor-side {
-      display: grid;
-      gap: var(--sp-04);
-    }
-    .side-card {
-      display: grid;
-      gap: var(--sp-04);
-      padding: var(--sp-04);
-      background: var(--surface);
-      border: var(--border-width) solid var(--border-subtle);
-    }
-    .side-h {
-      font-size: var(--type-body);
-    }
     .check {
       display: flex;
       gap: var(--sp-03);
       align-items: center;
     }
-    .prize-table td {
-      padding-block: var(--sp-02);
-    }
-    .numbers {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      margin: 0;
-      & dt {
-        font-size: var(--type-label);
-        color: var(--text-secondary);
+    .prize-table {
+      & caption {
+        font-size: var(--type-body-sm);
       }
-      & dd {
+      & td {
+        padding-block: var(--sp-01);
+      }
+    }
+    .danger-zone {
+      border-color: var(--support-error);
+    }
+    .danger-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-04);
+      & p {
         margin: 0;
-        font-family: var(--font-mono);
-        font-size: var(--type-heading-sm);
       }
     }
   }

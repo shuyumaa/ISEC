@@ -43,7 +43,15 @@ const TOOL_LABELS: Record<string, [string, string]> = {
   setMapResult: ["Set map score", ""],
   recordMapStats: ["Record player stats", ""],
   setMatchStatus: ["Set match status", ""],
+  getSettings: ["Looked at site settings", "Looking at site settings"],
+  deleteMatches: ["Delete matches", ""],
+  deleteEvent: ["Delete event", ""],
+  deleteTeam: ["Delete team", ""],
+  deletePlayer: ["Delete player", ""],
+  updateSettings: ["Change site settings", ""],
 };
+/** Write tools whose approval card is styled as destructive. */
+const DANGER = new Set(["deleteMatches", "deleteEvent", "deleteTeam", "deletePlayer"]);
 const FIELD: Record<string, string> = {
   slug: "Record",
   matchId: "Match",
@@ -294,8 +302,57 @@ const pendingApprovals = (): string[] =>
     .at(-1)
     ?.parts.flatMap((p) => ("toolCallId" in p && p.state === "approval-requested" && p.approval && !p.approval.isAutomatic ? [p.approval.id] : [])) ?? [];
 
-function toolCard(part: ToolPart) {
-  const name = part.type === "dynamic-tool" ? part.toolName : part.type.slice(5);
+const toolName = (part: ToolPart) => (part.type === "dynamic-tool" ? part.toolName : part.type.slice(5));
+const isWrite = (part: ToolPart) => TOOL_LABELS[toolName(part)]?.[1] === "";
+const isPending = (part: ToolPart) => part.state === "approval-requested" && !!part.approval && !part.approval.isAutomatic;
+
+function approveButtons(ids: string[], danger: boolean, all: boolean) {
+  const actions = el("div", "tool-actions");
+  const ok = el("button", `btn small${danger ? " danger" : ""}`, all ? `${danger ? "Delete" : "Approve"} all (${ids.length})` : danger ? "Delete" : "Approve");
+  const no = el("button", "btn ghost small", all ? "Decline all" : "Decline");
+  ok.type = no.type = "button";
+  ok.addEventListener("click", () => ids.forEach((id) => void chat.addToolApprovalResponse({ id, approved: true })));
+  no.addEventListener("click", () => ids.forEach((id) => void chat.addToolApprovalResponse({ id, approved: false, reason: "The admin declined" })));
+  actions.append(ok, no);
+  return actions;
+}
+
+/**
+ * Several changes in a row (e.g. "schedule these 12 matches" done as single
+ * calls) become one stack: a line per change, details on demand, and one
+ * Approve all / Decline all for everything still waiting.
+ */
+function toolStack(parts: ToolPart[]) {
+  const box = el("div", "tool-stack");
+  const pending = parts.filter(isPending);
+  const n = (f: (p: ToolPart) => boolean) => parts.filter(f).length;
+  const done = n((p) => p.state === "output-available");
+  const failed = n((p) => p.state === "output-error");
+  const declined = n((p) => p.state === "output-denied" || (p.state === "approval-responded" && !p.approval?.approved));
+  const names = [...new Set(parts.map((p) => TOOL_LABELS[toolName(p)]?.[0] ?? toolName(p)))];
+  const head = el("div", "stack-head");
+  const title = el("div", "stack-title");
+  title.append(el("strong", undefined, `${parts.length} changes`), el("span", "muted", names.join(", ")));
+  head.appendChild(title);
+  const tally = [pending.length && `${pending.length} waiting`, done && `${done} done`, failed && `${failed} failed`, declined && `${declined} declined`].filter(Boolean).join(" · ");
+  head.appendChild(el("span", "stack-tally", tally));
+  box.appendChild(head);
+  if (pending.length) {
+    box.dataset.pending = String(pending.length);
+    box.appendChild(approveButtons(pending.map((p) => p.approval!.id), pending.every((p) => DANGER.has(toolName(p))), true));
+  }
+  const list = el("ol", "stack-list");
+  for (const p of parts) {
+    const li = el("li");
+    li.appendChild(toolCard(p, true));
+    list.appendChild(li);
+  }
+  box.appendChild(list);
+  return box;
+}
+
+function toolCard(part: ToolPart, compact = false) {
+  const name = toolName(part);
   const [done, doing] = TOOL_LABELS[name] ?? [name, name];
   const write = !doing;
   const state = part.state;
@@ -307,10 +364,15 @@ function toolCard(part: ToolPart) {
     if (state === "output-error") li.classList.add("failed");
     return li;
   }
-  const card = el("div", "tool-card");
+  const card = el(compact ? "details" : "div", compact ? "tool-card compact" : "tool-card");
   card.dataset.state = state;
-  const head = el("div", "tool-head");
+  if (DANGER.has(name)) card.classList.add("danger");
+  const head = el(compact ? "summary" : "div", "tool-head");
   head.appendChild(el("strong", undefined, done));
+  if (compact) {
+    const line = inputRows(part.input).slice(0, 2).map(([, v]) => v).join(" · ");
+    head.appendChild(el("span", "tool-line", line.length > 90 ? `${line.slice(0, 89)}…` : line));
+  }
   const badge = el("span", "badge");
   const st: Record<string, [string, string]> = {
     "input-streaming": ["Preparing", ""],
@@ -352,23 +414,23 @@ function toolCard(part: ToolPart) {
     a.href = String((part.output as { url: string }).url);
     card.appendChild(a);
   }
-  if (state === "approval-requested" && part.approval && !part.approval.isAutomatic) {
-    const actions = el("div", "tool-actions");
-    const ok = el("button", "btn small", "Approve");
-    const no = el("button", "btn ghost small", "Decline");
-    ok.type = no.type = "button";
-    const id = part.approval.id;
-    ok.addEventListener("click", () => void chat.addToolApprovalResponse({ id, approved: true }));
-    no.addEventListener("click", () => void chat.addToolApprovalResponse({ id, approved: false, reason: "The admin declined" }));
-    actions.append(ok, no);
-    card.appendChild(actions);
+  if (isPending(part)) {
+    const actions = approveButtons([part.approval!.id], DANGER.has(name), false);
+    if (!compact) card.appendChild(actions);
+    else {
+      // Per-row buttons sit beside the collapsible line, not inside the summary.
+      const row = el("div", "tool-row");
+      row.append(card, actions);
+      return row;
+    }
   }
   return card;
 }
 
 function messageNode(m: UIMessage) {
   const li = el("li", `msg ${m.role}`);
-  for (const part of m.parts) {
+  for (let i = 0; i < m.parts.length; i++) {
+    const part = m.parts[i]!;
     if (part.type === "text" && part.text.trim()) {
       const box = el("div", "msg-text");
       box.appendChild(renderText(part.text));
@@ -382,7 +444,17 @@ function messageNode(m: UIMessage) {
         li.appendChild(img);
       }
     } else if ("toolCallId" in part) {
-      li.appendChild(toolCard(part));
+      // Consecutive changes (2+) share one stack; reads and single changes stay as they are.
+      const run: ToolPart[] = [];
+      for (let j = i; j < m.parts.length; j++) {
+        const q = m.parts[j]!;
+        if (!("toolCallId" in q) || !isWrite(q as ToolPart)) break;
+        run.push(q as ToolPart);
+      }
+      if (run.length >= 2) {
+        li.appendChild(toolStack(run));
+        i += run.length - 1;
+      } else li.appendChild(toolCard(part));
     }
   }
   return li;
@@ -437,7 +509,10 @@ function render() {
   if (empty) empty.hidden = messages.length > 0;
   const pending = pendingApprovals();
   if (approveBar) {
-    approveBar.hidden = pending.length < 2;
+    // Not needed when one stack already offers "Approve all" for everything waiting.
+    const stacks = [...([...log.querySelectorAll(".msg:not(.thinking)")].at(-1)?.querySelectorAll<HTMLElement>(".tool-stack[data-pending]") ?? [])];
+    const covered = stacks.length === 1 && Number(stacks[0]!.dataset.pending) === pending.length;
+    approveBar.hidden = pending.length < 2 || covered;
     const label = approveBar.querySelector(".count");
     if (label) label.textContent = `${pending.length} changes are waiting for your OK.`;
   }

@@ -14,6 +14,6 @@ const current = value.toUpperCase();
 ---
 
 <select id={id} name={name} required={required} autocomplete="country">
-  {required ? <option value="" disabled selected={!current}>Choose a country…</option> : <option value="">{emptyLabel}</option>}
+  {required ? <option value="" disabled selected={!current}>Choose a country/region…</option> : <option value="">{emptyLabel}</option>}
   {COUNTRIES.map((c) => <option value={c.code} selected={c.code === current}>{c.name} ({c.code})</option>)}
 </select>

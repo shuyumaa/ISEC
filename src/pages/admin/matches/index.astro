@@ -5,24 +5,39 @@ import LocalTime from "../../../components/LocalTime.astro";
 import MatchMetaFields from "../../../components/admin/MatchMetaFields.astro";
 import { event, getEvents, getMatches, getTeams, matchInstant, matchStart, team } from "../../../data";
 import { handlePost } from "../../../server/handle";
-import { createMatch } from "../../../server/mutations";
+import { revokeFeed } from "../../../server/ingest";
+import { createMatch, deleteMatches } from "../../../server/mutations";
 
-const result = await handlePost(Astro.request, (form) => {
+const result = await handlePost(Astro.request, (form, intent) => {
+  if (intent === "delete-many") {
+    const gone = deleteMatches(form.getAll("ids").map(String));
+    for (const id of gone) revokeFeed(id);
+    return { message: `${gone.length} ${gone.length === 1 ? "match" : "matches"} deleted` };
+  }
   const m = createMatch(form);
   return { redirect: `/admin/matches/${m.id}/`, message: "Match created" };
 });
 if (result instanceof Response) return result;
 
 const filter = Astro.url.searchParams.get("status") ?? "all";
+const evFilter = Astro.url.searchParams.get("event") ?? "";
 const order = { live: 0, upcoming: 1, completed: 2 } as const;
-const all = getMatches();
+const all = getMatches().filter((m) => !evFilter || m.event === evFilter);
 const counts = { all: all.length, live: 0, upcoming: 0, completed: 0 };
 for (const m of all) counts[m.status] += 1;
 const list = all
   .filter((m) => filter === "all" || m.status === filter)
   .toSorted((a, b) => order[a.status] - order[b.status] || matchStart(b).epochMilliseconds - matchStart(a).epochMilliseconds);
-const openNew = Astro.url.searchParams.has("new") || Boolean(result?.error);
+const openNew = Astro.url.searchParams.has("new") || Boolean(result?.error && !Astro.url.searchParams.has("bulk"));
 const canSchedule = getEvents().length > 0 && getTeams().length >= 2;
+const events = getEvents().toSorted((a, b) => b.startDate.localeCompare(a.startDate));
+const qs = (status: string) => {
+  const p = new URLSearchParams();
+  if (status !== "all") p.set("status", status);
+  if (evFilter) p.set("event", evFilter);
+  const s = p.toString();
+  return s ? `?${s}` : "?";
+};
 const filters = [["all", "All"], ["live", "Live"], ["upcoming", "Upcoming"], ["completed", "Completed"]] as const;
 ---
 
@@ -33,32 +48,57 @@ const filters = [["all", "All"], ["live", "Live"], ["upcoming", "Upcoming"], ["c
     <summary>Schedule a match</summary>
     {!canSchedule && <p class="notice">Before scheduling, <a href="/admin/events/new/">create an event</a> and <a href="/admin/teams/new/">add at least two teams</a>.</p>}
     <form method="post" class="form" hidden={!canSchedule}><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
-      <MatchMetaFields presetEvent={Astro.url.searchParams.get("event") ?? undefined} />
+      <MatchMetaFields presetEvent={evFilter || (Astro.url.searchParams.get("event") ?? undefined)} />
       <div class="actions"><button type="submit" class="btn">Create match</button></div>
     </form>
   </details>
 
-  <section class="admin-section">
+  <section class="admin-section matches-list" data-bulk>
     <div class="section-head">
       <h2 id="all-h">All matches</h2>
-      <nav class="segmented" aria-label="Filter matches">
-        {filters.map(([k, label]) => (
-          <a href={k === "all" ? "?" : `?status=${k}`} aria-current={filter === k ? "page" : undefined}>
-            {label} <span class="n">{counts[k]}</span>
-          </a>
-        ))}
-      </nav>
+      <div class="list-filters">
+        <form method="get" class="event-filter">
+          {filter !== "all" && <input type="hidden" name="status" value={filter} />}
+          <label for="event-filter" class="visually-hidden">Event</label>
+          <select id="event-filter" name="event">
+            <option value="">All events</option>
+            {events.map((e) => <option value={e.slug} selected={e.slug === evFilter}>{e.name}</option>)}
+          </select>
+          <button type="submit" class="btn ghost small">Show</button>
+        </form>
+        <nav class="segmented" aria-label="Filter matches">
+          {filters.map(([k, label]) => (
+            <a href={qs(k)} aria-current={filter === k ? "page" : undefined}>
+              {label} <span class="n">{counts[k]}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
     </div>
+
+    <!-- Carbon batch-action bar: appears once a row is ticked. -->
+    <div class="batch-bar" role="toolbar" aria-label="Selected matches">
+      <span class="batch-count" aria-live="polite"><span data-count>0</span> selected</span>
+      <button type="button" class="btn danger small" command="show-modal" commandfor="bulk-delete">Delete selected…</button>
+      <button type="button" class="btn ghost small" data-clear>Cancel</button>
+    </div>
+
+    <form method="post" id="bulk-form" action="?bulk=1"><input type="hidden" name="_csrf" value={Astro.locals.csrf} /><input type="hidden" name="intent" value="delete-many" /></form>
+
     <LiveRegion key="list" deps={["match:*"]}>
       <div class="table-wrap" role="region" aria-labelledby="all-h" tabindex="0">
-        <table class="data-table">
+        <table class="data-table compact">
           <thead>
-            <tr><th scope="col">Match</th><th scope="col">Status</th><th scope="col" class="n">Score</th><th scope="col">Event</th><th scope="col">Start (your time)</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+            <tr>
+              <th scope="col" class="pick"><input type="checkbox" data-all aria-label="Select all matches shown" /></th>
+              <th scope="col">Match</th><th scope="col">Status</th><th scope="col" class="n">Score</th><th scope="col">Event · stage</th><th scope="col">Start (your time)</th><th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
           </thead>
           <tbody>
             {
               list.map((m) => (
                 <tr>
+                  <td class="pick"><input type="checkbox" name="ids" value={m.id} form="bulk-form" data-keep aria-label={`Select ${team(m.teamA).name} vs ${team(m.teamB).name}, ${m.stage}`} /></td>
                   <th scope="row"><a href={`/admin/matches/${m.id}/`}>{team(m.teamA).name} vs {team(m.teamB).name}</a></th>
                   <td><span class:list={["badge", { live: m.status === "live", blue: m.status === "upcoming" }]}>{m.status}</span></td>
                   <td class="n mono">{m.status === "upcoming" ? "–" : `${m.seriesA}–${m.seriesB}`}</td>
@@ -73,5 +113,78 @@ const filters = [["all", "All"], ["live", "Live"], ["upcoming", "Upcoming"], ["c
         {list.length === 0 && <p class="empty">No matches here.</p>}
       </div>
     </LiveRegion>
+
+    <dialog id="bulk-delete" class="confirm" aria-labelledby="bulk-delete-title" closedby="any">
+      <h2 id="bulk-delete-title">Delete <span data-count>0</span> matches?</h2>
+      <p>Their scores, maps and player stats are removed too, and connected game servers are disconnected. This can't be undone.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" command="close" commandfor="bulk-delete" autofocus>Cancel</button>
+        <button type="submit" class="btn danger" form="bulk-form">Delete matches</button>
+      </div>
+    </dialog>
   </section>
 </Admin>
+
+<script>
+  import "../../../scripts/bulk";
+</script>
+
+<style>
+  @layer components {
+    .list-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .event-filter {
+      display: flex;
+      gap: var(--sp-02);
+      & select {
+        inline-size: auto;
+        min-inline-size: 12rem;
+      }
+    }
+    .pick {
+      inline-size: 2.5rem;
+      & input {
+        inline-size: 1rem;
+        block-size: 1rem;
+        margin: 0;
+        accent-color: var(--button-primary);
+      }
+    }
+    /* Shown only while something is ticked (works without JS too). */
+    .batch-bar {
+      display: none;
+      align-items: center;
+      gap: var(--sp-03);
+      padding: var(--sp-02) var(--sp-04);
+      background: var(--button-primary);
+      color: #fff;
+      & .batch-count {
+        flex: 1;
+        font-weight: 600;
+      }
+      /* Carbon batch actions: flat buttons in the bar's own blue. */
+      & .btn {
+        color: var(--white);
+        background: transparent;
+        border-color: transparent;
+        &:hover {
+          background: var(--blue-70);
+          color: var(--white);
+        }
+      }
+      & .btn.danger {
+        font-weight: 600;
+      }
+    }
+    .matches-list:has(input[name="ids"]:checked) .batch-bar {
+      display: flex;
+    }
+    .matches-list tr:has(input[name="ids"]:checked) > :is(td, th) {
+      background: var(--layer-selected);
+    }
+  }
+</style>
