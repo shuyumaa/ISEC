@@ -26,7 +26,7 @@ const teams = getTeams().toSorted((x, y) => x.name.localeCompare(y.name));
 ---
 
 <Admin title={isNew ? "New article" : "Edit article"} error={result?.error}>
-  <form method="post" class="form">
+  <form method="post" class="form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
     <input type="hidden" name="intent" value="save" />
     <div class="field wide">
       <label for="title">Title</label>

@@ -197,24 +197,62 @@ export function readSession(cookies: AstroCookies): SessionUser | null {
   }
 }
 
-/* Login throttle: 5 failures per IP and per username in 10 minutes. */
-const attempts = new Map<string, { n: number; until: number }>();
-const keys = (ip: string, username: string) => [`ip:${ip}`, `u:${username.toLowerCase()}`];
-export function throttled(ip: string, username = ""): boolean {
-  return keys(ip, username).some((k) => {
-    const a = attempts.get(k);
-    return !!a && a.n >= 5 && a.until > Date.now();
-  });
+/*
+ * Login throttling, built so a school or office behind one shared address
+ * can't be locked out by someone else on it (or outside it):
+ *  - per address + username: 5 free failures, then a growing wait
+ *    (30 s, 1, 2, 4 … up to 15 min) for that pair only;
+ *  - per username, from anywhere: 10 free failures, then the same growing
+ *    wait, except from addresses that signed in to that account before
+ *    (so guessing "admin" can't lock the real admin out);
+ *  - per address, all usernames: a high cap (60 failures in 15 min) against
+ *    password spraying, far above what a shared network makes by typos.
+ * A refusal tells the client how long to wait (429 + Retry-After).
+ */
+type Counter = { n: number; last: number };
+const WINDOW = 15 * 60_000;
+const pairs = new Map<string, Counter>();
+const users = new Map<string, Counter>();
+const ips = new Map<string, Counter>();
+const trusted = new Map<string, number>(); // `${ip}|${user}` → last successful sign-in
+
+const norm = (u: string) => u.trim().toLowerCase();
+const fresh = (c: Counter | undefined) => (c && Date.now() - c.last < WINDOW ? c : undefined);
+const bump = (m: Map<string, Counter>, k: string) => {
+  const c = fresh(m.get(k));
+  m.set(k, { n: (c?.n ?? 0) + 1, last: Date.now() });
+};
+/** Seconds still to wait after `free` failures, doubling from 30 s up to the window. */
+const waitFor = (c: Counter | undefined, free: number) => {
+  if (!c || c.n < free) return 0;
+  const step = Math.min(WINDOW, 30_000 * 2 ** (c.n - free));
+  return Math.max(0, Math.ceil((c.last + step - Date.now()) / 1000));
+};
+
+/** 0 when a sign-in attempt may go ahead, otherwise the seconds to wait. */
+export function loginWait(ip: string, username = ""): number {
+  const u = norm(username);
+  const known = trusted.has(`${ip}|${u}`);
+  const ipC = fresh(ips.get(ip));
+  return Math.max(
+    waitFor(fresh(pairs.get(`${ip}|${u}`)), 5),
+    known ? 0 : waitFor(fresh(users.get(u)), 10),
+    ipC && ipC.n >= 60 ? Math.ceil((ipC.last + WINDOW - Date.now()) / 1000) : 0,
+  );
 }
 export function recordFailure(ip: string, username = "") {
-  // Prune expired entries so the map can't grow without bound.
-  if (attempts.size > 10_000) for (const [k, v] of attempts) if (v.until < Date.now()) attempts.delete(k);
-  for (const k of keys(ip, username)) {
-    const a = attempts.get(k);
-    const fresh = !a || a.until < Date.now();
-    attempts.set(k, { n: fresh ? 1 : a.n + 1, until: Date.now() + 10 * 60_000 });
-  }
+  // Prune old entries so the maps can't grow without bound.
+  for (const m of [pairs, users, ips])
+    if (m.size > 20_000) for (const [k, v] of m) if (!fresh(v)) m.delete(k);
+  const u = norm(username);
+  bump(pairs, `${ip}|${u}`);
+  if (u) bump(users, u);
+  bump(ips, ip);
 }
 export function clearFailures(ip: string, username = "") {
-  for (const k of keys(ip, username)) attempts.delete(k);
+  const u = norm(username);
+  pairs.delete(`${ip}|${u}`);
+  users.delete(u);
+  if (trusted.size > 20_000) trusted.clear();
+  trusted.set(`${ip}|${u}`, Date.now());
 }

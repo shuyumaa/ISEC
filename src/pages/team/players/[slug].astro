@@ -43,7 +43,7 @@ const blank = { slug: "new", nickname: "", firstName: "", lastName: "", team: ""
   {p && <a slot="actions" class="btn ghost" href={`/players/${p.slug}/`} target="_blank" rel="noopener">View profile</a>}
 
   <div class="editor">
-    <form method="post" class="form editor-main" enctype="multipart/form-data" id="player-form">
+    <form method="post" class="form editor-main" enctype="multipart/form-data" id="player-form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="save" />
       <fieldset>
         <legend>Profile</legend>
@@ -98,7 +98,7 @@ const blank = { slug: "new", nickname: "", firstName: "", lastName: "", team: ""
             {pending ? (
               <p class="muted">A request for {p.nickname} is waiting for ISEC. <a href="/team/requests/">See requests</a>.</p>
             ) : (
-              <form method="post" class="form">
+              <form method="post" class="form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                 <input type="hidden" name="intent" value="request" />
                 <input type="hidden" name="direction" value="out" />
                 <input type="hidden" name="player" value={p.slug} />

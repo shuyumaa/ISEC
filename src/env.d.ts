@@ -12,5 +12,7 @@ declare namespace astroHTML.JSX {
 declare namespace App {
   interface Locals {
     user?: import("./server/auth").SessionUser;
+    /** This visitor's CSRF token (server/csrf.ts), written into every POST form. */
+    csrf: string;
   }
 }

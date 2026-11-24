@@ -111,7 +111,7 @@ const href = (s?: PlayerStatus) => {
                   <td class="n mono">{elo?.elo ?? "—"}</td>
                   <td class="n mono">{elo?.maps ?? 0}</td>
                   <td>
-                    <form method="post" class="row-actions" data-enhance>
+                    <form method="post" class="row-actions" data-enhance><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
                       <input type="hidden" name="intent" value="status" />
                       <input type="hidden" name="player" value={p.slug} />
                       {st === "active" && <button class="btn ghost small" name="status" value="benched">Bench</button>}

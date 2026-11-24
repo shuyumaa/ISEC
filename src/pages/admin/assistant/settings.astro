@@ -44,7 +44,7 @@ if (c) {
   <section class="admin-section" aria-labelledby="prov-h">
     <h2 id="prov-h">Provider and key</h2>
     <p class="muted">The assistant and the scoreboard reader use your own AI account. The key is encrypted on the server and never shown again; only its last four characters are.</p>
-    <form method="post" class="form ai-form" autocomplete="off">
+    <form method="post" class="form ai-form" autocomplete="off"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="save" />
       <ChoiceGroup wide name="provider" legend="Provider" value={provider} options={Object.entries(PROVIDERS).map(([value, p]) => ({ value, label: p.label }))} />
       <ul class="provider-hints muted">

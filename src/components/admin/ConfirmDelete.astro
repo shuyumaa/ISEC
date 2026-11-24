@@ -15,7 +15,7 @@ const { id, what, action, label = "Delete", hidden = {} } = Astro.props;
 <dialog id={id} class="confirm" aria-labelledby={`${id}-title`} aria-describedby={`${id}-desc`} closedby="any">
   <h2 id={`${id}-title`}>Delete {what}?</h2>
   <p id={`${id}-desc`}>This can't be undone. Visitors will see the change immediately.</p>
-  <form method="post" action={action} class="actions">
+  <form method="post" action={action} class="actions"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
     <input type="hidden" name="intent" value="delete" />
     {Object.entries(hidden).map(([name, value]) => <input type="hidden" name={name} value={value} />)}
     <button type="button" class="btn ghost" command="close" commandfor={id} autofocus>Cancel</button>

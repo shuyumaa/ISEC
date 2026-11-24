@@ -62,7 +62,7 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
   {ev && <a slot="actions" class="btn ghost" href={`/events/${ev.slug}/`} target="_blank" rel="noopener">View page</a>}
 
   <div class="editor">
-    <form method="post" class="form editor-main" enctype="multipart/form-data" id="event-form">
+    <form method="post" class="form editor-main" enctype="multipart/form-data" id="event-form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="save" />
 
       <fieldset>
@@ -212,7 +212,7 @@ const STATUS = { upcoming: "Upcoming", ongoing: "Ongoing", completed: "Completed
         <p class="muted">
           {slotted ? `${slotted} of ${PLAY_ORDER.length} matches exist. Creating again only adds the missing ones.` : `Creates all ${PLAY_ORDER.length} matches with TBD teams. Winners and losers move into the next matches by themselves as results come in.`}
         </p>
-        <form method="post" class="form bracket-form" aria-labelledby="bracket-h">
+        <form method="post" class="form bracket-form" aria-labelledby="bracket-h"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
           <input type="hidden" name="intent" value="bracket" />
           <div class="form-grid">
             <ChoiceGroup name="groupBestOf" legend="Group matches" value={String(bracketCfg?.groupBestOf ?? 3)} options={[{ value: "1", label: "Bo1" }, { value: "3", label: "Bo3" }, { value: "5", label: "Bo5" }]} />

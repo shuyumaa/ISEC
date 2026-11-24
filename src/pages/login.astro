@@ -1,7 +1,7 @@
 ---
 import Admin from "../layouts/Admin.astro";
-import { servedOverHttps } from "../server/origin";
-import { clearFailures, createSession, readSession, recordFailure, throttled, verifyLogin } from "../server/auth";
+import { clientIp, servedOverHttps } from "../server/origin";
+import { clearFailures, createSession, loginWait, readSession, recordFailure, verifyLogin } from "../server/auth";
 
 /*
  * One sign-in page for both panels: admins land in /admin/, team accounts in
@@ -19,12 +19,16 @@ if (already) return Astro.redirect(safeNext(already.role), 303);
 let error: string | undefined;
 let username = "";
 if (Astro.request.method === "POST") {
-  const ip = Astro.clientAddress ?? "unknown";
+  const ip = clientIp(Astro.request, Astro.clientAddress);
   const form = await Astro.request.formData();
   username = String(form.get("username") ?? "").trim().slice(0, 64);
   const password = String(form.get("password") ?? "").slice(0, 200);
-  if (throttled(ip, username)) {
-    error = "Too many attempts. Wait ten minutes and try again.";
+  const wait = loginWait(ip, username);
+  if (wait > 0) {
+    // 429 + Retry-After, and the actual wait in words.
+    Astro.response.status = 429;
+    Astro.response.headers.set("Retry-After", String(wait));
+    error = `Too many attempts. Try again in ${wait < 60 ? `${wait} seconds` : `${Math.ceil(wait / 60)} minutes`}.`;
   } else {
     const user = verifyLogin(username, password);
     if (user) {
@@ -39,7 +43,7 @@ if (Astro.request.method === "POST") {
 ---
 
 <Admin title="Sign in" error={error} bare>
-  <form class="form signin" method="post" aria-labelledby="signin-title">
+  <form class="form signin" method="post" aria-labelledby="signin-title"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
     <p id="signin-title" class="muted">One sign-in for organisers and teams. Team accounts are created by an ISEC admin.</p>
     <div class="field">
       <label for="username">Username</label>

@@ -49,7 +49,7 @@ const SHORT = { active: "Active", benched: "Benched", free: "Free agent", retire
   {p && <a slot="actions" class="btn ghost" href={`/players/${p.slug}/`} target="_blank" rel="noopener">View profile</a>}
 
   <div class="editor">
-    <form method="post" class="form editor-main" enctype="multipart/form-data" id="player-form">
+    <form method="post" class="form editor-main" enctype="multipart/form-data" id="player-form"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
       <input type="hidden" name="intent" value="save" />
 
       <fieldset>

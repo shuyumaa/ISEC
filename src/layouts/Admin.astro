@@ -88,6 +88,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === home.slic
     <script is:inline set:html={THEME_SCRIPT} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta name="csrf-token" content={Astro.locals.csrf} />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <title>{title} · ISEC {panel === "team" ? "Team" : "Admin"}</title>
     <link rel="expect" href="#main" blocking="render" />
@@ -110,7 +111,7 @@ const current = (n: NavItem) => (n.exact ? path === n.href || path === home.slic
             <a href={myTeam ? `/teams/${myTeam.slug}/` : "/"} class="btn ghost small" target="_blank" rel="noopener">
               {myTeam ? "View team page" : "View site"} <Icon name="arrow" size={14} />
             </a>
-            <form method="post" action="/logout/">
+            <form method="post" action="/logout/"><input type="hidden" name="_csrf" value={Astro.locals.csrf} />
               <button type="submit" class="btn ghost small">Sign out</button>
             </form>
           </div>

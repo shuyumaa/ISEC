@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { subscribe } from "../../server/bus";
 import { currentVersion } from "../../server/db";
+import { clientIp } from "../../server/origin";
 
 /*
  * Server-Sent Events stream of data changes. Every admin write is broadcast as
@@ -14,7 +15,8 @@ const perIp = new Map<string, number>();
 let total = 0;
 
 export const GET: APIRoute = ({ request, clientAddress }) => {
-  const ip = clientAddress ?? "unknown";
+  // The visitor's address, not the reverse proxy's (which every visitor would share).
+  const ip = clientIp(request, clientAddress);
   if (total >= MAX_TOTAL || (perIp.get(ip) ?? 0) >= MAX_PER_IP) {
     return new Response("Too many live connections", { status: 429, headers: { "Retry-After": "30" } });
   }
