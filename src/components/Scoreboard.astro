@@ -55,7 +55,8 @@ const flagB = flagUrl(b.countryCode);
       {rankOf(a.slug) && <span class="subtle">Rank #{rankOf(a.slug)}</span>}
     </SideA>
 
-    <Center class:list={["sb-center", { "card-link": link }]} href={link ? `/matches/${m.id}/` : undefined} aria-label={link ? `Match page: ${a.name} vs ${b.name}` : undefined}>
+    <Center class:list={["sb-center", { "card-link": link }]} href={link ? `/matches/${m.id}/` : undefined}>
+      {link && <span class="visually-hidden">Match page, {a.name} vs {b.name}: </span>}
       {
         m.status === "upcoming" ? (
           <>
@@ -65,9 +66,10 @@ const flagB = flagUrl(b.countryCode);
           </>
         ) : (
           <>
-            <span class="sb-score" aria-label={`${a.name} ${seriesA}, ${b.name} ${seriesB}`}>
+            <span class="sb-score">
               <span class={state(a.slug)}>{seriesA}</span>
               <span class="sep" aria-hidden="true">:</span>
+              <span class="visually-hidden"> to </span>
               <span class={state(b.slug)}>{seriesB}</span>
             </span>
             {liveMap && m.bestOf > 1 && (

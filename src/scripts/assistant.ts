@@ -36,6 +36,7 @@ const TOOL_LABELS: Record<string, [string, string]> = {
   updatePlayer: ["Update player", ""],
   setPlayerStatus: ["Roster move", ""],
   scheduleMatch: ["Schedule match", ""],
+  scheduleMatches: ["Schedule matches", ""],
   setMapResult: ["Set map score", ""],
   recordMapStats: ["Record player stats", ""],
   setMatchStatus: ["Set match status", ""],
@@ -97,7 +98,9 @@ function inputRows(input: unknown): [string, string][] {
   const rows: [string, string][] = [];
   for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
     if (v === undefined || v === "") continue;
-    if (k === "players" && Array.isArray(v)) {
+    if (k === "matches" && Array.isArray(v)) {
+      for (const x of v as Record<string, unknown>[]) rows.push([String(x.stage), `${String(x.start ?? "").replace("T", " ")} · Bo${x.bestOf} · ${x.teamA ?? "TBD"} vs ${x.teamB ?? "TBD"}`]);
+    } else if (k === "players" && Array.isArray(v)) {
       for (const p of v as Record<string, unknown>[]) rows.push([String(p.player), `${p.kills}–${p.deaths}${p.assists !== undefined ? `–${p.assists}` : ""}${p.adr !== undefined ? ` · ADR ${p.adr}` : ""}${p.rating !== undefined ? ` · ${p.rating}` : ""}`]);
     } else if (v && typeof v === "object" && !Array.isArray(v)) {
       for (const [k2, v2] of Object.entries(v)) if (v2 !== undefined) rows.push([label(k2), v2 === null ? "—" : Array.isArray(v2) ? v2.join(", ") : String(v2)]);
@@ -172,6 +175,7 @@ function save(messages: UIMessage[]) {
 
 let chat: Chat;
 const log = root?.querySelector<HTMLOListElement>(".chat-log");
+const scroller = root?.querySelector<HTMLElement>(".chat-scroll");
 const statusLine = root?.querySelector<HTMLElement>(".chat-status");
 const form = root?.querySelector<HTMLFormElement>(".composer");
 const input = root?.querySelector<HTMLTextAreaElement>("#prompt");
@@ -180,8 +184,16 @@ const preview = root?.querySelector<HTMLElement>(".attach-preview");
 const sendBtn = root?.querySelector<HTMLButtonElement>(".send");
 const stopBtn = root?.querySelector<HTMLButtonElement>(".stop");
 const empty = root?.querySelector<HTMLElement>(".chat-empty");
+const jump = root?.querySelector<HTMLButtonElement>(".jump-latest");
+const approveBar = root?.querySelector<HTMLElement>(".approve-bar");
 
-function toolCard(part: Extract<UIMessage["parts"][number], { toolCallId: string }>) {
+type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
+const pendingApprovals = (): string[] =>
+  chat.messages
+    .at(-1)
+    ?.parts.flatMap((p) => ("toolCallId" in p && p.state === "approval-requested" && p.approval && !p.approval.isAutomatic ? [p.approval.id] : [])) ?? [];
+
+function toolCard(part: ToolPart) {
   const name = part.type === "dynamic-tool" ? part.toolName : part.type.slice(5);
   const [done, doing] = TOOL_LABELS[name] ?? [name, name];
   const write = !doing;
@@ -200,10 +212,10 @@ function toolCard(part: Extract<UIMessage["parts"][number], { toolCallId: string
   head.appendChild(el("strong", undefined, done));
   const badge = el("span", "badge");
   const st: Record<string, [string, string]> = {
-    "input-streaming": ["Preparing…", ""],
-    "input-available": ["Preparing…", ""],
+    "input-streaming": ["Preparing", ""],
+    "input-available": ["Preparing", ""],
     "approval-requested": ["Needs your OK", "blue"],
-    "approval-responded": [part.approval?.approved ? "Approved, running…" : "Declined", part.approval?.approved ? "blue" : ""],
+    "approval-responded": [part.approval?.approved ? "Approved" : "Declined", part.approval?.approved ? "blue" : ""],
     "output-available": ["Done", "green"],
     "output-error": ["Failed", ""],
     "output-denied": ["Declined", ""],
@@ -215,13 +227,23 @@ function toolCard(part: Extract<UIMessage["parts"][number], { toolCallId: string
   card.appendChild(head);
   const rows = inputRows(part.input);
   if (rows.length) {
+    // Long batches stay readable: the first rows, the rest behind a toggle.
     const dl = el("dl", "tool-fields");
-    for (const [k, v] of rows) {
+    const add = (target: HTMLElement, [k, v]: [string, string]) => {
       const row = el("div");
       row.append(el("dt", undefined, k), el("dd", undefined, v));
-      dl.appendChild(row);
-    }
+      target.appendChild(row);
+    };
+    rows.slice(0, 8).forEach((r) => add(dl, r));
     card.appendChild(dl);
+    if (rows.length > 8) {
+      const more = el("details", "tool-more");
+      more.appendChild(el("summary", undefined, `${rows.length - 8} more`));
+      const rest = el("dl", "tool-fields");
+      rows.slice(8).forEach((r) => add(rest, r));
+      more.appendChild(rest);
+      card.appendChild(more);
+    }
   }
   if (state === "output-error" && part.errorText) card.appendChild(el("p", "tool-error", part.errorText));
   if (state === "output-available" && part.output && typeof part.output === "object" && "url" in part.output) {
@@ -243,39 +265,84 @@ function toolCard(part: Extract<UIMessage["parts"][number], { toolCallId: string
   return card;
 }
 
+function messageNode(m: UIMessage) {
+  const li = el("li", `msg ${m.role}`);
+  for (const part of m.parts) {
+    if (part.type === "text" && part.text.trim()) {
+      const box = el("div", "msg-text");
+      box.appendChild(renderText(part.text));
+      li.appendChild(box);
+    } else if (part.type === "file" && part.mediaType.startsWith("image/")) {
+      if (!part.url) li.appendChild(el("span", "msg-file", "Screenshot (not kept after reload)"));
+      else {
+        const img = el("img", "msg-img");
+        img.src = part.url;
+        img.alt = part.filename ?? "Attached screenshot";
+        li.appendChild(img);
+      }
+    } else if ("toolCallId" in part) {
+      li.appendChild(toolCard(part));
+    }
+  }
+  return li;
+}
+
+/*
+ * Follow the conversation only while the reader is at the bottom: scrolling up
+ * during an answer stops the auto-scroll, and "Jump to latest" brings it back.
+ * Only the log scrolls; the page never moves.
+ */
+let follow = true;
+const atBottom = () => !scroller || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48;
+function toBottom() {
+  if (scroller) scroller.scrollTop = scroller.scrollHeight;
+}
+
+// Messages are rebuilt only when their content changed (streaming touches the last one).
+const rendered = new Map<string, { sig: string; node: HTMLLIElement }>();
+const thinking = el("li", "msg assistant thinking");
+thinking.append(el("span", "dots"), el("span", undefined, "Thinking"));
+
 function render() {
   if (!log || !chat) return;
   const messages = chat.messages;
   save(messages);
-  log.replaceChildren();
+  const keep = new Set<string>();
+  const nodes: HTMLElement[] = [];
   for (const m of messages) {
-    const li = el("li", `msg ${m.role}`);
-    for (const part of m.parts) {
-      if (part.type === "text" && part.text.trim()) {
-        const box = el("div", "msg-text");
-        box.appendChild(renderText(part.text));
-        li.appendChild(box);
-      } else if (part.type === "file" && part.mediaType.startsWith("image/")) {
-        if (!part.url) li.appendChild(el("span", "msg-file muted", "Screenshot (not kept after reload)"));
-        else {
-          const img = el("img", "msg-img");
-          img.src = part.url;
-          img.alt = part.filename ?? "Attached screenshot";
-          li.appendChild(img);
-        }
-      } else if ("toolCallId" in part) {
-        li.appendChild(toolCard(part));
-      }
+    keep.add(m.id);
+    const sig = JSON.stringify(m.parts);
+    let entry = rendered.get(m.id);
+    if (!entry || entry.sig !== sig) {
+      entry = { sig, node: messageNode(m) };
+      rendered.set(m.id, entry);
     }
-    if (li.childElementCount) log.appendChild(li);
+    if (entry.node.childElementCount) nodes.push(entry.node);
   }
+  for (const id of rendered.keys()) if (!keep.has(id)) rendered.delete(id);
   const busy = chat.status === "submitted" || chat.status === "streaming";
-  if (statusLine) statusLine.textContent = chat.status === "submitted" ? "Thinking…" : chat.status === "error" ? (chat.error?.message?.replace(/^.*"error":"([^"]+)".*$/, "$1") ?? "Something went wrong.") : "";
-  statusLine?.classList.toggle("is-error", chat.status === "error");
+  // "Thinking" until the answer starts arriving.
+  const last = messages.at(-1);
+  if (chat.status === "submitted" || (chat.status === "streaming" && last?.role === "assistant" && !last.parts.some((p) => p.type === "text" || "toolCallId" in p))) nodes.push(thinking);
+  // Replace only what moved, so selection and focus in older messages survive.
+  nodes.forEach((n, i) => {
+    if (log.children[i] !== n) log.insertBefore(n, log.children[i] ?? null);
+  });
+  while (log.children.length > nodes.length) log.lastElementChild!.remove();
+
+  if (statusLine) statusLine.textContent = chat.status === "error" ? (chat.error?.message?.replace(/^.*"error":"([^"]+)".*$/, "$1") ?? "Something went wrong.") : "";
+  statusLine?.toggleAttribute("hidden", chat.status !== "error");
   if (sendBtn) sendBtn.hidden = busy;
   if (stopBtn) stopBtn.hidden = !busy;
   if (empty) empty.hidden = messages.length > 0;
-  log.lastElementChild?.scrollIntoView({ block: "end", behavior: "smooth" });
+  const pending = pendingApprovals();
+  if (approveBar) {
+    approveBar.hidden = pending.length < 2;
+    const label = approveBar.querySelector(".count");
+    if (label) label.textContent = `${pending.length} changes are waiting for your OK.`;
+  }
+  if (follow) toBottom();
+  if (jump) jump.hidden = follow || atBottom();
 }
 
 function showFiles() {
@@ -292,6 +359,28 @@ if (root && log && form && input) {
   chat = new Chat(new State(load(), render));
   render();
 
+  // Any upward movement is the reader taking over (wheel, touch, keys, scrollbar);
+  // following resumes once they are back at the bottom. Auto-scroll only ever
+  // moves down, so it can't be mistaken for the reader.
+  let lastTop = scroller?.scrollTop ?? 0;
+  scroller?.addEventListener(
+    "scroll",
+    () => {
+      const top = scroller.scrollTop;
+      if (top < lastTop - 1) follow = false;
+      if (atBottom()) follow = true;
+      lastTop = top;
+      if (jump) jump.hidden = follow;
+    },
+    { passive: true },
+  );
+  scroller?.addEventListener("wheel", (e) => e.deltaY < 0 && (follow = false), { passive: true });
+  jump?.addEventListener("click", () => {
+    follow = true;
+    scroller?.scrollTo({ top: scroller.scrollHeight, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    jump.hidden = true;
+  });
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -300,19 +389,29 @@ if (root && log && form && input) {
     input.value = "";
     if (filesInput) filesInput.value = "";
     showFiles();
+    follow = true;
     void chat.sendMessage({ text: text || "Read this scoreboard.", files });
   });
-  // Enter sends, Shift+Enter makes a new line.
+  // Enter sends, Shift+Enter makes a new line. IME-safe: Enter that confirms a
+  // Chinese/Japanese/Korean candidate (isComposing, or keyCode 229 in Safari) never sends.
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-      e.preventDefault();
-      form.requestSubmit();
-    }
+    if (e.key !== "Enter" || e.shiftKey) return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) return;
+    form.requestSubmit();
   });
   filesInput?.addEventListener("change", showFiles);
   stopBtn?.addEventListener("click", () => void chat.stop());
+  approveBar?.querySelector(".approve-all")?.addEventListener("click", () => {
+    for (const id of pendingApprovals()) void chat.addToolApprovalResponse({ id, approved: true });
+  });
+  approveBar?.querySelector(".decline-all")?.addEventListener("click", () => {
+    for (const id of pendingApprovals()) void chat.addToolApprovalResponse({ id, approved: false, reason: "The admin declined" });
+  });
   root.querySelector(".new-chat")?.addEventListener("click", () => {
     void chat.stop();
+    rendered.clear();
+    log.replaceChildren();
     chat = new Chat(new State([], render));
     render();
     input.focus();

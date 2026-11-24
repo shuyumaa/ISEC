@@ -124,8 +124,9 @@ import RoleIcon from "../../components/RoleIcon.astro";
           <div><dt>Series record</dt><dd>{wins}–{results.length - wins}</dd></div>
           <div>
             <dt>Form</dt>
-            <dd class="form" aria-label={form.map((f) => (f === "W" ? "win" : "loss")).join(", ") || "No matches"}>
+            <dd class="form">
               {form.length ? form.map((f) => <span class:list={["pill", { w: f === "W" }]} aria-hidden="true">{f}</span>) : "—"}
+              {form.length > 0 && <span class="visually-hidden">{form.map((f) => (f === "W" ? "win" : "loss")).join(", ")}</span>}
             </dd>
           </div>
         </dl>
@@ -147,7 +148,7 @@ import RoleIcon from "../../components/RoleIcon.astro";
     <div class="with-sidebar">
       <div class="stack">
         <Panel title="Roster" id="roster">
-          <div class="table-wrap" role="region" aria-labelledby="roster" tabindex="0">
+          <div class="table-wrap" role="region" aria-label="Roster table" tabindex="0">
             <table class="data-table">
               <thead>
                 <tr><th scope="col">Player</th><th scope="col">Role</th><th scope="col">On team since</th><th scope="col" class="n">Maps</th><th scope="col" class="n">Rating</th></tr>

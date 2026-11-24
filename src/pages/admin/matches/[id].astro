@@ -118,79 +118,8 @@ const gsiConfig = feed
   <section class="admin-section" aria-labelledby="live-h">
     <h2 id="live-h">Live control</h2>
     <LiveRegion key="control" deps={deps}>
-      <MatchControl match={m} />
+      <MatchControl match={m} embedded />
     </LiveRegion>
-  </section>
-
-  <section class="admin-section" aria-labelledby="feed-h">
-    <h2 id="feed-h">Game server feed</h2>
-    <LiveRegion key="feed" deps={[...deps, "feed:*"]}>
-      {
-        feed ? (
-          <p class="feed-status">
-            {m.feed?.lastSeenAt ? (
-              <>
-                <span class="badge green">Connected</span> Last data <LocalTime instant={m.feed.lastSeenAt} zone="UTC" format="datetime" /> via{" "}
-                {m.feed.source === "gsi" ? "Game State Integration" : "server log"}.
-              </>
-            ) : (
-              <>
-                <span class="badge blue">Waiting</span> No data received yet. Run the commands below on the match server.
-              </>
-            )}
-          </p>
-        ) : (
-          <p class="muted">Connect the tournament server and scores, round history, the kill log and player stats update here and on the site automatically.</p>
-        )
-      }
-      {m.feed?.unmatched?.length ? (
-        <p class="notice error">
-          Players on the server not matched to a roster: {m.feed.unmatched.join(", ")}. Set their in-game name or Steam ID under Teams & players.
-        </p>
-      ) : null}
-    </LiveRegion>
-    {
-      feed && (
-        <div class="feed-config">
-          <div class="field">
-            <div class="copy-row">
-              <label for="cmd-cs2">Server console (or match cfg)</label>
-              <span class="copy">
-                <button type="button" class="btn ghost small" command="--copy" commandfor="cmd-cs2">Copy commands</button>
-                <span class="tip" role="status" />
-              </span>
-            </div>
-            <textarea id="cmd-cs2" readonly rows="5" spellcheck="false">{cs2Commands}</textarea>
-          </div>
-          <details>
-            <summary>Observer PC instead: Game State Integration file</summary>
-            <div class="field">
-              <div class="copy-row">
-                <label for="cmd-gsi">Save as <code>game/csgo/cfg/gamestate_integration_isec.cfg</code></label>
-                <span class="copy">
-                  <button type="button" class="btn ghost small" command="--copy" commandfor="cmd-gsi">Copy file</button>
-                  <span class="tip" role="status" />
-                </span>
-              </div>
-              <textarea id="cmd-gsi" readonly rows="16" spellcheck="false">{gsiConfig}</textarea>
-            </div>
-          </details>
-        </div>
-      )
-    }
-    <form method="post" action={action} class="actions">
-      <button type="submit" class="btn small" name="intent" value="feed-create">{feed ? "Generate a new key" : "Connect a server"}</button>
-      {feed && <button type="submit" class="btn ghost small" name="intent" value="feed-revoke">Disconnect</button>}
-    </form>
-  </section>
-
-  <section class="admin-section" aria-labelledby="details-h">
-    <h2 id="details-h">Details</h2>
-    <form method="post" action={action} class="form" aria-labelledby="details-h">
-      <input type="hidden" name="intent" value="meta" />
-      <MatchMetaFields match={m} />
-      <div class="actions"><button type="submit" class="btn">Save details</button></div>
-    </form>
   </section>
 
   <section class="admin-section" aria-labelledby="maps-h">
@@ -432,6 +361,77 @@ const gsiConfig = feed
         </table>
       </div>
       <div class="actions"><button type="submit" class="btn small">Save veto</button></div>
+    </form>
+  </section>
+
+  <section class="admin-section" aria-labelledby="feed-h">
+    <h2 id="feed-h">Game server feed</h2>
+    <LiveRegion key="feed" deps={[...deps, "feed:*"]}>
+      {
+        feed ? (
+          <p class="feed-status">
+            {m.feed?.lastSeenAt ? (
+              <>
+                <span class="badge green">Connected</span> Last data <LocalTime instant={m.feed.lastSeenAt} zone="UTC" format="datetime" /> via{" "}
+                {m.feed.source === "gsi" ? "Game State Integration" : "server log"}.
+              </>
+            ) : (
+              <>
+                <span class="badge blue">Waiting</span> No data received yet. Run the commands below on the match server.
+              </>
+            )}
+          </p>
+        ) : (
+          <p class="muted">Connect the tournament server and scores, round history, the kill log and player stats update here and on the site automatically.</p>
+        )
+      }
+      {m.feed?.unmatched?.length ? (
+        <p class="notice error">
+          Players on the server not matched to a roster: {m.feed.unmatched.join(", ")}. Set their in-game name or Steam ID under Teams & players.
+        </p>
+      ) : null}
+    </LiveRegion>
+    {
+      feed && (
+        <div class="feed-config">
+          <div class="field">
+            <div class="copy-row">
+              <label for="cmd-cs2">Server console (or match cfg)</label>
+              <span class="copy">
+                <button type="button" class="btn ghost small" command="--copy" commandfor="cmd-cs2">Copy commands</button>
+                <span class="tip" role="status" />
+              </span>
+            </div>
+            <textarea id="cmd-cs2" readonly rows="5" spellcheck="false">{cs2Commands}</textarea>
+          </div>
+          <details>
+            <summary>Observer PC instead: Game State Integration file</summary>
+            <div class="field">
+              <div class="copy-row">
+                <label for="cmd-gsi">Save as <code>game/csgo/cfg/gamestate_integration_isec.cfg</code></label>
+                <span class="copy">
+                  <button type="button" class="btn ghost small" command="--copy" commandfor="cmd-gsi">Copy file</button>
+                  <span class="tip" role="status" />
+                </span>
+              </div>
+              <textarea id="cmd-gsi" readonly rows="16" spellcheck="false">{gsiConfig}</textarea>
+            </div>
+          </details>
+        </div>
+      )
+    }
+    <form method="post" action={action} class="actions">
+      <button type="submit" class="btn small" name="intent" value="feed-create">{feed ? "Generate a new key" : "Connect a server"}</button>
+      {feed && <button type="submit" class="btn ghost small" name="intent" value="feed-revoke">Disconnect</button>}
+    </form>
+  </section>
+
+  <section class="admin-section" aria-labelledby="details-h">
+    <h2 id="details-h">Details</h2>
+    <form method="post" action={action} class="form" aria-labelledby="details-h">
+      <input type="hidden" name="intent" value="meta" />
+      <MatchMetaFields match={m} />
+      <div class="actions"><button type="submit" class="btn">Save details</button></div>
     </form>
   </section>
 

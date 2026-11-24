@@ -31,8 +31,9 @@ import Icon from "../components/Icon.astro";
     <title>ISEC · Coming soon</title>
   </head>
   <body class="cs">
+    <main class="cs-main">
     <input type="checkbox" id="still" class="still-toggle visually-hidden" />
-    <main class="stage">
+    <div class="stage">
       <div class="rays" aria-hidden="true"></div>
       <div class="rays rays-holo" aria-hidden="true"></div>
       <div class="halo" aria-hidden="true"></div>
@@ -46,11 +47,12 @@ import Icon from "../components/Icon.astro";
         </span>
         <span class="soon">Coming soon</span>
       </h1>
-    </main>
+    </div>
     <label for="still" class="still">
       <span class="when-moving"><Icon name="pause" size={14} /><span class="visually-hidden">Pause animation</span></span>
       <span class="when-still"><Icon name="play" size={14} /><span class="visually-hidden">Play animation</span></span>
     </label>
+    </main>
   </body>
 </html>
 

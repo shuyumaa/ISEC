@@ -75,7 +75,7 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
   <section class="admin-section" aria-labelledby="live-h">
     <div class="section-head">
       <h2 id="live-h">Live score control</h2>
-      <LiveRegion key="viewers" deps={["*"]}><span class="muted">{listenerCount()} viewers connected</span></LiveRegion>
+      <LiveRegion key="viewers" deps={["*"]}><span class="muted">{listenerCount()} {listenerCount() === 1 ? "viewer" : "viewers"} connected</span></LiveRegion>
     </div>
     <LiveRegion key="live-controls" deps={["match:*"]}>
       <div class="control-grid">
@@ -84,7 +84,7 @@ const fmt = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
     </LiveRegion>
   </section>
 
-  <section class="admin-section" aria-labelledby="next-h">
+  <section class="admin-section">
     <div class="section-head"><h2 id="next-h">Up next</h2><a href="/admin/matches/?status=upcoming">All upcoming</a></div>
     <LiveRegion key="next" deps={["match:*"]}>
       <div class="table-wrap" role="region" aria-labelledby="next-h" tabindex="0">

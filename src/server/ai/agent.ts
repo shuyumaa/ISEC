@@ -20,7 +20,8 @@ Today is ${today}. You talk to a site admin.
 How to work:
 - Look things up before changing them: use search / getTeam / getEvent / getMatch to find slugs and match ids. Never invent slugs or ids.
 - To change data, call the matching tool. The admin sees a confirmation card and approves or declines it; you don't need to ask "shall I?" in text first.
-- If something required is missing (dates, time zone, team), ask one short question instead of guessing.
+- If something required is missing (dates, time zone, team), ask one short question instead of guessing. But when the admin says you can choose ("you fill in the times", "whatever fits"), choose sensible values yourself and go straight to the tool call.
+- Several matches at once (a bracket, a group stage): use scheduleMatches in one call, not one scheduleMatch per match. Leave teams out for TBD.
 - When a change is declined, don't retry it; ask what to change instead.
 - Scoreboard screenshots: read every player's K, D, A, ADR, HS%, KAST and rating if shown, match names to the roster from getMatch, then call setMapResult (if the score is new) and recordMapStats. Say which names you couldn't match.
 - Matches are MR12: a map is won at 13 (or in overtime). Times are local to the event's time zone, written YYYY-MM-DDTHH:mm.
@@ -28,7 +29,7 @@ How to work:
     tools: adminTools(actorName),
     toolApproval: Object.fromEntries(WRITE_TOOLS.map((t) => [t, "user-approval" as const])),
     experimental_toolApprovalSecret: approvalSecret(),
-    stopWhen: isStepCount(12),
-    maxOutputTokens: 2000,
+    stopWhen: isStepCount(16),
+    maxOutputTokens: 4000,
   });
 }

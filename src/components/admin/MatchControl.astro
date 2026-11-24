@@ -4,8 +4,10 @@ import TeamMark from "../TeamMark.astro";
 
 interface Props {
   match: Match;
+  /** On the match's own admin page: the page title already names it. */
+  embedded?: boolean;
 }
-const { match: m } = Astro.props;
+const { match: m, embedded = false } = Astro.props;
 const a = team(m.teamA);
 const b = team(m.teamB);
 const ev = event(m.event);
@@ -17,7 +19,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
 ---
 
 <article class="control" aria-labelledby={`ctl-${m.id}`}>
-  <header class="control-head">
+  <header class:list={["control-head", { "visually-hidden": embedded }]}>
     <h3 id={`ctl-${m.id}`}>
       <a href={action}>{a.name} vs {b.name}</a>
     </h3>
@@ -27,7 +29,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
 
   <div class="control-series" aria-label={`Series ${a.name} ${m.seriesA}, ${b.name} ${m.seriesB}`}>
     <span><TeamMark team={a} size="md" /> <span class="big">{m.seriesA}</span></span>
-    <span class="subtle">maps</span>
+    <span class="subtle">maps won</span>
     <span><span class="big">{m.seriesB}</span> <TeamMark team={b} size="md" /></span>
   </div>
 
@@ -52,8 +54,8 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
                     <input type="hidden" name="intent" value="round" />
                     <input type="hidden" name="map" value={controlIndex} />
                     <input type="hidden" name="side" value={side} />
-                    <button class="btn" type="submit" name="delta" value="1" aria-label={`Add a round to ${t.name}`}>+1</button>
-                    <button class="btn ghost" type="submit" name="delta" value="-1" aria-label={`Remove a round from ${t.name}`} disabled={score === 0}>−1</button>
+                    <button class="btn" type="submit" name="delta" value="1" aria-label={`+1 round to ${t.name}`}>+1</button>
+                    <button class="btn ghost" type="submit" name="delta" value="-1" aria-label={`−1 round from ${t.name}`} disabled={score === 0}>−1</button>
                   </form>
                 </div>
               </div>
@@ -71,7 +73,7 @@ const current = controlIndex >= 0 ? m.maps[controlIndex] : undefined;
     {m.status === "live" && <button type="submit" class="btn" name="status" value="completed">Finish match</button>}
     {m.status === "live" && <button type="submit" class="btn ghost" name="status" value="upcoming">Back to upcoming</button>}
     {m.status === "completed" && <button type="submit" class="btn ghost" name="status" value="live">Reopen as live</button>}
-    <a class="link-arrow" href={action}>Maps, stats &amp; server</a>
+    {!embedded && <a class="link-arrow" href={action}>Maps, stats &amp; server</a>}
   </form>
 </article>
 

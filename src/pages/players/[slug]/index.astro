@@ -169,7 +169,7 @@ import RoleIcon from "../../../components/RoleIcon.astro";
       </div>
     </section>
 
-    <section id="achievements" class="panel section" aria-labelledby="ach-h">
+    <section id="achievements" class="panel section">
       <div class="panel-head"><h2 id="ach-h">Achievements</h2></div>
       <div class="panel-body">
         {
@@ -197,7 +197,7 @@ import RoleIcon from "../../../components/RoleIcon.astro";
     </section>
 
     <section id="trophies" class="panel section" aria-labelledby="tr-h">
-      <div class="panel-head"><h2 id="tr-h">Trophies</h2><span class="subtle">{titles} won</span></div>
+      <div class="panel-head"><h2 id="tr-h">Trophies</h2>{titles > 0 && <span class="subtle">{titles} won</span>}</div>
       <div class="panel-body">
         {
           achievements.some((a) => a.medal) || awards.mvps.length || awards.evps.length ? (
