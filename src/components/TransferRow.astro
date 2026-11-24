@@ -1,7 +1,9 @@
 ---
 import Photo from "./Photo.astro";
 import TeamMark from "./TeamMark.astro";
+import Flag from "./Flag.astro";
 import { findTeam, moveLabel, player, type Transfer } from "../data";
+import { Temporal } from "temporal-polyfill";
 
 interface Props {
   transfer: Transfer;
@@ -20,9 +22,48 @@ const end = (slug: string, status: Transfer["toStatus"]) => {
 const from = end(t.from, t.fromStatus);
 const to = end(t.to, t.toStatus);
 const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).join(" ") || "No team";
+
+// What kind of move this is, for the rail's tag (text carries it, colour helps).
+const kind = (() => {
+  if (t.note === "Team disbanded" || (t.from && !from.team && !t.to)) return { label: "Disbanded", tone: "" };
+  if (t.toStatus === "retired") return { label: "Retired", tone: "" };
+  if (t.to && t.from === t.to) return t.toStatus === "benched" ? { label: "Benched", tone: "purple" } : { label: "Activated", tone: "green" };
+  if (t.to && t.from) return { label: "Transfer", tone: "blue" };
+  if (t.to) return { label: "Signed", tone: "green" };
+  return { label: "Released", tone: "" };
+})();
+// "Today", "3d ago", or the date for anything older than a month.
+const ago = (() => {
+  try {
+    const days = Temporal.PlainDate.from(t.date).until(Temporal.Now.plainDateISO()).days;
+    if (days === 0) return "Today";
+    if (days < 0) return t.date;
+    if (days > 0 && days < 31) return `${days}d ago`;
+  } catch {
+    /* malformed date */
+  }
+  return t.date;
+})();
 ---
 
-<li class:list={["move", { compact }]}>
+{compact ? (
+<li class="move compact" data-kind={kind.label.toLowerCase()}>
+  <a class="cm" href={`/players/${p.slug}/`} aria-label={`${p.nickname}: ${kind.label.toLowerCase()}, from ${describe(from)} to ${describe(to)}, ${t.date}`}>
+    <span class="cm-photo"><Photo player={p} size="thumb" /></span>
+    <span class="cm-top" aria-hidden="true">
+      <strong class="cm-name"><Flag code={p.countryCode} /> {p.nickname}</strong>
+      <span class:list={["badge", "cm-kind", kind.tone]}>{kind.label}</span>
+    </span>
+    <span class="cm-path" aria-hidden="true">
+      <span class="cm-end">{from.team ? <><TeamMark team={from.team} /><span>{from.team.tag}</span></> : <span class="cm-none">{from.label || "No team"}</span>}</span>
+      <svg class="cm-arrow" viewBox="0 0 16 16" width="14" height="14"><path d="M2 8h10M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+      <span class="cm-end">{to.team && t.to !== t.from ? <><TeamMark team={to.team} /><span>{to.label ? `${to.team.tag} · ${to.label}` : to.team.tag}</span></> : <span class="cm-none">{to.label || (to.team ? "Active" : "No team")}</span>}</span>
+      <time class="cm-ago" datetime={t.date}>{ago}</time>
+    </span>
+  </a>
+</li>
+) : (
+<li class="move">
   <a class="move-who" href={deletable ? `/admin/players/${p.slug}/` : `/players/${p.slug}/`} title={compact ? `${p.nickname}, ${t.date}` : undefined}>
     <Photo player={p} size="thumb" />
     <span class:list={{ "visually-hidden": compact }}>
@@ -46,6 +87,7 @@ const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).joi
     )
   }
 </li>
+)}
 
 <style>
   @layer components {
@@ -60,31 +102,129 @@ const describe = (e: typeof from) => [e.team?.name, e.label].filter(Boolean).joi
         grid-template-columns: minmax(0, 1fr) auto auto;
       }
     }
-    /* Rail layout after HLTV's transfer box: round portrait, then the two
-       team marks with BENCH / NO TEAM / RETIRED under them. */
+    /* Rail layout: a ticker of moves. Round portrait (clipped), name and a
+       tag saying what happened, then the path with both team marks. */
     .move.compact {
-      grid-template-columns: auto minmax(0, 1fr);
+      display: block;
+      padding: 0;
+    }
+    .cm {
+      display: grid;
+      grid-template-columns: 2.75rem minmax(0, 1fr);
+      grid-template-areas: "photo top" "photo path";
+      align-items: center;
+      gap: var(--sp-01) var(--sp-03);
+      padding: var(--sp-03) var(--sp-04);
+      color: inherit;
+      text-decoration: none;
+      transition: background-color var(--duration-fast-02, 110ms) ease-out;
+      &:hover {
+        background: var(--layer-hover);
+        & .cm-arrow {
+          translate: 2px 0;
+        }
+        & .cm-name {
+          text-decoration: underline;
+        }
+      }
+    }
+    .cm-photo {
+      grid-area: photo;
+      position: relative;
+      display: block;
+      inline-size: 2.75rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--layer);
+      /* A ring in the move's colour; the tag says it in words. */
+      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ring, var(--border-subtle));
       & :global(.photo) {
-        inline-size: 2.75rem;
-        aspect-ratio: 1;
-        border-radius: 50%;
-        background-color: var(--layer);
+        inline-size: 100%;
+        block-size: 100%;
+        aspect-ratio: auto;
         background-position: center top;
       }
-      & .none {
-        inline-size: 2.5rem;
-        block-size: 2.5rem;
-        border-radius: 50%;
+      & :global(.empty-photo svg) {
+        block-size: 92%;
       }
-      gap: var(--sp-03);
-      /* Same inset as the rail box title. */
-      padding: var(--sp-03) var(--sp-05);
-      & .move-path {
-        justify-content: center;
+    }
+    [data-kind="signed"],
+    [data-kind="activated"] {
+      --ring: var(--tag-green-fg);
+    }
+    [data-kind="transfer"] {
+      --ring: var(--tag-blue-fg);
+    }
+    [data-kind="benched"] {
+      --ring: var(--tag-purple-fg);
+    }
+    .cm-top {
+      grid-area: top;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-02);
+      min-inline-size: 0;
+    }
+    .cm-name {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+      min-inline-size: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--link);
+      font-size: var(--type-body-sm);
+    }
+    .cm-kind {
+      flex: none;
+      min-block-size: 1.125rem;
+      padding-inline: var(--sp-02);
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .cm-path {
+      grid-area: path;
+      display: flex;
+      align-items: center;
+      gap: var(--sp-02);
+      min-inline-size: 0;
+      color: var(--text-secondary);
+      font-size: var(--type-label);
+    }
+    .cm-end {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-02);
+      min-inline-size: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 600;
+      color: var(--text-primary);
+      & :global(.team-mark) {
+        --mark: 1.125rem;
       }
-      & .note {
-        display: none;
-      }
+    }
+    .cm-none {
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-size: 0.625rem;
+      letter-spacing: 0.04em;
+    }
+    .cm-arrow {
+      flex: none;
+      transition: translate var(--duration-fast-02, 110ms) ease-out;
+    }
+    .cm-ago {
+      margin-inline-start: auto;
+      flex: none;
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
     }
     .move-who {
       display: inline-flex;

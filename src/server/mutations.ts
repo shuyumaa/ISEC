@@ -432,7 +432,8 @@ export function deleteTeam(slug: string) {
     tx.remove("ranking", slug);
     for (const p of s.players.filter((x) => x.team === slug)) {
       tx.put("player", p.slug, { ...p, team: "", status: "free" } satisfies Player);
-      tx.put("transfer", transferId(today), { id: transferId(today), player: p.slug, date: today, from: slug, to: "", fromStatus: p.status ?? "active", toStatus: "free", note: "Team disbanded" } satisfies Transfer);
+      const id = transferId(today);
+      tx.put("transfer", id, { id, player: p.slug, date: today, from: slug, to: "", fromStatus: p.status ?? "active", toStatus: "free", note: "Team disbanded" } satisfies Transfer);
     }
   }, actor(), "delete team");
 }

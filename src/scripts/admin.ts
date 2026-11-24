@@ -105,3 +105,15 @@ if ("CommandEvent" in window) {
     if (button && target) void copy(button, target);
   });
 }
+
+// Slow plain submits (e.g. reading a screenshot with AI): say so on the button
+// and block double submits. The page navigates away when the server answers.
+document.addEventListener("submit", (e) => {
+  const form = e.target as HTMLFormElement;
+  if (!form.matches("form[data-busy]") || e.defaultPrevented) return;
+  const btn = (e as SubmitEvent).submitter as HTMLButtonElement | null;
+  if (!btn) return;
+  form.setAttribute("aria-busy", "true");
+  btn.textContent = form.dataset.busy || "Working…";
+  queueMicrotask(() => (btn.disabled = true));
+});

@@ -20,9 +20,9 @@ import { players as seedPlayers, teams as seedTeams } from "./seed/teams";
 // Loaded at runtime so bundlers don't try to resolve the prefix-only builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
-export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer" | "account" | "request";
+export type Kind = "team" | "player" | "event" | "match" | "article" | "ranking" | "meta" | "feed" | "season" | "settings" | "transfer" | "account" | "request" | "ai";
 
-const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
+export const DATA_DIR = resolve(process.env.DATA_DIR ?? "./data");
 mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
 
 type DB = InstanceType<typeof DatabaseSync>;
@@ -51,6 +51,9 @@ function open(): DB {
   `);
   // Older builds logged feed keys as audit targets; scrub them.
   db.exec("UPDATE audit SET target = 'feed:*' WHERE target LIKE 'feed:%' AND target <> 'feed:*'");
+  // Repair transfers saved with a record id different from their row key (an
+  // old "team disbanded" bug): such rows could not be removed or cleared.
+  db.exec("UPDATE docs SET data = json_set(data, '$.id', id) WHERE kind = 'transfer' AND json_extract(data, '$.id') IS NOT id");
   return db;
 }
 
@@ -145,6 +148,12 @@ export function snapshot(): Snapshot {
 
 export const currentVersion = () => version;
 
+/** One record outside the snapshot (server-only settings such as the AI provider). */
+export function readDoc<T>(kind: Kind, id: string): T | undefined {
+  const row = db.prepare("SELECT data FROM docs WHERE kind = ? AND id = ?").get(kind, id) as { data: string } | undefined;
+  return row ? (JSON.parse(row.data) as T) : undefined;
+}
+
 /* -------------------------------- Writes --------------------------------- */
 
 export interface Change {
@@ -154,7 +163,7 @@ export interface Change {
 }
 
 /** Kinds whose record ids are secrets (feed keys) and must never leave the server. */
-const SECRET_IDS = new Set<Kind>(["feed", "account"]);
+const SECRET_IDS = new Set<Kind>(["feed", "account", "ai"]);
 const publicId = (c: Change) => (SECRET_IDS.has(c.kind) ? "*" : c.id);
 
 function invalidate(changes: Change[]) {

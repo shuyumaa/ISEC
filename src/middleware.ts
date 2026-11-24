@@ -30,7 +30,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     }
     // Body size caps before anything parses the body: admin forms may carry
     // image uploads; everything else (sign-in) is tiny.
-    const uploads = (pathname.startsWith("/admin/") || pathname.startsWith("/team/")) && !PUBLIC_ADMIN.has(pathname);
+    // The assistant's chat can carry scoreboard screenshots too.
+    const uploads = ((pathname.startsWith("/admin/") || pathname.startsWith("/team/")) && !PUBLIC_ADMIN.has(pathname)) || pathname === "/api/admin/assistant";
     const limit = uploads ? 26 * 1024 * 1024 : 64 * 1024;
     const length = ctx.request.headers.get("content-length");
     if (length === null) return new Response("Length required", { status: 411 });
