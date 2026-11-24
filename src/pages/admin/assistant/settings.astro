@@ -1,0 +1,145 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import ChoiceGroup from "../../../components/admin/ChoiceGroup.astro";
+import ConfirmDelete from "../../../components/admin/ConfirmDelete.astro";
+import { handlePost } from "../../../server/handle";
+import { PROVIDERS, clearAiConfig, getAiConfig, listModels, saveAiConfig, testAi, type AiConfig } from "../../../server/ai/config";
+import { FormError } from "../../../server/forms";
+
+const result = await handlePost(Astro.request, async (form, intent) => {
+  if (intent === "delete") {
+    clearAiConfig();
+    return { message: "AI provider removed; the saved key was deleted" };
+  }
+  if (intent === "test") {
+    try {
+      return { message: `It works. The model replied: “${await testAi()}”` };
+    } catch (e) {
+      if (e instanceof FormError) throw e;
+      throw new FormError(`The provider returned an error: ${(e as Error).message.slice(0, 200)}`);
+    }
+  }
+  saveAiConfig(form);
+  return { message: "AI provider saved" };
+});
+if (result instanceof Response) return result;
+
+const c: AiConfig | undefined = getAiConfig();
+const provider = c?.provider ?? "gateway";
+// Suggestions for the model field, straight from the provider (best effort).
+let models: string[] = [];
+let modelsError = "";
+if (c) {
+  try {
+    models = await listModels(c);
+  } catch (e) {
+    modelsError = e instanceof FormError ? e.message : "Couldn't load the model list from the provider.";
+  }
+}
+---
+
+<Admin title="AI provider" error={result?.error}>
+  <a slot="actions" class="btn ghost" href="/admin/assistant/">Open the assistant</a>
+
+  <section class="admin-section" aria-labelledby="prov-h">
+    <h2 id="prov-h">Provider and key</h2>
+    <p class="muted">The assistant and the scoreboard reader use your own AI account. The key is encrypted on the server and never shown again; only its last four characters are.</p>
+    <form method="post" class="form ai-form" autocomplete="off">
+      <input type="hidden" name="intent" value="save" />
+      <ChoiceGroup wide name="provider" legend="Provider" value={provider} options={Object.entries(PROVIDERS).map(([value, p]) => ({ value, label: p.label }))} />
+      <ul class="provider-hints muted">
+        {Object.entries(PROVIDERS).map(([id, p]) => <li data-for={id}>{p.hint}</li>)}
+      </ul>
+      <div class="form-grid">
+        <div class="field base-url">
+          <label for="baseURL">Base URL</label>
+          <input id="baseURL" name="baseURL" type="text" inputmode="url" spellcheck="false" maxlength="300" placeholder="https://openrouter.ai/api/v1" value={c?.baseURL ?? ""} aria-describedby="base-hint" />
+          <span id="base-hint" class="hint">Only for OpenAI-compatible servers. http:// is allowed for localhost.</span>
+        </div>
+        <div class="field">
+          <label for="apiKey">API key</label>
+          <input id="apiKey" name="apiKey" type="password" spellcheck="false" autocomplete="off" maxlength="500" placeholder={c?.keyHint ? `Saved: ••••${c.keyHint}` : "Paste the key"} aria-describedby="key-hint" />
+          <span id="key-hint" class="hint">{c?.keyHint ? "Leave empty to keep the saved key." : "Stored encrypted. Optional only for a local server without a key."}</span>
+        </div>
+        <div class="field">
+          <label for="model">Model</label>
+          <input id="model" name="model" required maxlength="120" spellcheck="false" list="model-list" value={c?.model ?? ""} placeholder={provider === "gateway" ? "anthropic/… or openai/…" : "Model id"} aria-describedby="model-hint" />
+          <datalist id="model-list">{models.map((m) => <option value={m} />)}</datalist>
+          <span id="model-hint" class="hint">
+            {models.length ? `${models.length} models available with this key. Pick one that can see images to read scoreboards.` : modelsError || "Save the key first; the list of models then appears here."}
+          </span>
+        </div>
+      </div>
+      {c?.keySealed && <label class="check"><input type="checkbox" name="removeKey" /> Remove the saved key</label>}
+      <div class="actions">
+        <button type="submit" class="btn">Save provider</button>
+        {c && <button type="submit" class="btn ghost" name="intent" value="test" formnovalidate>Test connection</button>}
+      </div>
+    </form>
+  </section>
+
+  {
+    c && (
+      <section class="admin-section" aria-labelledby="cur-h">
+        <h2 id="cur-h">Current setup</h2>
+        <dl class="kv">
+          <div><dt>Provider</dt><dd>{PROVIDERS[c.provider].label}</dd></div>
+          <div><dt>Model</dt><dd class="mono">{c.model}</dd></div>
+          <div><dt>Key</dt><dd class="mono">{c.keyHint ? `••••${c.keyHint}` : "None"}</dd></div>
+          <div><dt>Changed</dt><dd>{c.updatedAt.slice(0, 16).replace("T", " ")} UTC by {c.updatedBy}</dd></div>
+        </dl>
+        <div class="actions"><ConfirmDelete id="del-ai" what="the AI provider and its saved key" action="/admin/assistant/settings/" label="Remove provider" /></div>
+      </section>
+    )
+  }
+</Admin>
+
+<style>
+  @layer components {
+    .ai-form {
+      max-inline-size: 56rem;
+    }
+    .provider-hints {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: var(--type-body-sm);
+      & li {
+        display: none;
+      }
+    }
+    /* Show the hint for the selected provider, and the base URL only when needed. */
+    .ai-form:has(input[name="provider"][value="gateway"]:checked) li[data-for="gateway"],
+    .ai-form:has(input[name="provider"][value="openai"]:checked) li[data-for="openai"],
+    .ai-form:has(input[name="provider"][value="anthropic"]:checked) li[data-for="anthropic"],
+    .ai-form:has(input[name="provider"][value="google"]:checked) li[data-for="google"],
+    .ai-form:has(input[name="provider"][value="compatible"]:checked) li[data-for="compatible"] {
+      display: block;
+    }
+    .ai-form:not(:has(input[name="provider"][value="compatible"]:checked)) .base-url {
+      display: none;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-03);
+    }
+    .kv {
+      display: grid;
+      gap: var(--sp-02);
+      margin: 0;
+      & div {
+        display: grid;
+        grid-template-columns: 8rem minmax(0, 1fr);
+        gap: var(--sp-04);
+      }
+      & dt {
+        color: var(--text-secondary);
+      }
+      & dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+    }
+  }
+</style>

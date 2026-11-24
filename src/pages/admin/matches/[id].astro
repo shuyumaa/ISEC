@@ -10,10 +10,34 @@ import { handlePost } from "../../../server/handle";
 import { MAP_POOL, deleteMatch, updateMatch } from "../../../server/mutations";
 import { createFeed, feedFor, revokeFeed } from "../../../server/ingest";
 import LocalTime from "../../../components/LocalTime.astro";
+import { aiReady } from "../../../server/ai/config";
+import { discardDraft, getDraft, readScoreboard } from "../../../server/ai/ocr";
+import { FormError } from "../../../server/forms";
 
 const id = Astro.params.id ?? "";
 
-const result = await handlePost(Astro.request, (form, intent) => {
+const result = await handlePost(Astro.request, async (form, intent) => {
+  if (intent === "ocr") {
+    const m = findMatch(id);
+    if (!m) throw new FormError("This match no longer exists.");
+    const file = form.get("screenshot");
+    if (!(file instanceof File)) throw new FormError("Choose a screenshot to read.", "screenshot");
+    const d = await readScoreboard(m, Number(form.get("ocrMap") ?? 0), file);
+    const n = Object.keys(d.stats).length;
+    return { redirect: `/admin/matches/${id}/?draft=${d.id}#ocr-h`, message: `Read ${n} ${n === 1 ? "player" : "players"} from the screenshot. Check the numbers, then save.` };
+  }
+  if (intent === "ocr-discard") {
+    discardDraft(String(form.get("draft") ?? ""));
+    return { redirect: `/admin/matches/${id}/`, message: "Screenshot reading discarded" };
+  }
+  if (intent === "ocr-apply") {
+    // One review form saves the map score, then the stats, with the usual validation.
+    const hasScore = String(form.get("scoreA") ?? "") !== "" || String(form.get("scoreB") ?? "") !== "";
+    if (hasScore) updateMatch(id, "map", form);
+    updateMatch(id, "stats", form);
+    discardDraft(String(form.get("draft") ?? ""));
+    return { redirect: `/admin/matches/${id}/#stats-h`, message: "Scoreboard saved to the match" };
+  }
   if (intent === "delete") {
     deleteMatch(id);
     revokeFeed(id);
@@ -43,6 +67,9 @@ const b = team(m.teamB);
 const action = `/admin/matches/${m.id}/`;
 const pickValue = (slug?: string) => (slug === m.teamA ? "A" : slug === m.teamB ? "B" : "");
 const deps = [`match:${m.id}`];
+const ai = aiReady();
+const draft = getDraft(Astro.url.searchParams.get("draft"), m.id);
+const draftMap = draft ? m.maps[draft.mapIndex] : undefined;
 const feed = feedFor(m.id);
 const origin = Astro.url.origin;
 const cs2Commands = feed
@@ -81,6 +108,7 @@ const gsiConfig = feed
   <nav class="segmented jump" aria-label="Match sections">
     <a href="#live-h">Score</a>
     <a href="#maps-h">Maps</a>
+    <a href="#ocr-h">Scoreboard</a>
     <a href="#stats-h">Player stats</a>
     <a href="#veto-h">Veto</a>
     <a href="#feed-h">Game server</a>
@@ -229,6 +257,74 @@ const gsiConfig = feed
     </LiveRegion>
   </section>
 
+  <section class="admin-section ocr" aria-labelledby="ocr-h">
+    <div class="section-head">
+      <h2 id="ocr-h">Read a scoreboard screenshot</h2>
+      {!ai && <a href="/admin/assistant/settings/">Set up an AI provider</a>}
+    </div>
+    {
+      !ai ? (
+        <p class="muted">Upload an end-of-map scoreboard (CS2, Perfect World, FACEIT, 5E…) and the AI fills in the map score and every player's K/D/A, ADR, HS% and rating for you to check. Connect an AI provider first.</p>
+      ) : draft && draftMap ? (
+        <form method="post" action={action} class="form ocr-review" aria-labelledby="ocr-h">
+          <input type="hidden" name="draft" value={draft.id} />
+          <input type="hidden" name="map" value={draft.mapIndex} />
+          <input type="hidden" name="pickedBy" value={pickValue(draftMap.pickedBy)} />
+          {draftMap.startSideA && <input type="hidden" name="startSideA" value={draftMap.startSideA} />}
+          <p class="notice">Read from your screenshot for <strong>map {draft.mapIndex + 1}</strong>. Check every number against the image, fix anything wrong, then save. Nothing is saved yet.</p>
+          {draft.unmatched.length > 0 && <p class="notice">Not on either roster, so left out: {draft.unmatched.join(", ")}. Add their in-game name to the player profile to match them next time.</p>}
+          <div class="form-grid">
+            <div class="field">
+              <label for="ocr-mapName">Map</label>
+              <select id="ocr-mapName" name="mapName">{MAP_POOL.map((p) => <option selected={(draft.map ?? draftMap.map) === p}>{p}</option>)}</select>
+            </div>
+            <div class="field"><label for="ocr-scoreA">{a.name} rounds</label><input id="ocr-scoreA" name="scoreA" type="number" min="0" max="99" inputmode="numeric" value={draft.scoreA ?? draftMap.scoreA ?? ""} /></div>
+            <div class="field"><label for="ocr-scoreB">{b.name} rounds</label><input id="ocr-scoreB" name="scoreB" type="number" min="0" max="99" inputmode="numeric" value={draft.scoreB ?? draftMap.scoreB ?? ""} /></div>
+          </div>
+          <div class="table-wrap" role="region" aria-label="Stats read from the screenshot" tabindex="0">
+            <table class="data-table stats-input">
+              <thead><tr><th scope="col">Player</th>{["K", "D", "A", "ADR", "KAST %", "HS %", "Rating"].map((h) => <th scope="col">{h}</th>)}</tr></thead>
+              <tbody>
+                {matchRoster(m).map((p) => {
+                  const s = draft.stats[p.slug];
+                  const cells: [string, number | undefined, string][] = [["k", s?.kills, "1"], ["d", s?.deaths, "1"], ["a", s?.assists, "1"], ["adr", s?.adr, "0.1"], ["kast", s?.kast, "0.1"], ["hs", s?.hs, "0.1"], ["rating", s?.rating, "0.01"]];
+                  return (
+                    <tr class:list={{ missing: !s }}>
+                      <th scope="row">{p.nickname} <span class="subtle">{team(teamAt(p.slug, m.start.slice(0, 10)) || p.team).tag}</span>{!s && <span class="subtle"> · not found</span>}</th>
+                      {cells.map(([key, value, step]) => (
+                        <td><input name={`${key}_${p.slug}`} type="number" min="0" step={step} inputmode="decimal" value={value ?? ""} aria-label={`${p.nickname} ${key.toUpperCase()}`} /></td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn" name="intent" value="ocr-apply">Save to map {draft.mapIndex + 1}</button>
+            <button type="submit" class="btn ghost" name="intent" value="ocr-discard" formnovalidate>Discard</button>
+          </div>
+        </form>
+      ) : (
+        <form method="post" action={action} class="form ocr-upload" enctype="multipart/form-data" aria-labelledby="ocr-h" data-busy="Reading the screenshot…">
+          <input type="hidden" name="intent" value="ocr" />
+          <p class="muted">Upload an end-of-map scoreboard (CS2, Perfect World, FACEIT, 5E…). The AI reads the score and every player's numbers; you check them before anything is saved.</p>
+          <div class="form-grid">
+            <div class="field">
+              <label for="ocrMap">Map</label>
+              <select id="ocrMap" name="ocrMap">{m.maps.map((x, i) => <option value={i} selected={x.live}>Map {i + 1} — {x.map}{x.scoreA !== undefined ? ` (${x.scoreA}–${x.scoreB})` : ""}</option>)}</select>
+            </div>
+            <div class="field">
+              <label for="screenshot">Screenshot (PNG, JPEG or WebP, up to 8 MB)</label>
+              <input id="screenshot" name="screenshot" type="file" accept="image/png,image/jpeg,image/webp" required />
+            </div>
+          </div>
+          <div class="actions"><button type="submit" class="btn">Read screenshot</button></div>
+        </form>
+      )
+    }
+  </section>
+
   <section class="admin-section" aria-labelledby="stats-h">
     <h2 id="stats-h">Player stats</h2>
     <p class="muted">Kills and deaths are required for a player to appear. Leave ADR, KAST or rating empty to estimate them.</p>
@@ -359,6 +455,12 @@ const gsiConfig = feed
     scroll-margin-block-start: calc(var(--header-height) + 4rem);
   }
   @layer components {
+    .ocr-review .missing th {
+      color: var(--text-secondary);
+    }
+    .ocr-review .notice {
+      margin: 0;
+    }
     .maps-forms {
       display: grid;
       gap: var(--sp-05);
